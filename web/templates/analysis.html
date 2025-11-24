@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,40 +11,40 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-        
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
         }
-        
+
         .header {
             background: white;
             padding: 20px 30px;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .header h1 {
             color: #667eea;
             font-size: 28px;
         }
-        
+
         .nav-links {
             display: flex;
             gap: 15px;
         }
-        
+
         .nav-links a {
             padding: 10px 20px;
             background: #667eea;
@@ -52,20 +53,20 @@
             border-radius: 8px;
             transition: all 0.3s;
         }
-        
+
         .nav-links a:hover {
             background: #764ba2;
             transform: translateY(-2px);
         }
-        
+
         .card {
             background: white;
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             margin-bottom: 20px;
         }
-        
+
         .card h2 {
             color: #333;
             margin-bottom: 20px;
@@ -73,14 +74,14 @@
             border-bottom: 2px solid #667eea;
             padding-bottom: 10px;
         }
-        
+
         .stats-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
-        
+
         .stat-box {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -88,51 +89,52 @@
             border-radius: 10px;
             text-align: center;
         }
-        
+
         .stat-box .label {
             font-size: 14px;
             opacity: 0.9;
             margin-bottom: 5px;
         }
-        
+
         .stat-box .value {
             font-size: 28px;
             font-weight: bold;
         }
-        
+
         table {
             width: 100%;
             border-collapse: collapse;
         }
-        
+
         thead {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        
-        th, td {
+
+        th,
+        td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #e0e0e0;
         }
-        
+
         th {
             font-weight: 600;
             text-transform: uppercase;
             font-size: 12px;
             letter-spacing: 0.5px;
         }
-        
+
         tbody tr:hover {
             background: #f8f9ff;
         }
-        
+
         .symbol {
             font-weight: bold;
             color: #667eea;
             font-size: 16px;
         }
-        
+
         .score-badge {
             display: inline-block;
             padding: 5px 12px;
@@ -140,63 +142,63 @@
             font-weight: bold;
             font-size: 14px;
         }
-        
+
         .score-high {
             background: #4caf50;
             color: white;
         }
-        
+
         .score-medium {
             background: #ff9800;
             color: white;
         }
-        
+
         .score-low {
             background: #f44336;
             color: white;
         }
-        
+
         .traded-yes {
             color: #4caf50;
             font-weight: bold;
         }
-        
+
         .traded-no {
             color: #f44336;
             font-weight: bold;
         }
-        
+
         .reason {
             font-size: 13px;
             color: #666;
             max-width: 400px;
         }
-        
+
         .timestamp {
             font-size: 12px;
             color: #999;
             white-space: nowrap;
         }
-        
+
         .loading {
             text-align: center;
             padding: 40px;
             color: #666;
         }
-        
+
         .empty {
             text-align: center;
             padding: 40px;
             color: #999;
         }
-        
+
         .filter-bar {
             display: flex;
             gap: 15px;
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
-        
+
         .filter-btn {
             padding: 8px 16px;
             border: 2px solid #667eea;
@@ -207,12 +209,13 @@
             transition: all 0.3s;
             font-weight: 600;
         }
-        
-        .filter-btn:hover, .filter-btn.active {
+
+        .filter-btn:hover,
+        .filter-btn.active {
             background: #667eea;
             color: white;
         }
-        
+
         .score-bar {
             width: 100%;
             height: 6px;
@@ -221,25 +224,26 @@
             overflow: hidden;
             margin-top: 5px;
         }
-        
+
         .score-fill {
             height: 100%;
             transition: width 0.3s;
         }
-        
+
         .score-fill-high {
             background: #4caf50;
         }
-        
+
         .score-fill-medium {
             background: #ff9800;
         }
-        
+
         .score-fill-low {
             background: #f44336;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -249,7 +253,7 @@
                 <a href="/analysis">Analysis</a>
             </div>
         </div>
-        
+
         <div class="card">
             <h2>Scan Statistics</h2>
             <div class="stats-row">
@@ -271,28 +275,28 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="card">
             <h2>Ticker Analysis</h2>
-            
+
             <div class="filter-bar">
                 <button class="filter-btn active" data-filter="all">All Tickers</button>
                 <button class="filter-btn" data-filter="traded">Traded Only</button>
                 <button class="filter-btn" data-filter="rejected">Rejected Only</button>
                 <button class="filter-btn" data-filter="high">High Score (55+)</button>
-                <button class="filter-btn" data-filter="low">Low Score (<40)</button>
+                <button class="filter-btn" data-filter="low">Low Score (<40)< /button>
             </div>
-            
+
             <div id="analysis-container">
                 <div class="loading">Loading analysis data...</div>
             </div>
         </div>
     </div>
-    
+
     <script>
         let analysisData = [];
         let currentFilter = 'all';
-        
+
         async function fetchAnalysis() {
             try {
                 const response = await fetch('/api/analysis');
@@ -300,31 +304,31 @@
                 updateStats();
                 renderAnalysisTable();
             } catch (error) {
-                document.getElementById('analysis-container').innerHTML = 
+                document.getElementById('analysis-container').innerHTML =
                     '<div class="empty">Error loading analysis data</div>';
             }
         }
-        
+
         function updateStats() {
             const total = analysisData.length;
             const traded = analysisData.filter(d => d.traded).length;
             const rejected = total - traded;
-            const avgScore = total > 0 
+            const avgScore = total > 0
                 ? (analysisData.reduce((sum, d) => sum + d.composite_score, 0) / total).toFixed(1)
                 : 0;
-            
+
             document.getElementById('total-analyzed').textContent = total;
             document.getElementById('total-traded').textContent = traded;
             document.getElementById('total-rejected').textContent = rejected;
             document.getElementById('avg-score').textContent = avgScore;
         }
-        
+
         function getScoreClass(score) {
             if (score >= 55) return 'high';
             if (score >= 40) return 'medium';
             return 'low';
         }
-        
+
         function formatTimestamp(timestamp) {
             if (!timestamp) return '-';
             const date = new Date(timestamp);
@@ -332,20 +336,20 @@
             const diffMs = now - date;
             const diffMins = Math.floor(diffMs / 60000);
             const diffHours = Math.floor(diffMs / 3600000);
-            
+
             if (diffMins < 1) return 'Just now';
             if (diffMins < 60) return `${diffMins}m ago`;
             if (diffHours < 24) return `${diffHours}h ago`;
-            
-            return date.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
+
+            return date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
                 minute: '2-digit'
             });
         }
-        
+
         function renderAnalysisTable() {
             const container = document.getElementById('analysis-container');
-            
+
             // Filter data
             let filtered = analysisData;
             if (currentFilter === 'traded') {
@@ -357,12 +361,12 @@
             } else if (currentFilter === 'low') {
                 filtered = analysisData.filter(d => d.composite_score < 40);
             }
-            
+
             if (filtered.length === 0) {
                 container.innerHTML = '<div class="empty">No data matches the filter</div>';
                 return;
             }
-            
+
             const html = `
                 <table>
                     <thead>
@@ -407,7 +411,7 @@
                                     </span>
                                 </td>
                                 <td class="${item.traded ? 'traded-yes' : 'traded-no'}">
-                                    ${item.traded ? '✓ TRADED' : '✗ REJECTED'}
+                                    ${item.traded ? '✓ QUALIFIED' : '✗ REJECTED'}
                                 </td>
                                 <td><div class="reason">${item.reason}</div></td>
                             </tr>
@@ -415,10 +419,10 @@
                     </tbody>
                 </table>
             `;
-            
+
             container.innerHTML = html;
         }
-        
+
         // Filter buttons
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -428,12 +432,13 @@
                 renderAnalysisTable();
             });
         });
-        
+
         // Initial load
         fetchAnalysis();
-        
+
         // Auto-refresh every 10 seconds
         setInterval(fetchAnalysis, 10000);
     </script>
 </body>
+
 </html>

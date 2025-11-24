@@ -2512,3 +2512,146 @@
 {"event": "managing_positions", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:41:02.500942Z"}
 {"event": "running_position_management_check", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:41:32.839128Z"}
 {"event": "managing_positions", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:41:32.840340Z"}
+{"event": "ai_trader_starting", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:25.895705Z"}
+{"error": "HTTP Error 403: Forbidden", "event": "failed_to_load_sp500_symbols", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:43:26.161411Z"}
+{"total": 20, "liquid": 20, "event": "universe_loaded", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:26.161642Z"}
+{"universe_size": 20, "event": "trading_engine_initialized", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:26.161703Z"}
+{"universe_size": 20, "event": "continuous_trading_started", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:26.161749Z"}
+{"scan_number": 1, "symbols": 20, "event": "starting_full_universe_scan", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:26.393753Z"}
+{"universe_size": 20, "event": "starting_market_scan", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:26.393863Z"}
+{"current": 5, "max": 10, "available": 5, "event": "position_check", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:26.560064Z"}
+{"symbol": "AAPL", "progress": "1/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:26.560180Z"}
+{"symbol": "AAPL", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:26.560230Z"}
+{"symbol": "AAPL", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:27.077899Z"}
+{"event": "running_position_management_check", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:33.709057Z"}
+{"event": "managing_positions", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:33.709644Z"}
+{"symbol": "AAPL", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7884557157754898, "score": 10.577214211225511, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:34.457139Z"}
+{"symbol": "AAPL", "score": 10.577214211225511, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:34.457815Z"}
+{"symbol": "AAPL", "composite": 34.132305681681174, "technical": 39.8978535457838, "fundamental": 50.0, "sentiment": 10.577214211225511, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:34.458114Z"}
+{"symbol": "MSFT", "progress": "2/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:34.776415Z"}
+{"symbol": "MSFT", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:34.776642Z"}
+{"symbol": "MSFT", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:35.030620Z"}
+{"symbol": "MSFT", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7884557157754898, "score": 10.577214211225511, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:35.312632Z"}
+{"symbol": "MSFT", "score": 10.577214211225511, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:35.312826Z"}
+{"symbol": "MSFT", "composite": 37.446751770068786, "technical": 48.183968766752834, "fundamental": 50.0, "sentiment": 10.577214211225511, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:35.312906Z"}
+{"symbol": "GOOGL", "progress": "3/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:35.615673Z"}
+{"symbol": "GOOGL", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:35.615832Z"}
+{"symbol": "GOOGL", "error": "HTTPSConnectionPool(host='newsapi.org', port=443): Read timed out. (read timeout=10)", "event": "newsapi_error", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:43:45.744842Z"}
+{"symbol": "GOOGL", "event": "no_news_articles_found", "logger": "__main__", "level": "warning", "timestamp": "2025-11-24T17:43:45.746191Z"}
+{"symbol": "GOOGL", "score": 50.0, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:45.746348Z"}
+{"symbol": "GOOGL", "composite": 43.87268491095513, "technical": 34.68171227738783, "fundamental": 50.0, "sentiment": 50.0, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:45.746450Z"}
+{"symbol": "AMZN", "progress": "4/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:46.047407Z"}
+{"symbol": "AMZN", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:46.047625Z"}
+{"symbol": "AMZN", "error": "HTTPSConnectionPool(host='newsapi.org', port=443): Read timed out. (read timeout=10)", "event": "newsapi_error", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:43:56.205896Z"}
+{"symbol": "AMZN", "event": "no_news_articles_found", "logger": "__main__", "level": "warning", "timestamp": "2025-11-24T17:43:56.206646Z"}
+{"symbol": "AMZN", "score": 50.0, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:56.206760Z"}
+{"symbol": "AMZN", "composite": 49.20882913763377, "technical": 48.02207284408441, "fundamental": 50.0, "sentiment": 50.0, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:56.206854Z"}
+{"symbol": "NVDA", "progress": "5/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:56.508300Z"}
+{"symbol": "NVDA", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:43:56.508477Z"}
+{"symbol": "NVDA", "error": "HTTPSConnectionPool(host='newsapi.org', port=443): Read timed out. (read timeout=10)", "event": "newsapi_error", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:44:06.672087Z"}
+{"symbol": "NVDA", "event": "no_news_articles_found", "logger": "__main__", "level": "warning", "timestamp": "2025-11-24T17:44:06.672243Z"}
+{"symbol": "NVDA", "score": 50.0, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:06.672303Z"}
+{"symbol": "NVDA", "composite": 54.45766206891056, "technical": 61.14415517227639, "fundamental": 50.0, "sentiment": 50.0, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:06.672358Z"}
+{"symbol": "META", "progress": "6/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:06.976172Z"}
+{"symbol": "META", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:06.976334Z"}
+{"symbol": "META", "error": "HTTPSConnectionPool(host='newsapi.org', port=443): Read timed out. (read timeout=10)", "event": "newsapi_error", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:44:17.109686Z"}
+{"symbol": "META", "event": "no_news_articles_found", "logger": "__main__", "level": "warning", "timestamp": "2025-11-24T17:44:17.111147Z"}
+{"symbol": "META", "score": 50.0, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:17.115385Z"}
+{"symbol": "META", "composite": 50.839641431572396, "technical": 52.099103578930986, "fundamental": 50.0, "sentiment": 50.0, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:17.116578Z"}
+{"symbol": "TSLA", "progress": "7/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:17.416976Z"}
+{"symbol": "TSLA", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:17.419542Z"}
+{"symbol": "TSLA", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:17.719506Z"}
+{"symbol": "TSLA", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7793734490871429, "score": 11.031327545642855, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:18.249274Z"}
+{"symbol": "TSLA", "score": 11.031327545642855, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:18.254502Z"}
+{"symbol": "TSLA", "composite": 36.920840885105235, "technical": 46.528606553530956, "fundamental": 50.0, "sentiment": 11.031327545642855, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:18.254618Z"}
+{"symbol": "BRK.B", "progress": "8/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:18.555353Z"}
+{"symbol": "BRK.B", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:18.556365Z"}
+{"symbol": "BRK.B", "error": "HTTPSConnectionPool(host='newsapi.org', port=443): Read timed out. (read timeout=10)", "event": "newsapi_error", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:44:28.691970Z"}
+{"symbol": "BRK.B", "event": "no_news_articles_found", "logger": "__main__", "level": "warning", "timestamp": "2025-11-24T17:44:28.692205Z"}
+{"symbol": "BRK.B", "score": 50.0, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:28.692285Z"}
+{"symbol": "BRK.B", "composite": 55.58605997533877, "technical": 63.96514993834692, "fundamental": 50.0, "sentiment": 50.0, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:28.692344Z"}
+{"symbol": "BRK.B", "error": "'total'", "event": "scan_failed", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:44:28.692510Z"}
+{"symbol": "JPM", "progress": "9/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:28.692560Z"}
+{"symbol": "JPM", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:28.692598Z"}
+{"symbol": "JPM", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:37.611254Z"}
+{"symbol": "JPM", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7793734490871429, "score": 11.031327545642855, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:38.259378Z"}
+{"symbol": "JPM", "score": 11.031327545642855, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:38.259594Z"}
+{"symbol": "JPM", "composite": 38.63264702554374, "technical": 50.80812190462721, "fundamental": 50.0, "sentiment": 11.031327545642855, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:38.259691Z"}
+{"symbol": "V", "progress": "10/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:38.564402Z"}
+{"symbol": "V", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:38.564797Z"}
+{"symbol": "V", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:38.807114Z"}
+{"symbol": "V", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7427062377333641, "score": 12.864688113331797, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:39.244993Z"}
+{"symbol": "V", "score": 12.864688113331797, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:39.246267Z"}
+{"symbol": "V", "composite": 38.48565342755603, "technical": 49.065617483891224, "fundamental": 50.0, "sentiment": 12.864688113331797, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:39.246349Z"}
+{"symbol": "JNJ", "progress": "11/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:39.547475Z"}
+{"symbol": "JNJ", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:39.547759Z"}
+{"symbol": "JNJ", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:39.761206Z"}
+{"symbol": "JNJ", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7948298901319504, "score": 10.258505493402481, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:40.126924Z"}
+{"symbol": "JNJ", "score": 10.258505493402481, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:40.127105Z"}
+{"symbol": "JNJ", "composite": 32.72095343197375, "technical": 36.608504459882504, "fundamental": 50.0, "sentiment": 10.258505493402481, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:40.127176Z"}
+{"symbol": "WMT", "progress": "12/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:40.432366Z"}
+{"symbol": "WMT", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:40.432738Z"}
+{"symbol": "WMT", "error": "HTTPSConnectionPool(host='newsapi.org', port=443): Read timed out. (read timeout=10)", "event": "newsapi_error", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:44:50.572465Z"}
+{"symbol": "WMT", "event": "no_news_articles_found", "logger": "__main__", "level": "warning", "timestamp": "2025-11-24T17:44:50.573166Z"}
+{"symbol": "WMT", "score": 50.0, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:50.573312Z"}
+{"symbol": "WMT", "composite": 58.943126056092595, "technical": 72.3578151402315, "fundamental": 50.0, "sentiment": 50.0, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:50.573433Z"}
+{"symbol": "WMT", "error": "'total'", "event": "scan_failed", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:44:50.573589Z"}
+{"symbol": "PG", "progress": "13/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:50.573671Z"}
+{"symbol": "PG", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:50.573732Z"}
+{"symbol": "PG", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:50.868189Z"}
+{"symbol": "PG", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7793734490871429, "score": 11.031327545642855, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:51.640010Z"}
+{"symbol": "PG", "score": 11.031327545642855, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:51.640763Z"}
+{"symbol": "PG", "composite": 46.55910471439482, "technical": 70.6242661267549, "fundamental": 50.0, "sentiment": 11.031327545642855, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:51.640832Z"}
+{"symbol": "MA", "progress": "14/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:51.946150Z"}
+{"symbol": "MA", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:44:51.946566Z"}
+{"symbol": "MA", "error": "HTTPSConnectionPool(host='newsapi.org', port=443): Read timed out. (read timeout=10)", "event": "newsapi_error", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:45:02.071040Z"}
+{"symbol": "MA", "event": "no_news_articles_found", "logger": "__main__", "level": "warning", "timestamp": "2025-11-24T17:45:02.071802Z"}
+{"symbol": "MA", "score": 50.0, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:02.071896Z"}
+{"symbol": "MA", "composite": 50.04581286209988, "technical": 50.11453215524969, "fundamental": 50.0, "sentiment": 50.0, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:02.071956Z"}
+{"symbol": "HD", "progress": "15/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:02.377085Z"}
+{"symbol": "HD", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:02.377279Z"}
+{"symbol": "HD", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:02.705864Z"}
+{"symbol": "HD", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7908970415592194, "score": 10.455147922039032, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:03.790609Z"}
+{"symbol": "HD", "score": 10.455147922039032, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:03.790770Z"}
+{"symbol": "HD", "composite": 42.06319449019918, "technical": 59.81662528396866, "fundamental": 50.0, "sentiment": 10.455147922039032, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:03.790830Z"}
+{"symbol": "CVX", "progress": "16/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:04.094811Z"}
+{"symbol": "CVX", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:04.095588Z"}
+{"symbol": "CVX", "error": "HTTPSConnectionPool(host='newsapi.org', port=443): Read timed out. (read timeout=10)", "event": "newsapi_error", "logger": "__main__", "level": "error", "timestamp": "2025-11-24T17:45:14.233039Z"}
+{"symbol": "CVX", "event": "no_news_articles_found", "logger": "__main__", "level": "warning", "timestamp": "2025-11-24T17:45:14.233821Z"}
+{"symbol": "CVX", "score": 50.0, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:14.233889Z"}
+{"symbol": "CVX", "composite": 47.86684397183619, "technical": 44.667109929590474, "fundamental": 50.0, "sentiment": 50.0, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:14.233967Z"}
+{"symbol": "MRK", "progress": "17/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:14.536319Z"}
+{"symbol": "MRK", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:14.536802Z"}
+{"symbol": "MRK", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:14.856747Z"}
+{"symbol": "MRK", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7793734490871429, "score": 11.031327545642855, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:15.255859Z"}
+{"symbol": "MRK", "score": 11.031327545642855, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:15.256056Z"}
+{"symbol": "MRK", "composite": 32.00137555837082, "technical": 34.2299432366949, "fundamental": 50.0, "sentiment": 11.031327545642855, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:15.256121Z"}
+{"symbol": "ABBV", "progress": "18/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:15.560297Z"}
+{"symbol": "ABBV", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:15.560604Z"}
+{"symbol": "ABBV", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:15.810764Z"}
+{"symbol": "ABBV", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7793734490871429, "score": 11.031327545642855, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:16.074285Z"}
+{"symbol": "ABBV", "score": 11.031327545642855, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:16.074479Z"}
+{"symbol": "ABBV", "composite": 47.60295420126103, "technical": 73.23388984392044, "fundamental": 50.0, "sentiment": 11.031327545642855, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:16.074545Z"}
+{"symbol": "KO", "progress": "19/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:16.377791Z"}
+{"symbol": "KO", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:16.378147Z"}
+{"symbol": "KO", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:16.605267Z"}
+{"symbol": "KO", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7878806531429291, "score": 10.605967342853544, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.027469Z"}
+{"symbol": "KO", "score": 10.605967342853544, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.027641Z"}
+{"symbol": "KO", "composite": 45.97462506671179, "technical": 69.4820871596393, "fundamental": 50.0, "sentiment": 10.605967342853544, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.027710Z"}
+{"symbol": "PEP", "progress": "20/20", "event": "scanning_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.332862Z"}
+{"symbol": "PEP", "event": "scoring_symbol", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.333089Z"}
+{"symbol": "PEP", "count": 20, "event": "newsapi_articles_fetched", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.562783Z"}
+{"symbol": "PEP", "articles_count": 20, "sentiments_count": 20, "avg_sentiment": -0.7884557157754898, "score": 10.577214211225511, "event": "news_sentiment_analyzed", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.864010Z"}
+{"symbol": "PEP", "score": 10.577214211225511, "event": "sentiment_score_calculated", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.864243Z"}
+{"symbol": "PEP", "composite": 45.43911687114529, "technical": 68.1648815194441, "fundamental": 50.0, "sentiment": 10.577214211225511, "event": "symbol_scored", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:17.864329Z"}
+{"candidates": 0, "event": "scan_complete", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:18.168629Z"}
+{"event": "running_position_management_check", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:18.171241Z"}
+{"event": "managing_positions", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:18.171378Z"}
+{"event": "running_position_management_check", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:34.597751Z"}
+{"event": "managing_positions", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:34.598371Z"}
+{"event": "running_position_management_check", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:48.544599Z"}
+{"event": "managing_positions", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:45:48.545556Z"}
+{"event": "running_position_management_check", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:47:35.554800Z"}
+{"event": "managing_positions", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:47:35.556113Z"}
+{"event": "running_position_management_check", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:47:49.339268Z"}
+{"event": "managing_positions", "logger": "__main__", "level": "info", "timestamp": "2025-11-24T17:47:49.339975Z"}
