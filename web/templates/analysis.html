@@ -241,6 +241,191 @@
         .score-fill-low {
             background: #f44336;
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+        }
+
+        .detail-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 8px;
+        }
+
+        .sentiment-summary {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .sentiment-summary p {
+            margin: 5px 0;
+            font-size: 15px;
+        }
+
+        .news-article {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .news-article:hover {
+            background: #e8e9ff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .news-article .article-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .news-article .article-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .news-article .sentiment-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .sentiment-positive {
+            background: #4caf50;
+            color: white;
+        }
+
+        .sentiment-negative {
+            background: #f44336;
+            color: white;
+        }
+
+        .sentiment-neutral {
+            background: #ff9800;
+            color: white;
+        }
+
+        .article-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .article-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading-modal {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .symbol {
+            cursor: pointer;
+        }
+
+        .symbol:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 
@@ -262,7 +447,7 @@
                     <div class="value" id="total-analyzed">-</div>
                 </div>
                 <div class="stat-box">
-                    <div class="label">Traded</div>
+                    <div class="label">Qualified</div>
                     <div class="value" id="total-traded">-</div>
                 </div>
                 <div class="stat-box">
@@ -281,10 +466,22 @@
 
             <div class="filter-bar">
                 <button class="filter-btn active" data-filter="all">All Tickers</button>
-                <button class="filter-btn" data-filter="traded">Traded Only</button>
+                <button class="filter-btn" data-filter="traded">Qualified Only</button>
                 <button class="filter-btn" data-filter="rejected">Rejected Only</button>
                 <button class="filter-btn" data-filter="high">High Score (55+)</button>
                 <button class="filter-btn" data-filter="low">Low Score (<40)< /button>
+            </div>
+
+            <div class="filter-bar">
+                <select id="sortSelect" class="filter-btn" style="cursor: pointer;">
+                    <option value="time-desc">Sort: Newest First</option>
+                    <option value="time-asc">Sort: Oldest First</option>
+                    <option value="symbol-asc">Sort: Symbol A-Z</option>
+                    <option value="symbol-desc">Sort: Symbol Z-A</option>
+                    <option value="score-desc">Sort: Highest Score</option>
+                    <option value="score-low">Sort: Lowest Score</option>
+                </select>
+                <button class="filter-btn" id="groupToggle" onclick="toggleGrouping()">Group by Symbol</button>
             </div>
 
             <div id="analysis-container">
@@ -293,9 +490,24 @@
         </div>
     </div>
 
+    <!-- Detail Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-symbol">Symbol Details</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <div class="loading-modal">Loading details...</div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let analysisData = [];
         let currentFilter = 'all';
+        let currentSort = 'time-desc';
+        let groupBySymbol = false;
 
         async function fetchAnalysis() {
             try {
@@ -321,6 +533,33 @@
             document.getElementById('total-traded').textContent = traded;
             document.getElementById('total-rejected').textContent = rejected;
             document.getElementById('avg-score').textContent = avgScore;
+        }
+
+        function sortData(data) {
+            const sorted = [...data];
+
+            switch (currentSort) {
+                case 'time-desc':
+                    sorted.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    break;
+                case 'time-asc':
+                    sorted.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    break;
+                case 'symbol-asc':
+                    sorted.sort((a, b) => a.symbol.localeCompare(b.symbol));
+                    break;
+                case 'symbol-desc':
+                    sorted.sort((a, b) => b.symbol.localeCompare(a.symbol));
+                    break;
+                case 'score-desc':
+                    sorted.sort((a, b) => b.composite_score - a.composite_score);
+                    break;
+                case 'score-low':
+                    sorted.sort((a, b) => a.composite_score - b.composite_score);
+                    break;
+            }
+
+            return sorted;
         }
 
         function getScoreClass(score) {
@@ -362,11 +601,100 @@
                 filtered = analysisData.filter(d => d.composite_score < 40);
             }
 
+            // Sort data
+            filtered = sortData(filtered);
+
             if (filtered.length === 0) {
                 container.innerHTML = '<div class="empty">No data matches the filter</div>';
                 return;
             }
 
+            // Group by symbol if enabled
+            if (groupBySymbol) {
+                renderGroupedTable(container, filtered);
+            } else {
+                renderFlatTable(container, filtered);
+            }
+        }
+
+        function renderGroupedTable(container, data) {
+            // Group by symbol
+            const grouped = {};
+            data.forEach(item => {
+                if (!grouped[item.symbol]) {
+                    grouped[item.symbol] = [];
+                }
+                grouped[item.symbol].push(item);
+            });
+
+            let html = '';
+            Object.keys(grouped).sort().forEach(symbol => {
+                const items = grouped[symbol];
+                const latestScore = items[0].composite_score;
+                const scoreClass = getScoreClass(latestScore);
+
+                html += `
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="color: #667eea; cursor: pointer;" onclick="showDetails('${symbol}')">
+                            ${symbol} <span class="score-badge score-${scoreClass}">${latestScore}</span>
+                            <span style="font-size: 14px; color: #999; font-weight: normal;">(${items.length} scans)</span>
+                        </h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Composite</th>
+                                    <th>Technical</th>
+                                    <th>Fundamental</th>
+                                    <th>Sentiment</th>
+                                    <th>Status</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${items.map(item => `
+                                    <tr>
+                                        <td><span class="timestamp">${formatTimestamp(item.timestamp)}</span></td>
+                                        <td>
+                                            <span class="score-badge score-${getScoreClass(item.composite_score)}">
+                                                ${item.composite_score}
+                                            </span>
+                                            <div class="score-bar">
+                                                <div class="score-fill score-fill-${getScoreClass(item.composite_score)}" 
+                                                     style="width: ${item.composite_score}%"></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="score-badge score-${getScoreClass(item.technical_score)}">
+                                                ${item.technical_score}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="score-badge score-${getScoreClass(item.fundamental_score)}">
+                                                ${item.fundamental_score}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="score-badge score-${getScoreClass(item.sentiment_score)}">
+                                                ${item.sentiment_score}
+                                            </span>
+                                        </td>
+                                        <td class="${item.traded ? 'traded-yes' : 'traded-no'}">
+                                            ${item.traded ? '✓ QUALIFIED' : '✗ REJECTED'}
+                                        </td>
+                                        <td><div class="reason">${item.reason}</div></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderFlatTable(container, filtered) {
             const html = `
                 <table>
                     <thead>
@@ -384,7 +712,7 @@
                     <tbody>
                         ${filtered.map(item => `
                             <tr>
-                                <td><span class="symbol">${item.symbol}</span></td>
+                                <td><span class="symbol" onclick="showDetails('${item.symbol}')">${item.symbol}</span></td>
                                 <td><span class="timestamp">${formatTimestamp(item.timestamp)}</span></td>
                                 <td>
                                     <span class="score-badge score-${getScoreClass(item.composite_score)}">
@@ -426,18 +754,132 @@
         // Filter buttons
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentFilter = btn.dataset.filter;
-                renderAnalysisTable();
+                if (btn.dataset.filter) {
+                    document.querySelectorAll('.filter-btn').forEach(b => {
+                        if (b.dataset.filter) b.classList.remove('active');
+                    });
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    renderAnalysisTable();
+                }
             });
         });
+
+        // Sort dropdown
+        document.getElementById('sortSelect').addEventListener('change', (e) => {
+            currentSort = e.target.value;
+            renderAnalysisTable();
+        });
+
+        // Toggle grouping
+        function toggleGrouping() {
+            groupBySymbol = !groupBySymbol;
+            const btn = document.getElementById('groupToggle');
+            btn.textContent = groupBySymbol ? 'Ungroup' : 'Group by Symbol';
+            btn.classList.toggle('active', groupBySymbol);
+            renderAnalysisTable();
+        }
 
         // Initial load
         fetchAnalysis();
 
         // Auto-refresh every 10 seconds
         setInterval(fetchAnalysis, 10000);
+
+        // Modal functions
+        async function showDetails(symbol) {
+            const modal = document.getElementById('detailModal');
+            const modalSymbol = document.getElementById('modal-symbol');
+            const modalBody = document.getElementById('modal-body');
+
+            modalSymbol.textContent = `${symbol} - Decision Analysis`;
+            modalBody.innerHTML = '<div class="loading-modal">Loading analysis data...</div>';
+            modal.style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/analysis/${symbol}/details`);
+                const data = await response.json();
+
+                if (data.error) {
+                    modalBody.innerHTML = `
+                        <div class="empty">
+                            <p>❌ ${data.error}</p>
+                            ${data.trace ? `<pre style="font-size: 11px; color: #999;">${data.trace}</pre>` : ''}
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Build comprehensive analysis view
+                let html = `
+                    <div class="detail-section">
+                        <h3>Score Breakdown</h3>
+                        <div class="sentiment-summary">
+                            <p><strong>Composite Score:</strong> ${data.scores.composite}/100 ${data.decision_logic.qualified ? '✅ QUALIFIED' : '❌ REJECTED'}</p>
+                            <p><strong>Technical:</strong> ${data.scores.technical}/100 (40% weight)</p>
+                            <p><strong>Sentiment:</strong> ${data.scores.sentiment}/100 (30% weight)</p>
+                            <p><strong>Fundamental:</strong> ${data.scores.fundamental}/100 (30% weight)</p>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>🤖 FinBERT Analysis</h3>
+                        <div class="sentiment-summary">
+                            ${data.news_analysis ? `
+                                <p><strong>Articles Analyzed:</strong> ${data.news_analysis.articles_count}</p>
+                                <p><strong>FinBERT Score:</strong> ${data.news_analysis.avg_sentiment?.toFixed(3)} (-1=bearish, +1=bullish)</p>
+                                <p><strong>Converted to 0-100:</strong> ${data.news_analysis.score?.toFixed(2)}/100</p>
+                                <p style="margin-top: 10px; padding: 10px; background: #e8f4f8; border-radius: 5px;">
+                                    <strong>How FinBERT works:</strong><br>
+                                    FinBERT is a BERT model fine-tuned on financial news. It reads each article title and description, 
+                                    then outputs a score from -1 (very negative) to +1 (very positive). We average all article scores 
+                                    and convert to 0-100 scale for easier interpretation.
+                                </p>
+                            ` : `
+                                <p>⚠️ No news data available for this scan</p>
+                                <p style="font-size: 13px; color: #666;">When news isn't available (timeout or no articles), we default to neutral sentiment (50/100)</p>
+                            `}
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>📊 Decision Logic</h3>
+                        <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; line-height: 1.8;">
+                            ${data.reasoning.map(r => `<p style="margin: 5px 0;">${r}</p>`).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>⚙️ Trading Criteria</h3>
+                        <div class="sentiment-summary">
+                            <p>✓ Composite Score ≥ ${data.decision_logic.threshold_composite}</p>
+                            <p>✓ Technical Score ≥ ${data.decision_logic.threshold_technical}</p>
+                            <p>✓ Sentiment Score ≥ ${data.decision_logic.threshold_sentiment}</p>
+                            <p style="margin-top: 10px; font-size: 13px; color: #666;">
+                                All three conditions must be met for a stock to qualify for trading.
+                            </p>
+                        </div>
+                    </div>
+                `;
+
+                modalBody.innerHTML = html;
+
+            } catch (error) {
+                modalBody.innerHTML = `<div class="empty">Error loading details: ${error.message}</div>`;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
     </script>
 </body>
 

@@ -258,9 +258,158 @@ def analysis_page():
 
 
 @app.route("/api/analysis")
-def api_analysis():
-    """API endpoint for analysis data."""
-    return jsonify(get_analysis_data())
+def api_analysis() -> Any:
+    """Get recent ticker analysis."""
+    data = get_analysis_data()
+    return jsonify(data)
+
+
+@app.route("/api/analysis/<symbol>/details")
+def api_symbol_details(symbol: str) -> Any:
+    """Get detailed analysis for a specific symbol showing actual scan data and reasoning."""
+    try:
+        import json
+        from pathlib import Path
+        
+        log_file = Path(__file__).parent.parent / config.logging.log_file
+        
+        if not log_file.exists():
+            return jsonify({"error": "Log file not found"}), 404
+        
+        # Find the most recent complete analysis for this symbol
+        symbol_data = {
+            "symbol": symbol.upper(),
+            "score_data": None,
+            "news_data": None,
+            "articles": []
+        }
+        
+        # Read logs backward to find most recent data
+        with open(log_file, "r") as f:
+            lines = f.readlines()
+        
+        # Process from newest to oldest
+        for line in reversed(lines):
+            try:
+                log = json.loads(line.strip())
+                
+                if log.get("symbol") != symbol.upper():
+                    continue
+                
+                # Get score breakdown
+                if log.get("event") == "symbol_scored" and not symbol_data["score_data"]:
+                    symbol_data["score_data"] = {
+                        "timestamp": log.get("timestamp"),
+                        "composite": log.get("composite"),
+                        "technical": log.get("technical"),
+                        "fundamental": log.get("fundamental"),
+                        "sentiment": log.get("sentiment")
+                    }
+                
+                # Get news sentiment data
+                if log.get("event") == "news_sentiment_analyzed" and not symbol_data["news_data"]:
+                    symbol_data["news_data"] = {
+                        "articles_count": log.get("articles_count"),
+                        "sentiments_count": log.get("sentiments_count"),
+                        "avg_sentiment": log.get("avg_sentiment"),
+                        "score": log.get("score")
+                    }
+                
+                # Get articles fetched
+                if log.get("event") == "newsapi_articles_fetched" and len(symbol_data["articles"]) == 0:
+                    # Try to find corresponding articles in nearby logs
+                    article_count = log.get("count", 0)
+                    symbol_data["articles_info"] = f"{article_count} articles fetched"
+                
+                # Stop if we have all data
+                if symbol_data["score_data"] and symbol_data["news_data"]:
+                    break
+                    
+            except (json.JSONDecodeError, KeyError):
+                continue
+        
+        if not symbol_data["score_data"]:
+            return jsonify({
+                "error": f"No recent analysis found for {symbol}. Symbol may not have been scanned yet."
+            }), 404
+        
+        # Build reasoning
+        score_data = symbol_data["score_data"]
+        news_data = symbol_data.get("news_data", {})
+        
+        reasoning = []
+        
+        # Technical analysis reasoning
+        tech_score = score_data["technical"]
+        if tech_score >= 60:
+            reasoning.append(f"✅ Strong technical indicators (RSI, MACD, Bollinger Bands) = {tech_score:.1f}/100")
+        elif tech_score >= 40:
+            reasoning.append(f"⚠️ Moderate technical indicators = {tech_score:.1f}/100")
+        else:
+            reasoning.append(f"❌ Weak technical indicators = {tech_score:.1f}/100")
+        
+        # Sentiment reasoning
+        sent_score = score_data["sentiment"]
+        if news_data:
+            articles = news_data.get("articles_count", 0)
+            avg_sent = news_data.get("avg_sentiment", 0)
+            if sent_score >= 60:
+                reasoning.append(f"✅ Positive news sentiment from {articles} articles (FinBERT: {avg_sent:.3f}) = {sent_score:.1f}/100")
+            elif sent_score >= 40:
+                reasoning.append(f"⚠️ Neutral news sentiment from {articles} articles (FinBERT: {avg_sent:.3f}) = {sent_score:.1f}/100")
+            else:
+                reasoning.append(f"❌ Negative news sentiment from {articles} articles (FinBERT: {avg_sent:.3f}) = {sent_score:.1f}/100")
+        else:
+            if sent_score == 50.0:
+                reasoning.append(f"⚠️ No news available, using neutral sentiment = {sent_score:.1f}/100")
+            else:
+                reasoning.append(f"📰 Sentiment analysis = {sent_score:.1f}/100")
+        
+        # Fundamental reasoning
+        fund_score = score_data["fundamental"]
+        reasoning.append(f"ℹ️ Fundamentals = {fund_score:.1f}/100 (using neutral default)")
+        
+        # Composite calculation
+        composite = score_data["composite"]
+        reasoning.append("")
+        reasoning.append(f"**Final Composite Score Calculation:**")
+        reasoning.append(f"({tech_score:.1f} × 40%) + ({sent_score:.1f} × 30%) + ({fund_score:.1f} × 30%) = **{composite:.1f}/100**")
+        reasoning.append("")
+        
+        # Decision logic
+        if composite >= 55.0:
+            if tech_score >= 40.0 and sent_score >= 40.0:
+                reasoning.append(f"✅ **QUALIFIED FOR TRADING** - All criteria met (composite ≥55, technical ≥40, sentiment ≥40)")
+            else:
+                if tech_score < 40.0:
+                    reasoning.append(f"❌ **REJECTED** - Technical score too low ({tech_score:.1f} < 40)")
+                if sent_score < 40.0:
+                    reasoning.append(f"❌ **REJECTED** - Sentiment score too low ({sent_score:.1f} < 40)")
+        else:
+            reasoning.append(f"❌ **REJECTED** - Composite score too low ({composite:.1f} < 55)")
+        
+        return jsonify({
+            "symbol": symbol.upper(),
+            "timestamp": score_data["timestamp"],
+            "scores": {
+                "composite": round(composite, 2),
+                "technical": round(tech_score, 2),
+                "fundamental": round(fund_score, 2),
+                "sentiment": round(sent_score, 2)
+            },
+            "news_analysis": news_data,
+            "reasoning": reasoning,
+            "decision_logic": {
+                "threshold_composite": 55.0,
+                "threshold_technical": 40.0,
+                "threshold_sentiment": 40.0,
+                "qualified": composite >= 55.0 and tech_score >= 40.0 and sent_score >= 40.0
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
 @app.route("/api/trade/start", methods=["POST"])
