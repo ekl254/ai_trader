@@ -1,0 +1,19 @@
+[Unit]
+Description=AI Trading Bot - Continuous Trading
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/ai_trader
+ExecStart=/usr/bin/python3 -m src.main continuous
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/root/ai_trader/logs/trading.log
+StandardError=append:/root/ai_trader/logs/trading_error.log
+
+# Environment
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target

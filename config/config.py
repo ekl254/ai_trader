@@ -44,6 +44,21 @@ class TradingConfig(BaseModel):
     # Position management
     min_volume: int = Field(default=1_000_000)  # Minimum daily volume
 
+    # Rebalancing (replace weak positions with better opportunities)
+    enable_rebalancing: bool = Field(default=True)  # Auto-replace weak positions
+    rebalance_score_diff: float = Field(
+        default=10.0
+    )  # Replace if new candidate scores 10+ points higher
+    rebalance_min_hold_time: int = Field(
+        default=30
+    )  # Minutes - don't replace positions held < 30 min
+    rebalance_cooldown_minutes: int = Field(
+        default=60
+    )  # Minimum minutes between rebalancing swaps
+    rebalance_partial_sell_pct: float = Field(
+        default=0.0
+    )  # Percentage of position to sell (0.0 = full position, 0.5 = 50%)
+
     @field_validator("risk_per_trade")
     @classmethod
     def validate_risk(cls, v: float) -> float:

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.aitrader.bot</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/enocklangat/Documents/AI/ai_trader/start_trading.sh</string>
+    </array>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <false/>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/enocklangat/Documents/AI/ai_trader/logs/launchd.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/enocklangat/Documents/AI/ai_trader/logs/launchd_error.log</string>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/enocklangat/Documents/AI/ai_trader</string>
+</dict>
+</plist>

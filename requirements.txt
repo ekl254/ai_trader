@@ -19,6 +19,7 @@ flask>=3.0.0
 schedule>=1.2.0
 pydantic>=2.5.0
 pytz>=2024.1
+lxml>=5.0.0
 
 # Logging and monitoring
 structlog>=24.1.0

@@ -7,6 +7,18 @@ import requests
 
 from src.logger import logger
 
+# Reputable news domains (add more as needed)
+REPUTABLE_SOURCES = {
+    "reuters.com",
+    "wsj.com",
+    "bloomberg.com",
+    "cnbc.com",
+    "ft.com",
+    "businessinsider.com",
+    "nytimes.com",
+}
+
+
 
 class NewsAPIClient:
     """Client for NewsAPI.org to fetch news articles."""
@@ -14,6 +26,8 @@ class NewsAPIClient:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or os.getenv("NEWSAPI_KEY")
         self.base_url = "https://newsapi.org/v2"
+        self._cache = {}  # Simple in-memory cache: {(symbol, days_back): (timestamp, articles)}
+        self._cache_ttl = 14400  # 4 hours in seconds
         
     def get_stock_news(self, symbol: str, days_back: int = 7, max_articles: int = 20) -> List[Dict[str, Any]]:
         """
@@ -27,13 +41,21 @@ class NewsAPIClient:
         Returns:
             List of article dictionaries with title, description, content, publishedAt
         """
+        # Check cache first
+        cache_key = (symbol, days_back)
+        if cache_key in self._cache:
+            timestamp, cached_articles = self._cache[cache_key]
+            if (datetime.now().timestamp() - timestamp) < self._cache_ttl:
+                logger.info("newsapi_cache_hit", symbol=symbol)
+                return cached_articles
+
         try:
             # Calculate date range
             to_date = datetime.now()
             from_date = to_date - timedelta(days=days_back)
             
             # Build query - search for company name or ticker
-            query = f"{symbol} OR stock OR shares"
+            query = f"{symbol} OR {self._company_name(symbol)} OR stock OR shares"
             
             params = {
                 "q": query,
@@ -48,20 +70,41 @@ class NewsAPIClient:
             response = requests.get(
                 f"{self.base_url}/everything",
                 params=params,
-                timeout=10,
+                timeout=30,
             )
             
             if response.status_code == 200:
                 data = response.json()
                 articles = data.get("articles", [])
                 
+                # Filter to reputable sources
+                filtered = []
+                for article in articles:
+                    source_url = article.get("url", "")
+                    # Extract domain
+                    domain = source_url.split("//")[-1].split("/")[0]
+                    if any(rep in domain for rep in REPUTABLE_SOURCES):
+                        filtered.append(article)
+                
+                # Deduplicate articles by URL to avoid repeats
+                seen_urls = set()
+                unique_articles = []
+                for article in filtered:
+                    url = article.get("url")
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                        unique_articles.append(article)
+                
                 logger.info(
                     "newsapi_articles_fetched",
                     symbol=symbol,
-                    count=len(articles),
+                    count=len(unique_articles),
                 )
                 
-                return articles
+                # Update cache
+                self._cache[cache_key] = (datetime.now().timestamp(), unique_articles)
+                
+                return unique_articles
             elif response.status_code == 426:
                 # Upgrade required - free tier limitation
                 logger.warning(
@@ -83,18 +126,72 @@ class NewsAPIClient:
             logger.error("newsapi_error", symbol=symbol, error=str(e))
             return []
     
+    def _company_name(self, symbol: str) -> str:
+        """Return a friendly company name if we have a mapping, else the symbol itself."""
+        TICKER_COMPANY_MAP = {
+            "AAPL": "Apple",
+            "MSFT": "Microsoft",
+            "GOOGL": "Alphabet",
+            "AMZN": "Amazon",
+            "TSLA": "Tesla",
+            "KO": "Coca-Cola",
+            "WMT": "Walmart",
+            "PEP": "PepsiCo",
+        }
+        return TICKER_COMPANY_MAP.get(symbol.upper(), symbol)
+
+    def get_business_news(self, symbol: str, max_articles: int = 20) -> List[Dict[str, Any]]:
+        """Fetch business news from US top headlines, filtered by reputable sources and ticker/company name."""
+        try:
+            query = f"{symbol} OR {self._company_name(symbol)}"
+            params = {
+                "q": query,
+                "category": "business",
+                "country": "us",
+                "pageSize": max_articles,
+                "apiKey": self.api_key,
+            }
+            response = requests.get(
+                f"{self.base_url}/top-headlines",
+                params=params,
+                timeout=30,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                articles = data.get("articles", [])
+                # Filter reputable sources
+                filtered = []
+                for article in articles:
+                    source_url = article.get("url", "")
+                    domain = source_url.split("//")[-1].split("/")[0]
+                    if any(rep in domain for rep in REPUTABLE_SOURCES):
+                        filtered.append(article)
+                # Deduplicate
+                seen = set()
+                unique = []
+                for a in filtered:
+                    u = a.get("url")
+                    if u and u not in seen:
+                        seen.add(u)
+                        unique.append(a)
+                logger.info(
+                    "newsapi_business_fetched",
+                    symbol=symbol,
+                    count=len(unique),
+                )
+                return unique
+            else:
+                logger.error(
+                    "newsapi_business_failed",
+                    status_code=response.status_code,
+                )
+                return []
+        except Exception as e:
+            logger.error("newsapi_business_error", error=str(e))
+            return []
+
     def get_top_headlines(self, category: str = "business", country: str = "us", max_articles: int = 10) -> List[Dict[str, Any]]:
-        """
-        Get top headlines from news sources.
-        
-        Args:
-            category: News category (business, technology, etc.)
-            country: Country code (us, gb, etc.)
-            max_articles: Maximum number of articles
-            
-        Returns:
-            List of article dictionaries
-        """
+        """Legacy method kept for compatibility – fetch generic top headlines."""
         try:
             params = {
                 "category": category,
@@ -102,13 +199,11 @@ class NewsAPIClient:
                 "pageSize": max_articles,
                 "apiKey": self.api_key,
             }
-            
             response = requests.get(
                 f"{self.base_url}/top-headlines",
                 params=params,
-                timeout=10,
+                timeout=30,
             )
-            
             if response.status_code == 200:
                 data = response.json()
                 return data.get("articles", [])
@@ -118,7 +213,6 @@ class NewsAPIClient:
                     status_code=response.status_code,
                 )
                 return []
-                
         except Exception as e:
             logger.error("newsapi_headlines_error", error=str(e))
             return []

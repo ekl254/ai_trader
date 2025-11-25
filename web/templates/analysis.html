@@ -465,11 +465,14 @@
             <h2>Ticker Analysis</h2>
 
             <div class="filter-bar">
+                <input type="text" id="tickerSearch" placeholder="🔍 Search ticker (e.g. NVDA, TSLA)..." 
+                       style="padding: 10px 15px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px; width: 300px; margin-right: 10px;"
+                       onkeyup="handleSearch()">
                 <button class="filter-btn active" data-filter="all">All Tickers</button>
                 <button class="filter-btn" data-filter="traded">Qualified Only</button>
                 <button class="filter-btn" data-filter="rejected">Rejected Only</button>
                 <button class="filter-btn" data-filter="high">High Score (55+)</button>
-                <button class="filter-btn" data-filter="low">Low Score (<40)< /button>
+                <button class="filter-btn" data-filter="low">Low Score (<40)</button>
             </div>
 
             <div class="filter-bar">
@@ -508,6 +511,7 @@
         let currentFilter = 'all';
         let currentSort = 'time-desc';
         let groupBySymbol = false;
+        let searchQuery = '';
 
         async function fetchAnalysis() {
             try {
@@ -586,19 +590,31 @@
             });
         }
 
+        function handleSearch() {
+            searchQuery = document.getElementById('tickerSearch').value.trim().toUpperCase();
+            renderAnalysisTable();
+        }
+
         function renderAnalysisTable() {
             const container = document.getElementById('analysis-container');
 
             // Filter data
             let filtered = analysisData;
+            
+            // Apply search filter first
+            if (searchQuery) {
+                filtered = filtered.filter(d => d.symbol.toUpperCase().includes(searchQuery));
+            }
+            
+            // Apply other filters
             if (currentFilter === 'traded') {
-                filtered = analysisData.filter(d => d.traded);
+                filtered = filtered.filter(d => d.traded);
             } else if (currentFilter === 'rejected') {
-                filtered = analysisData.filter(d => !d.traded);
+                filtered = filtered.filter(d => !d.traded);
             } else if (currentFilter === 'high') {
-                filtered = analysisData.filter(d => d.composite_score >= 55);
+                filtered = filtered.filter(d => d.composite_score >= 55);
             } else if (currentFilter === 'low') {
-                filtered = analysisData.filter(d => d.composite_score < 40);
+                filtered = filtered.filter(d => d.composite_score < 40);
             }
 
             // Sort data
