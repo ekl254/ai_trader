@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategy Optimizer - AI Trading</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .nav-links { display: flex; gap: 10px; margin-top: 15px; }
+        .nav-links a { padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; border-radius: 6px; transition: all 0.3s; font-weight: 600; }
+        .nav-links a:hover { background: rgba(255,255,255,0.3); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; }
+        .card .value { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+        .card .label { font-size: 14px; color: #64748b; }
+        .section { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .section h2 { font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 12px; }
+        .profit { color: #10b981; }
+        .loss { color: #ef4444; }
+        .warning { color: #fbbf24; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; }
+        .btn-primary { background: #10b981; color: white; }
+        .btn-primary:hover { background: #059669; }
+        .btn-secondary { background: #667eea; color: white; }
+        .btn-secondary:hover { background: #5a67d8; }
+        .slider-container { margin: 20px 0; }
+        .slider-label { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .slider { width: 100%; height: 8px; border-radius: 5px; background: #334155; outline: none; }
+        .slider::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #667eea; cursor: pointer; }
+        .recommendation { background: #1e293b; padding: 15px; border-left: 4px solid #667eea; margin: 10px 0; border-radius: 4px; }
+        .recommendation.high { border-left-color: #ef4444; }
+        .recommendation.medium { border-left-color: #fbbf24; }
+        .recommendation.low { border-left-color: #10b981; }
+        .chart-container { background: #0f172a; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .bar-chart { display: flex; gap: 10px; align-items: flex-end; height: 200px; }
+        .bar { flex: 1; background: linear-gradient(180deg, #667eea, #764ba2); border-radius: 4px 4px 0 0; position: relative; }
+        .bar-label { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 12px; white-space: nowrap; }
+        .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .config-box { background: #0f172a; padding: 20px; border-radius: 8px; border: 2px solid #334155; }
+        .config-box.optimal { border-color: #10b981; }
+        .loading { text-align: center; padding: 40px; color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Strategy Optimizer</h1>
+            <div class="nav-links">
+                <a href="/">Dashboard</a>
+                <a href="/analysis">Analysis</a>
+                <a href="/performance">Performance</a>
+                <a href="/optimizer">Optimizer</a>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <h2>Analyzing historical performance...</h2>
+            <p>Please wait while we optimize your strategy</p>
+        </div>
+
+        <div id="content" style="display:none;">
+            <div class="grid">
+                <div class="card">
+                    <h2>Current Win Rate</h2>
+                    <div class="value" id="current-win-rate">0%</div>
+                    <div class="label">Based on <span id="total-trades">0</span> trades</div>
+                </div>
+                <div class="card">
+                    <h2>Current Sharpe Ratio</h2>
+                    <div class="value" id="current-sharpe">0.00</div>
+                    <div class="label">Risk-adjusted returns</div>
+                </div>
+                <div class="card">
+                    <h2>Projected Improvement</h2>
+                    <div class="value profit" id="projected-improvement">0%</div>
+                    <div class="label">With optimizations</div>
+                </div>
+                <div class="card">
+                    <h2>Optimization Status</h2>
+                    <div class="value" id="optimization-status">Ready</div>
+                    <div class="label" id="data-quality">Sufficient data</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📊 Current vs Optimal Configuration</h2>
+                <div class="comparison">
+                    <div class="config-box">
+                        <h3 style="color: #94a3b8; margin-bottom: 15px;">Current Config</h3>
+                        <div style="margin: 10px 0;">
+                            <strong>Score Weights:</strong><br>
+                            Technical: <span id="current-tech">40%</span><br>
+                            Sentiment: <span id="current-sent">30%</span><br>
+                            Fundamental: <span id="current-fund">30%</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>Threshold:</strong> <span id="current-threshold">55.0</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>Expected Win Rate:</strong> <span id="current-expected-wr">--</span>
+                        </div>
+                    </div>
+                    <div class="config-box optimal">
+                        <h3 style="color: #10b981; margin-bottom: 15px;">✅ Optimal Config</h3>
+                        <div style="margin: 10px 0;">
+                            <strong>Score Weights:</strong><br>
+                            Technical: <span id="optimal-tech">40%</span><br>
+                            Sentiment: <span id="optimal-sent">30%</span><br>
+                            Fundamental: <span id="optimal-fund">30%</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>Threshold:</strong> <span id="optimal-threshold" class="profit">72.5</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>Expected Win Rate:</strong> <span id="optimal-expected-wr" class="profit">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🎨 Score Weight Simulator (Experimental)</h2>
+                <p style="color: #94a3b8; margin-bottom: 20px;">Adjust weights to see projected impact. Changes require manual config update.</p>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Technical Weight: <strong id="tech-weight-val">40%</strong></span>
+                    </div>
+                    <input type="range" min="0" max="70" value="40" class="slider" id="tech-weight">
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Sentiment Weight: <strong id="sent-weight-val">30%</strong></span>
+                    </div>
+                    <input type="range" min="0" max="70" value="30" class="slider" id="sent-weight">
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Fundamental Weight: <strong id="fund-weight-val">30%</strong></span>
+                        <span id="weight-sum" class="warning">Total: 100%</span>
+                    </div>
+                    <input type="range" min="0" max="70" value="30" class="slider" id="fund-weight">
+                </div>
+
+                <div class="slider-container" style="margin-top: 30px;">
+                    <div class="slider-label">
+                        <span>Minimum Score Threshold: <strong id="threshold-val">72.5</strong></span>
+                    </div>
+                    <input type="range" min="50" max="85" step="2.5" value="72.5" class="slider" id="threshold-slider">
+                </div>
+
+                <button class="btn btn-secondary" onclick="applySimulatedSettings()" style="margin-top: 20px;">
+                    💾 Show Config Code to Update
+                </button>
+            </div>
+
+            <div class="section">
+                <h2>💡 Optimization Recommendations</h2>
+                <div id="recommendations"></div>
+            </div>
+
+            <div class="section">
+                <h2>📈 How Optimization Works</h2>
+                <div style="background: #0f172a; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px;">The Process:</h3>
+                    <ol style="line-height: 2; color: #94a3b8;">
+                        <li><strong style="color: #e2e8f0;">Data Collection:</strong> System records every trade with entry score, exit price, profit/loss</li>
+                        <li><strong style="color: #e2e8f0;">Weight Optimization:</strong> Uses scipy.optimize to find weights that maximize Sharpe ratio</li>
+                        <li><strong style="color: #e2e8f0;">Threshold Testing:</strong> Tests thresholds 50-85 to find optimal trade-off between quantity and quality</li>
+                        <li><strong style="color: #e2e8f0;">Recommendation:</strong> Suggests changes that improve risk-adjusted returns</li>
+                        <li><strong style="color: #e2e8f0;">Manual Update:</strong> You review and update config/config.py</li>
+                        <li><strong style="color: #e2e8f0;">Bot Restart:</strong> Bot uses new settings for future trades</li>
+                        <li><strong style="color: #e2e8f0;">Continuous Improvement:</strong> Re-run optimizer weekly as more data accumulates</li>
+                    </ol>
+                    
+                    <h3 style="margin: 25px 0 15px;">Why It Works:</h3>
+                    <ul style="line-height: 2; color: #94a3b8;">
+                        <li><strong style="color: #e2e8f0;">Historical Evidence:</strong> Recommendations based on YOUR actual trading results</li>
+                        <li><strong style="color: #e2e8f0;">Statistical Significance:</strong> Requires 30+ trades for reliable optimization</li>
+                        <li><strong style="color: #e2e8f0;">Risk-Adjusted:</strong> Optimizes Sharpe ratio, not just profit (controls for volatility)</li>
+                        <li><strong style="color: #e2e8f0;">Safe:</strong> You review all changes before applying</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadOptimizer() {
+            try {
+                const response = await fetch('/api/optimizer/analyze');
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.status === 'insufficient_data') {
+                    document.getElementById('content').style.display = 'block';
+                    document.getElementById('optimization-status').textContent = 'Insufficient Data';
+                    document.getElementById('data-quality').textContent = `Need ${data.trades_needed} more trades`;
+                    document.getElementById('recommendations').innerHTML = `
+                        <div class="recommendation high">
+                            <h3>📊 More Data Needed</h3>
+                            <p>Optimizer requires at least ${data.min_required} trades for reliable recommendations.</p>
+                            <p>Current: ${data.current_trades} trades | Needed: ${data.trades_needed} more</p>
+                            <p style="margin-top: 10px;">Start trading to collect performance data!</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                document.getElementById('content').style.display = 'block';
+                
+                // Current performance
+                document.getElementById('current-win-rate').textContent = data.current_performance.win_rate.toFixed(1) + '%';
+                document.getElementById('current-sharpe').textContent = data.current_performance.sharpe_ratio.toFixed(2);
+                document.getElementById('total-trades').textContent = data.current_performance.total_trades;
+                document.getElementById('projected-improvement').textContent = '+' + data.projected_improvement.combined_estimate.toFixed(1) + '%';
+                
+                // Current config
+                const currentWeights = data.current_config.weights;
+                document.getElementById('current-tech').textContent = (currentWeights.technical * 100).toFixed(0) + '%';
+                document.getElementById('current-sent').textContent = (currentWeights.sentiment * 100).toFixed(0) + '%';
+                document.getElementById('current-fund').textContent = (currentWeights.fundamental * 100).toFixed(0) + '%';
+                document.getElementById('current-threshold').textContent = data.current_config.threshold;
+                
+                // Optimal config
+                const optimalWeights = data.optimal_config.weights;
+                document.getElementById('optimal-tech').textContent = (optimalWeights.technical * 100).toFixed(0) + '%';
+                document.getElementById('optimal-sent').textContent = (optimalWeights.sentiment * 100).toFixed(0) + '%';
+                document.getElementById('optimal-fund').textContent = (optimalWeights.fundamental * 100).toFixed(0) + '%';
+                document.getElementById('optimal-threshold').textContent = data.optimal_config.threshold;
+                
+                // Update sliders
+                document.getElementById('tech-weight').value = optimalWeights.technical * 100;
+                document.getElementById('sent-weight').value = optimalWeights.sentiment * 100;
+                document.getElementById('fund-weight').value = optimalWeights.fundamental * 100;
+                document.getElementById('threshold-slider').value = data.optimal_config.threshold;
+                updateSliderValues();
+                
+                // Recommendations
+                let recHtml = '';
+                for (const rec of data.recommendations) {
+                    recHtml += `
+                        <div class="recommendation ${rec.priority}">
+                            <h3>[${rec.priority.toUpperCase()}] ${rec.title}</h3>
+                            <p>${rec.description}</p>
+                            ${rec.changes ? '<p style="margin-top: 10px;"><strong>Changes:</strong><br>' + rec.changes.join('<br>') + '</p>' : ''}
+                            ${rec.suggestions ? '<p style="margin-top: 10px;"><strong>Suggestions:</strong><br>• ' + rec.suggestions.join('<br>• ') + '</p>' : ''}
+                        </div>
+                    `;
+                }
+                document.getElementById('recommendations').innerHTML = recHtml || '<p style="color: #94a3b8;">No recommendations at this time. Your strategy is performing well!</p>';
+                
+            } catch (error) {
+                console.error('Failed to load optimizer:', error);
+                document.getElementById('loading').innerHTML = '<h2 style="color: #ef4444;">Error loading optimizer</h2><p>' + error + '</p>';
+            }
+        }
+
+        function updateSliderValues() {
+            const tech = parseInt(document.getElementById('tech-weight').value);
+            const sent = parseInt(document.getElementById('sent-weight').value);
+            const fund = parseInt(document.getElementById('fund-weight').value);
+            const threshold = parseFloat(document.getElementById('threshold-slider').value);
+            
+            document.getElementById('tech-weight-val').textContent = tech + '%';
+            document.getElementById('sent-weight-val').textContent = sent + '%';
+            document.getElementById('fund-weight-val').textContent = fund + '%';
+            document.getElementById('threshold-val').textContent = threshold;
+            
+            const sum = tech + sent + fund;
+            const sumEl = document.getElementById('weight-sum');
+            sumEl.textContent = 'Total: ' + sum + '%';
+            
+            if (sum === 100) {
+                sumEl.style.color = '#10b981';
+            } else {
+                sumEl.style.color = '#ef4444';
+            }
+        }
+
+        function applySimulatedSettings() {
+            const tech = parseInt(document.getElementById('tech-weight').value) / 100;
+            const sent = parseInt(document.getElementById('sent-weight').value) / 100;
+            const fund = parseInt(document.getElementById('fund-weight').value) / 100;
+            const threshold = parseFloat(document.getElementById('threshold-slider').value);
+            
+            const sum = tech + sent + fund;
+            if (Math.abs(sum - 1.0) > 0.01) {
+                alert('⚠️ Weights must sum to 100%! Currently: ' + (sum * 100).toFixed(0) + '%');
+                return;
+            }
+            
+            const code = `# Update config/config.py
+
+# In TradingConfig class, update these values:
+min_composite_score: float = Field(default=${threshold})
+
+# Note: Score weights are currently hardcoded in src/main.py
+# You would need to update the score calculation to use:
+technical_weight = ${tech.toFixed(3)}
+sentiment_weight = ${sent.toFixed(3)}
+fundamental_weight = ${fund.toFixed(3)}
+
+composite_score = (
+    technical_score * ${tech.toFixed(3)} +
+    sentiment_score * ${sent.toFixed(3)} +
+    fundamental_score * ${fund.toFixed(3)}
+)
+
+# After updating, restart the bot:
+# ./bot_control.sh restart
+`;
+            
+            alert('📋 Copy this code to update your config:\n\n' + code);
+        }
+
+        // Slider event listeners
+        document.getElementById('tech-weight').addEventListener('input', updateSliderValues);
+        document.getElementById('sent-weight').addEventListener('input', updateSliderValues);
+        document.getElementById('fund-weight').addEventListener('input', updateSliderValues);
+        document.getElementById('threshold-slider').addEventListener('input', updateSliderValues);
+
+        // Load optimizer on page load
+        loadOptimizer();
+
+        // Auto-refresh every 60 seconds
+        setInterval(loadOptimizer, 60000);
+    </script>
+</body>
+</html>

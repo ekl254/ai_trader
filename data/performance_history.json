@@ -1,0 +1,812 @@
+{
+  "trades": [
+    {
+      "symbol": "AMZN",
+      "entry_time": "2025-11-10T22:57:35.874258",
+      "entry_price": 90.58721519735795,
+      "entry_score": {
+        "composite": 78.14861163318415,
+        "technical": 82.8157311478305,
+        "sentiment": 70.63363455575018,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-11T00:02:10.483800",
+      "exit_price": 93.02518096073996,
+      "exit_reason": "eod",
+      "hold_duration_min": 64.58,
+      "quantity": 80,
+      "cost": 7246.98,
+      "revenue": 7442.01,
+      "profit_loss": 195.04,
+      "profit_loss_pct": 2.6913,
+      "news_sentiment_at_entry": 0.7063363455575018,
+      "news_count_at_entry": 2,
+      "trade_date": "2025-11-10"
+    },
+    {
+      "symbol": "AMD",
+      "entry_time": "2025-11-11T06:57:35.875047",
+      "entry_price": 463.86234008272083,
+      "entry_score": {
+        "composite": 81.60475701707675,
+        "technical": 86.050681134133,
+        "sentiment": 90.57294206303358,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-12T15:39:16.916668",
+      "exit_price": 467.8659867962347,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 1961.68,
+      "quantity": 66,
+      "cost": 30614.91,
+      "revenue": 30879.16,
+      "profit_loss": 264.24,
+      "profit_loss_pct": 0.8631,
+      "news_sentiment_at_entry": 0.9057294206303358,
+      "news_count_at_entry": 7,
+      "trade_date": "2025-11-11"
+    },
+    {
+      "symbol": "TSLA",
+      "entry_time": "2025-11-03T09:57:35.875399",
+      "entry_price": 200.55590520669506,
+      "entry_score": {
+        "composite": 82.98631069107682,
+        "technical": 78.69161038906839,
+        "sentiment": 74.12207270831694,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-04T15:12:26.869963",
+      "exit_price": 205.43692361945693,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 1754.85,
+      "quantity": 39,
+      "cost": 7821.68,
+      "revenue": 8012.04,
+      "profit_loss": 190.36,
+      "profit_loss_pct": 2.4337,
+      "news_sentiment_at_entry": 0.7412207270831693,
+      "news_count_at_entry": 3,
+      "trade_date": "2025-11-03"
+    },
+    {
+      "symbol": "META",
+      "entry_time": "2025-11-02T06:57:35.875674",
+      "entry_price": 207.82424642274083,
+      "entry_score": {
+        "composite": 55.35309786347074,
+        "technical": 53.87744351387143,
+        "sentiment": 54.63037548567183,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-03T17:52:52.434283",
+      "exit_price": 203.52908190785706,
+      "exit_reason": "stop_loss",
+      "hold_duration_min": 2095.28,
+      "quantity": 20,
+      "cost": 4156.48,
+      "revenue": 4070.58,
+      "profit_loss": -85.9,
+      "profit_loss_pct": -2.0667,
+      "news_sentiment_at_entry": 0.5463037548567182,
+      "news_count_at_entry": 10,
+      "trade_date": "2025-11-02"
+    },
+    {
+      "symbol": "AMD",
+      "entry_time": "2025-11-10T01:57:35.876011",
+      "entry_price": 286.83296574744185,
+      "entry_score": {
+        "composite": 70.58039524045489,
+        "technical": 73.23297542234216,
+        "sentiment": 69.37287388249734,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-12T01:04:31.909217",
+      "exit_price": 289.4408424174682,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 2826.93,
+      "quantity": 91,
+      "cost": 26101.8,
+      "revenue": 26339.12,
+      "profit_loss": 237.32,
+      "profit_loss_pct": 0.9092,
+      "news_sentiment_at_entry": 0.6937287388249734,
+      "news_count_at_entry": 7,
+      "trade_date": "2025-11-10"
+    },
+    {
+      "symbol": "AMZN",
+      "entry_time": "2025-11-07T11:57:35.876278",
+      "entry_price": 80.43429831234886,
+      "entry_score": {
+        "composite": 55.364360174452514,
+        "technical": 51.47318916153041,
+        "sentiment": 64.09509217297882,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-09T07:58:40.571901",
+      "exit_price": 79.47556776887588,
+      "exit_reason": "eod",
+      "hold_duration_min": 2641.08,
+      "quantity": 90,
+      "cost": 7239.09,
+      "revenue": 7152.8,
+      "profit_loss": -86.29,
+      "profit_loss_pct": -1.1919,
+      "news_sentiment_at_entry": 0.6409509217297882,
+      "news_count_at_entry": 8,
+      "trade_date": "2025-11-07"
+    },
+    {
+      "symbol": "AAPL",
+      "entry_time": "2025-11-15T11:57:35.876529",
+      "entry_price": 77.99967616965338,
+      "entry_score": {
+        "composite": 66.06623480412024,
+        "technical": 65.89194845039401,
+        "sentiment": 70.50607553582776,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-16T05:19:17.939593",
+      "exit_price": 76.13339992139738,
+      "exit_reason": "stop_loss",
+      "hold_duration_min": 1041.7,
+      "quantity": 52,
+      "cost": 4055.98,
+      "revenue": 3958.94,
+      "profit_loss": -97.05,
+      "profit_loss_pct": -2.3927,
+      "news_sentiment_at_entry": 0.7050607553582776,
+      "news_count_at_entry": 10,
+      "trade_date": "2025-11-15"
+    },
+    {
+      "symbol": "NVDA",
+      "entry_time": "2025-10-31T15:57:35.876781",
+      "entry_price": 424.5953040987694,
+      "entry_score": {
+        "composite": 80.79704036703009,
+        "technical": 82.52802244351682,
+        "sentiment": 74.11448377804729,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-01T11:42:02.363583",
+      "exit_price": 432.3238627090301,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 1184.44,
+      "quantity": 64,
+      "cost": 27174.1,
+      "revenue": 27668.73,
+      "profit_loss": 494.63,
+      "profit_loss_pct": 1.8202,
+      "news_sentiment_at_entry": 0.7411448377804729,
+      "news_count_at_entry": 7,
+      "trade_date": "2025-10-31"
+    },
+    {
+      "symbol": "META",
+      "entry_time": "2025-11-18T12:57:35.877050",
+      "entry_price": 247.05322922488514,
+      "entry_score": {
+        "composite": 68.73069553875486,
+        "technical": 73.31003346573539,
+        "sentiment": 69.12437419350856,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-18T22:46:44.920555",
+      "exit_price": 242.8887184020171,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 589.15,
+      "quantity": 85,
+      "cost": 20999.52,
+      "revenue": 20645.54,
+      "profit_loss": -353.98,
+      "profit_loss_pct": -1.6857,
+      "news_sentiment_at_entry": 0.6912437419350855,
+      "news_count_at_entry": 0,
+      "trade_date": "2025-11-18"
+    },
+    {
+      "symbol": "INTC",
+      "entry_time": "2025-11-17T02:57:35.877347",
+      "entry_price": 350.7195030584692,
+      "entry_score": {
+        "composite": 77.21184279654865,
+        "technical": 76.82896688111659,
+        "sentiment": 81.6565341207396,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-18T06:32:49.091319",
+      "exit_price": 355.43427967990544,
+      "exit_reason": "eod",
+      "hold_duration_min": 1655.22,
+      "quantity": 29,
+      "cost": 10170.87,
+      "revenue": 10307.59,
+      "profit_loss": 136.73,
+      "profit_loss_pct": 1.3443,
+      "news_sentiment_at_entry": 0.8165653412073959,
+      "news_count_at_entry": 0,
+      "trade_date": "2025-11-17"
+    },
+    {
+      "symbol": "GOOGL",
+      "entry_time": "2025-10-27T04:57:35.877714",
+      "entry_price": 70.73544162230772,
+      "entry_score": {
+        "composite": 62.97622627346998,
+        "technical": 58.28775620330168,
+        "sentiment": 55.502338354882525,
+        "fundamental": 50
+      },
+      "exit_time": "2025-10-28T04:36:53.570436",
+      "exit_price": 70.36209107715605,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 1419.29,
+      "quantity": 86,
+      "cost": 6083.25,
+      "revenue": 6051.14,
+      "profit_loss": -32.11,
+      "profit_loss_pct": -0.5278,
+      "news_sentiment_at_entry": 0.5550233835488253,
+      "news_count_at_entry": 9,
+      "trade_date": "2025-10-27"
+    },
+    {
+      "symbol": "NFLX",
+      "entry_time": "2025-11-21T22:57:35.878070",
+      "entry_price": 328.9261352119031,
+      "entry_score": {
+        "composite": 56.55953443841271,
+        "technical": 52.39876900120123,
+        "sentiment": 66.55361642906982,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-23T05:30:47.770369",
+      "exit_price": 325.2349545443142,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 1833.2,
+      "quantity": 24,
+      "cost": 7894.23,
+      "revenue": 7805.64,
+      "profit_loss": -88.59,
+      "profit_loss_pct": -1.1222,
+      "news_sentiment_at_entry": 0.6655361642906982,
+      "news_count_at_entry": 2,
+      "trade_date": "2025-11-21"
+    },
+    {
+      "symbol": "AMD",
+      "entry_time": "2025-10-31T15:57:35.878437",
+      "entry_price": 232.66848757467744,
+      "entry_score": {
+        "composite": 63.794452388008345,
+        "technical": 64.37332752439337,
+        "sentiment": 69.0434883560409,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-01T22:04:29.842962",
+      "exit_price": 231.24450612669494,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 1806.9,
+      "quantity": 14,
+      "cost": 3257.36,
+      "revenue": 3237.42,
+      "profit_loss": -19.94,
+      "profit_loss_pct": -0.612,
+      "news_sentiment_at_entry": 0.6904348835604089,
+      "news_count_at_entry": 3,
+      "trade_date": "2025-10-31"
+    },
+    {
+      "symbol": "NVDA",
+      "entry_time": "2025-10-31T03:57:35.878859",
+      "entry_price": 393.8790922469465,
+      "entry_score": {
+        "composite": 57.7457181840276,
+        "technical": 57.60298796360286,
+        "sentiment": 62.9741382206848,
+        "fundamental": 50
+      },
+      "exit_time": "2025-10-31T15:36:12.972251",
+      "exit_price": 389.2949064338286,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 698.62,
+      "quantity": 91,
+      "cost": 35843.0,
+      "revenue": 35425.84,
+      "profit_loss": -417.16,
+      "profit_loss_pct": -1.1639,
+      "news_sentiment_at_entry": 0.629741382206848,
+      "news_count_at_entry": 1,
+      "trade_date": "2025-10-31"
+    },
+    {
+      "symbol": "NVDA",
+      "entry_time": "2025-11-11T12:57:35.879291",
+      "entry_price": 310.42372639328664,
+      "entry_score": {
+        "composite": 70.16468241619381,
+        "technical": 68.84599832325128,
+        "sentiment": 62.586224074297924,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-13T10:46:06.876735",
+      "exit_price": 312.3923216863532,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 2748.52,
+      "quantity": 63,
+      "cost": 19556.69,
+      "revenue": 19680.72,
+      "profit_loss": 124.02,
+      "profit_loss_pct": 0.6342,
+      "news_sentiment_at_entry": 0.6258622407429792,
+      "news_count_at_entry": 10,
+      "trade_date": "2025-11-11"
+    },
+    {
+      "symbol": "AMZN",
+      "entry_time": "2025-11-04T19:57:35.879754",
+      "entry_price": 305.1126097562576,
+      "entry_score": {
+        "composite": 80.68800144326147,
+        "technical": 83.81822425892643,
+        "sentiment": 77.27662386173527,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-04T23:26:38.244652",
+      "exit_price": 297.6509538804567,
+      "exit_reason": "stop_loss",
+      "hold_duration_min": 209.04,
+      "quantity": 28,
+      "cost": 8543.15,
+      "revenue": 8334.23,
+      "profit_loss": -208.93,
+      "profit_loss_pct": -2.4455,
+      "news_sentiment_at_entry": 0.7727662386173527,
+      "news_count_at_entry": 10,
+      "trade_date": "2025-11-04"
+    },
+    {
+      "symbol": "GOOGL",
+      "entry_time": "2025-11-14T15:57:35.880379",
+      "entry_price": 452.1021898218368,
+      "entry_score": {
+        "composite": 61.50480379270457,
+        "technical": 65.48864959518552,
+        "sentiment": 65.89494381725908,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-15T10:52:43.701219",
+      "exit_price": 449.4144692417113,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 1135.13,
+      "quantity": 45,
+      "cost": 20344.6,
+      "revenue": 20223.65,
+      "profit_loss": -120.95,
+      "profit_loss_pct": -0.5945,
+      "news_sentiment_at_entry": 0.6589494381725908,
+      "news_count_at_entry": 10,
+      "trade_date": "2025-11-14"
+    },
+    {
+      "symbol": "TSLA",
+      "entry_time": "2025-10-28T10:57:35.880910",
+      "entry_price": 340.4191796972552,
+      "entry_score": {
+        "composite": 64.78408924660039,
+        "technical": 66.51225646957019,
+        "sentiment": 57.98938144869018,
+        "fundamental": 50
+      },
+      "exit_time": "2025-10-28T21:27:27.448845",
+      "exit_price": 345.4714799287744,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 629.86,
+      "quantity": 90,
+      "cost": 30637.73,
+      "revenue": 31092.43,
+      "profit_loss": 454.71,
+      "profit_loss_pct": 1.4841,
+      "news_sentiment_at_entry": 0.5798938144869018,
+      "news_count_at_entry": 6,
+      "trade_date": "2025-10-28"
+    },
+    {
+      "symbol": "AAPL",
+      "entry_time": "2025-11-12T01:57:35.881733",
+      "entry_price": 186.2601376555882,
+      "entry_score": {
+        "composite": 68.94427960792629,
+        "technical": 73.43446818051454,
+        "sentiment": 69.1390449321741,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-12T10:32:38.986324",
+      "exit_price": 187.2049118576245,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 515.05,
+      "quantity": 44,
+      "cost": 8195.45,
+      "revenue": 8237.02,
+      "profit_loss": 41.57,
+      "profit_loss_pct": 0.5072,
+      "news_sentiment_at_entry": 0.691390449321741,
+      "news_count_at_entry": 4,
+      "trade_date": "2025-11-12"
+    },
+    {
+      "symbol": "AMD",
+      "entry_time": "2025-10-28T08:57:35.882437",
+      "entry_price": 193.03581126085663,
+      "entry_score": {
+        "composite": 83.80469558872215,
+        "technical": 79.34266181280073,
+        "sentiment": 75.05134947511527,
+        "fundamental": 50
+      },
+      "exit_time": "2025-10-29T15:55:13.038795",
+      "exit_price": 197.86013007031056,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 1857.62,
+      "quantity": 98,
+      "cost": 18917.51,
+      "revenue": 19390.29,
+      "profit_loss": 472.78,
+      "profit_loss_pct": 2.4992,
+      "news_sentiment_at_entry": 0.7505134947511527,
+      "news_count_at_entry": 1,
+      "trade_date": "2025-10-28"
+    },
+    {
+      "symbol": "TSLA",
+      "entry_time": "2025-11-17T19:57:35.883028",
+      "entry_price": 144.21996029829901,
+      "entry_score": {
+        "composite": 74.13104765722426,
+        "technical": 74.97203811333539,
+        "sentiment": 78.40865061332175,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-18T00:03:39.465784",
+      "exit_price": 146.14635475188092,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 246.06,
+      "quantity": 65,
+      "cost": 9374.3,
+      "revenue": 9499.51,
+      "profit_loss": 125.22,
+      "profit_loss_pct": 1.3357,
+      "news_sentiment_at_entry": 0.7840865061332175,
+      "news_count_at_entry": 10,
+      "trade_date": "2025-11-17"
+    },
+    {
+      "symbol": "TSLA",
+      "entry_time": "2025-11-16T17:57:35.883555",
+      "entry_price": 393.6825183792891,
+      "entry_score": {
+        "composite": 74.05526028802787,
+        "technical": 73.12322793339264,
+        "sentiment": 71.31171304216382,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-17T10:10:41.099757",
+      "exit_price": 403.221696792557,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 973.09,
+      "quantity": 71,
+      "cost": 27951.46,
+      "revenue": 28628.74,
+      "profit_loss": 677.28,
+      "profit_loss_pct": 2.4231,
+      "news_sentiment_at_entry": 0.7131171304216382,
+      "news_count_at_entry": 0,
+      "trade_date": "2025-11-16"
+    },
+    {
+      "symbol": "AMD",
+      "entry_time": "2025-11-05T23:57:35.884059",
+      "entry_price": 499.98546524355226,
+      "entry_score": {
+        "composite": 68.13136369784307,
+        "technical": 64.0995383307951,
+        "sentiment": 72.48059876899397,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-06T02:41:59.808216",
+      "exit_price": 510.9989413787727,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 164.4,
+      "quantity": 95,
+      "cost": 47498.62,
+      "revenue": 48544.9,
+      "profit_loss": 1046.28,
+      "profit_loss_pct": 2.2028,
+      "news_sentiment_at_entry": 0.7248059876899398,
+      "news_count_at_entry": 2,
+      "trade_date": "2025-11-05"
+    },
+    {
+      "symbol": "MSFT",
+      "entry_time": "2025-11-07T17:57:35.884576",
+      "entry_price": 446.12797097299926,
+      "entry_score": {
+        "composite": 71.1962424600968,
+        "technical": 73.19502699052195,
+        "sentiment": 63.42435700099356,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-09T15:42:52.661150",
+      "exit_price": 435.2818335176568,
+      "exit_reason": "stop_loss",
+      "hold_duration_min": 2745.28,
+      "quantity": 72,
+      "cost": 32121.21,
+      "revenue": 31340.29,
+      "profit_loss": -780.92,
+      "profit_loss_pct": -2.4312,
+      "news_sentiment_at_entry": 0.6342435700099356,
+      "news_count_at_entry": 10,
+      "trade_date": "2025-11-07"
+    },
+    {
+      "symbol": "NVDA",
+      "entry_time": "2025-11-05T19:57:35.885115",
+      "entry_price": 79.1568060739582,
+      "entry_score": {
+        "composite": 65.1341686931497,
+        "technical": 65.33167769857965,
+        "sentiment": 55.26652184417008,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-07T13:16:41.112314",
+      "exit_price": 78.06597771778395,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 2479.09,
+      "quantity": 30,
+      "cost": 2374.7,
+      "revenue": 2341.98,
+      "profit_loss": -32.72,
+      "profit_loss_pct": -1.3781,
+      "news_sentiment_at_entry": 0.5526652184417008,
+      "news_count_at_entry": 8,
+      "trade_date": "2025-11-05"
+    },
+    {
+      "symbol": "AAPL",
+      "entry_time": "2025-10-27T21:57:35.885669",
+      "entry_price": 249.1479938386036,
+      "entry_score": {
+        "composite": 70.52441942634154,
+        "technical": 73.47681291981428,
+        "sentiment": 60.75820881046214,
+        "fundamental": 50
+      },
+      "exit_time": "2025-10-29T05:41:37.709751",
+      "exit_price": 244.91668625945715,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 1904.03,
+      "quantity": 92,
+      "cost": 22921.62,
+      "revenue": 22532.34,
+      "profit_loss": -389.28,
+      "profit_loss_pct": -1.6983,
+      "news_sentiment_at_entry": 0.6075820881046214,
+      "news_count_at_entry": 3,
+      "trade_date": "2025-10-27"
+    },
+    {
+      "symbol": "META",
+      "entry_time": "2025-11-21T18:57:35.886246",
+      "entry_price": 438.18948203842376,
+      "entry_score": {
+        "composite": 57.87333181093838,
+        "technical": 58.550047563755165,
+        "sentiment": 52.566219711276695,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-22T02:27:59.789554",
+      "exit_price": 431.67865693256334,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 450.4,
+      "quantity": 97,
+      "cost": 42504.38,
+      "revenue": 41872.83,
+      "profit_loss": -631.55,
+      "profit_loss_pct": -1.4858,
+      "news_sentiment_at_entry": 0.525662197112767,
+      "news_count_at_entry": 5,
+      "trade_date": "2025-11-21"
+    },
+    {
+      "symbol": "TSLA",
+      "entry_time": "2025-10-30T06:57:35.886852",
+      "entry_price": 307.89697508906346,
+      "entry_score": {
+        "composite": 84.60632812472173,
+        "technical": 88.15544600853863,
+        "sentiment": 94.00587441864164,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-01T00:48:22.855217",
+      "exit_price": 313.9624362730458,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 2510.78,
+      "quantity": 92,
+      "cost": 28326.52,
+      "revenue": 28884.54,
+      "profit_loss": 558.02,
+      "profit_loss_pct": 1.97,
+      "news_sentiment_at_entry": 0.9400587441864164,
+      "news_count_at_entry": 3,
+      "trade_date": "2025-10-30"
+    },
+    {
+      "symbol": "INTC",
+      "entry_time": "2025-11-05T21:57:35.887477",
+      "entry_price": 490.0080337951616,
+      "entry_score": {
+        "composite": 84.16062980326902,
+        "technical": 80.33230789430571,
+        "sentiment": 92.42027596328927,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-06T15:58:01.497854",
+      "exit_price": 499.8031817635524,
+      "exit_reason": "rebalancing",
+      "hold_duration_min": 1080.43,
+      "quantity": 58,
+      "cost": 28420.47,
+      "revenue": 28988.58,
+      "profit_loss": 568.12,
+      "profit_loss_pct": 1.999,
+      "news_sentiment_at_entry": 0.9242027596328927,
+      "news_count_at_entry": 8,
+      "trade_date": "2025-11-05"
+    },
+    {
+      "symbol": "AMZN",
+      "entry_time": "2025-11-22T03:57:35.888125",
+      "entry_price": 77.2592644465865,
+      "entry_score": {
+        "composite": 68.14543183785227,
+        "technical": 72.56242443105164,
+        "sentiment": 58.78781952990572,
+        "fundamental": 50
+      },
+      "exit_time": "2025-11-23T05:58:15.859875",
+      "exit_price": 75.91485922614144,
+      "exit_reason": "target_profit",
+      "hold_duration_min": 1560.67,
+      "quantity": 41,
+      "cost": 3167.63,
+      "revenue": 3112.51,
+      "profit_loss": -55.12,
+      "profit_loss_pct": -1.7401,
+      "news_sentiment_at_entry": 0.5878781952990572,
+      "news_count_at_entry": 5,
+      "trade_date": "2025-11-22"
+    }
+  ],
+  "daily_stats": {
+    "2025-11-10": {
+      "trades": 2,
+      "profit_loss": 432.36,
+      "winners": 2,
+      "losers": 0
+    },
+    "2025-11-11": {
+      "trades": 2,
+      "profit_loss": 388.26,
+      "winners": 2,
+      "losers": 0
+    },
+    "2025-11-03": {
+      "trades": 1,
+      "profit_loss": 190.36,
+      "winners": 1,
+      "losers": 0
+    },
+    "2025-11-02": {
+      "trades": 1,
+      "profit_loss": -85.9,
+      "winners": 0,
+      "losers": 1
+    },
+    "2025-11-07": {
+      "trades": 2,
+      "profit_loss": -867.2099999999999,
+      "winners": 0,
+      "losers": 2
+    },
+    "2025-11-15": {
+      "trades": 1,
+      "profit_loss": -97.05,
+      "winners": 0,
+      "losers": 1
+    },
+    "2025-10-31": {
+      "trades": 3,
+      "profit_loss": 57.52999999999997,
+      "winners": 1,
+      "losers": 2
+    },
+    "2025-11-18": {
+      "trades": 1,
+      "profit_loss": -353.98,
+      "winners": 0,
+      "losers": 1
+    },
+    "2025-11-17": {
+      "trades": 2,
+      "profit_loss": 261.95,
+      "winners": 2,
+      "losers": 0
+    },
+    "2025-10-27": {
+      "trades": 2,
+      "profit_loss": -421.39,
+      "winners": 0,
+      "losers": 2
+    },
+    "2025-11-21": {
+      "trades": 2,
+      "profit_loss": -720.14,
+      "winners": 0,
+      "losers": 2
+    },
+    "2025-11-04": {
+      "trades": 1,
+      "profit_loss": -208.93,
+      "winners": 0,
+      "losers": 1
+    },
+    "2025-11-14": {
+      "trades": 1,
+      "profit_loss": -120.95,
+      "winners": 0,
+      "losers": 1
+    },
+    "2025-10-28": {
+      "trades": 2,
+      "profit_loss": 927.49,
+      "winners": 2,
+      "losers": 0
+    },
+    "2025-11-12": {
+      "trades": 1,
+      "profit_loss": 41.57,
+      "winners": 1,
+      "losers": 0
+    },
+    "2025-11-16": {
+      "trades": 1,
+      "profit_loss": 677.28,
+      "winners": 1,
+      "losers": 0
+    },
+    "2025-11-05": {
+      "trades": 3,
+      "profit_loss": 1581.6799999999998,
+      "winners": 2,
+      "losers": 1
+    },
+    "2025-10-30": {
+      "trades": 1,
+      "profit_loss": 558.02,
+      "winners": 1,
+      "losers": 0
+    },
+    "2025-11-22": {
+      "trades": 1,
+      "profit_loss": -55.12,
+      "winners": 0,
+      "losers": 1
+    }
+  },
+  "ml_training_data": [],
+  "version": "1.0"
+}

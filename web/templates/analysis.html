@@ -158,12 +158,12 @@
             color: white;
         }
 
-        .traded-yes {
+        .qualified-yes {
             color: #4caf50;
             font-weight: bold;
         }
 
-        .traded-no {
+        .qualified-no {
             color: #f44336;
             font-weight: bold;
         }
@@ -436,6 +436,8 @@
             <div class="nav-links">
                 <a href="/">Dashboard</a>
                 <a href="/analysis">Analysis</a>
+                <a href="/performance">Performance</a>
+                <a href="/optimizer">Optimizer</a>
             </div>
         </div>
 
@@ -448,7 +450,7 @@
                 </div>
                 <div class="stat-box">
                     <div class="label">Qualified</div>
-                    <div class="value" id="total-traded">-</div>
+                    <div class="value" id="total-qualified">-</div>
                 </div>
                 <div class="stat-box">
                     <div class="label">Rejected</div>
@@ -469,7 +471,7 @@
                        style="padding: 10px 15px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px; width: 300px; margin-right: 10px;"
                        onkeyup="handleSearch()">
                 <button class="filter-btn active" data-filter="all">All Tickers</button>
-                <button class="filter-btn" data-filter="traded">Qualified Only</button>
+                <button class="filter-btn" data-filter="qualified">Qualified Only</button>
                 <button class="filter-btn" data-filter="rejected">Rejected Only</button>
                 <button class="filter-btn" data-filter="high">High Score (55+)</button>
                 <button class="filter-btn" data-filter="low">Low Score (<40)</button>
@@ -527,14 +529,14 @@
 
         function updateStats() {
             const total = analysisData.length;
-            const traded = analysisData.filter(d => d.traded).length;
-            const rejected = total - traded;
+            const qualified = analysisData.filter(d => d.traded).length;
+            const rejected = total - qualified;
             const avgScore = total > 0
                 ? (analysisData.reduce((sum, d) => sum + d.composite_score, 0) / total).toFixed(1)
                 : 0;
 
             document.getElementById('total-analyzed').textContent = total;
-            document.getElementById('total-traded').textContent = traded;
+            document.getElementById('total-qualified').textContent = qualified;
             document.getElementById('total-rejected').textContent = rejected;
             document.getElementById('avg-score').textContent = avgScore;
         }
@@ -607,7 +609,7 @@
             }
             
             // Apply other filters
-            if (currentFilter === 'traded') {
+            if (currentFilter === 'qualified') {
                 filtered = filtered.filter(d => d.traded);
             } else if (currentFilter === 'rejected') {
                 filtered = filtered.filter(d => !d.traded);
@@ -695,7 +697,7 @@
                                                 ${item.sentiment_score}
                                             </span>
                                         </td>
-                                        <td class="${item.traded ? 'traded-yes' : 'traded-no'}">
+                                        <td class="${item.traded ? 'qualified-yes' : 'qualified-no'}">
                                             ${item.traded ? '✓ QUALIFIED' : '✗ REJECTED'}
                                         </td>
                                         <td><div class="reason">${item.reason}</div></td>
@@ -754,7 +756,7 @@
                                         ${item.sentiment_score}
                                     </span>
                                 </td>
-                                <td class="${item.traded ? 'traded-yes' : 'traded-no'}">
+                                <td class="${item.traded ? 'qualified-yes' : 'qualified-no'}">
                                     ${item.traded ? '✓ QUALIFIED' : '✗ REJECTED'}
                                 </td>
                                 <td><div class="reason">${item.reason}</div></td>

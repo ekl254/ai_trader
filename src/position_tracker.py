@@ -46,7 +46,14 @@ class PositionTracker:
             logger.error("failed_to_save_position_tracking", error=str(e))
 
     def track_entry(
-        self, symbol: str, entry_price: float, score: float, reason: str
+        self,
+        symbol: str,
+        entry_price: float,
+        score: float,
+        reason: str,
+        score_breakdown: Optional[Dict[str, float]] = None,
+        news_sentiment: Optional[float] = None,
+        news_count: Optional[int] = None,
     ) -> None:
         """
         Track a new position entry.
@@ -56,6 +63,9 @@ class PositionTracker:
             entry_price: Entry price
             score: Composite score at entry
             reason: Entry reason (e.g., "new_position", "rebalancing")
+            score_breakdown: Dict with technical, sentiment, fundamental scores
+            news_sentiment: News sentiment at entry
+            news_count: Number of news articles at entry
         """
         entry_time = datetime.now(timezone.utc)
 
@@ -64,6 +74,9 @@ class PositionTracker:
             "entry_price": entry_price,
             "score": score,
             "reason": reason,
+            "score_breakdown": score_breakdown or {},
+            "news_sentiment": news_sentiment,
+            "news_count": news_count,
         }
 
         self._save_data()

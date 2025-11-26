@@ -1,20 +1,39 @@
 # AI-Driven Algorithmic Trading System
 
-Fully automated trading system using Alpaca Paper Trading with multi-factor analysis (technical, fundamental, sentiment).
+Fully automated trading system using Alpaca Paper Trading with multi-factor analysis, performance tracking, and strategy optimization.
 
-## Features
+## 🚀 Features
 
-- **Multi-Factor Strategy**: Technical indicators + FinBERT sentiment analysis
+### Core Trading
+- **Multi-Factor Strategy**: Technical indicators + FinBERT sentiment + Fundamental analysis
 - **FinBERT Sentiment**: AI model trained specifically on financial news
-- **Simplified Stack**: Alpaca for trading/data + NewsAPI for news
+- **Auto-Restart Mode**: Bot runs 24/7, automatically starts trading when market opens
 - **Risk Management**: Strict 2% risk per trade, automated stop losses
 - **Paper Trading**: Safe testing with Alpaca paper account
-- **Structured Logging**: Full audit trail of all decisions
-- **S&P 500 Universe**: Trade liquid, high-quality stocks
-- **Continuous Trading**: Automated scanning and trading during market hours
-- **Web Dashboard**: Beautiful real-time monitoring interface
+- **S&P 500 Universe**: Trade liquid, high-quality stocks (100 most liquid)
 
-## Setup
+### Advanced Features
+- **Performance Tracking**: Complete trade history with ML-ready data export
+- **Strategy Optimizer**: Data-driven threshold and weight optimization
+- **Smart Rebalancing**: Replace weak positions with stronger opportunities
+- **Intelligent Reasons**: LLM-enhanced decision explanations
+- **Real-time Dashboard**: Beautiful web interface with live updates
+
+### Dashboard Pages
+- **Main Dashboard**: Portfolio overview, positions, orders
+- **Analysis**: Scan results with smart qualification reasons
+- **Performance**: Win rate, Sharpe ratio, score correlation analysis
+- **Optimizer**: Automated strategy recommendations
+
+## 📊 Current Performance (Sample Data)
+
+- **Win Rate**: 50% (30 trades)
+- **Profit Factor**: 1.64
+- **Sharpe Ratio**: 0.79
+- **Score Correlation**: 0.616 (moderate-strong positive)
+- **Optimized Threshold**: 72.5 (raised from 55.0)
+
+## 🎯 Setup
 
 ### 1. Install Dependencies
 
@@ -29,86 +48,127 @@ pip install -r requirements.txt
 
 ### 2. Configure Environment
 
-Your `.env` file has been created with your API credentials. The system is ready to use!
-
-### 3. Test Installation
+Create `.env` file with your API credentials:
 
 ```bash
-# Run tests
-pytest tests/
+# Alpaca API (Paper Trading)
+ALPACA_API_KEY=your_key_here
+ALPACA_SECRET_KEY=your_secret_here
 
-# Check code quality
-black .
-ruff check .
-mypy src/
+# NewsAPI (Free tier: 100 requests/day)
+NEWS_API_KEY=your_key_here
+
+# Optional: Ollama for LLM reasons
+OLLAMA_URL=http://your-vps:11434
 ```
 
-## Usage
-
-### Run Trading Scan
+### 3. Start the System
 
 ```bash
+# Start dashboard (port 8080)
+python3 web/dashboard.py &
+
+# Start trading bot (auto-restart mode)
+./bot_control.sh start
+
+# Bot will automatically:
+# - Wait for market open (9:30 AM ET)
+# - Scan 100 stocks every 15 minutes
+# - Execute trades when score ≥ 72.5
+# - Manage positions every 2 minutes
+```
+
+## 🎮 Usage
+
+### Bot Control
+
+```bash
+# Check status
+./bot_control.sh status
+
+# Stop bot
+./bot_control.sh stop
+
+# Restart bot
+./bot_control.sh restart
+
+# View live logs
+tail -f logs/trading.log | jq .
+```
+
+### Manual Trading
+
+```bash
+# One-time scan
 python src/main.py scan
-```
 
-### Manage Existing Positions
-
-```bash
+# Manage positions
 python src/main.py manage
-```
 
-### End-of-Day Close
-
-```bash
+# End-of-day close
 python src/main.py eod
 ```
 
-### Schedule with Cron
+### Dashboard Access
 
 ```bash
-# Edit crontab
-crontab -e
+# Open dashboard
+open http://localhost:8080
 
-# Add these lines (adjust paths):
-0 10 * * 1-5 cd /Users/enocklangat/Documents/AI/ai_trader && /Users/enocklangat/Documents/AI/ai_trader/venv/bin/python src/main.py scan
-0 15 * * 1-5 cd /Users/enocklangat/Documents/AI/ai_trader && /Users/enocklangat/Documents/AI/ai_trader/venv/bin/python src/main.py eod
+# Pages:
+# /              - Main dashboard
+# /analysis      - Scan results with smart reasons
+# /performance   - Trade analytics and metrics
+# /optimizer     - Strategy recommendations
 ```
 
-## Architecture
+## 📁 Architecture
 
 ```
-src/
-├── main.py           # Main trading engine
-├── strategy.py       # Multi-factor scoring
-├── data_provider.py  # EODHD + Alpaca data
-├── risk_manager.py   # Position sizing & validation
-├── executor.py       # Order execution
-├── sentiment.py      # News sentiment analysis
-├── universe.py       # S&P 500 stock list
-└── logger.py         # Structured logging
-
-config/
-└── config.py         # Configuration management
-
-tests/
-└── test_*.py         # Unit tests
+ai_trader/
+├── src/
+│   ├── main.py                    # Trading engine (auto-restart mode)
+│   ├── strategy.py                # Multi-factor scoring
+│   ├── executor.py                # Order execution
+│   ├── performance_tracker.py     # Trade history & analytics
+│   ├── strategy_optimizer.py      # Automated optimization
+│   ├── llm_reason_generator.py    # Smart decision explanations
+│   ├── sentiment.py               # FinBERT sentiment analysis
+│   └── position_tracker.py        # Position management
+│
+├── web/
+│   ├── dashboard.py               # Flask web server
+│   └── templates/
+│       ├── dashboard.html         # Main UI
+│       ├── analysis.html          # Scan results
+│       ├── performance.html       # Analytics
+│       └── optimizer.html         # Recommendations
+│
+├── config/
+│   └── config.py                  # Configuration (threshold: 72.5)
+│
+├── data/
+│   └── performance_history.json   # Trade history (30 trades)
+│
+└── bot_control.sh                 # Bot lifecycle management
 ```
 
-## Risk Management
+## 🛡️ Risk Management
 
 - **2% Risk Rule**: Never risk more than 2% of portfolio on single trade
 - **10% Position Limit**: No position exceeds 10% of portfolio
 - **Stop Loss**: Automatic 2% stop loss on all positions
 - **Take Profit**: 6% profit target (3:1 reward/risk)
 - **Max Positions**: Limit to 10 concurrent positions
+- **Optimized Threshold**: 72.5 minimum composite score
 
-## Data Sources
+## 📈 Data Sources
 
 ### Alpaca (Trading & Market Data)
 - Paper trading with $100K virtual account
 - Real-time market data included
-- No rate limits on paper trading
 - Historical price bars for technical analysis
+- No rate limits on paper trading
 
 ### NewsAPI (Sentiment Analysis)
 - Free tier: 100 requests per day
@@ -117,47 +177,120 @@ tests/
 
 ### FinBERT Sentiment Model
 - BERT model fine-tuned on financial news
-- Understands financial terminology (earnings, volatility, etc.)
+- Understands financial terminology
 - More accurate sentiment than generic models
 - 438MB model, cached after first download
 
-## Monitoring
+## 🔍 Monitoring
 
-View logs in real-time:
+### View Logs
 
 ```bash
+# Trading activity
 tail -f logs/trading.log | jq .
+
+# Bot startup/shutdown
+tail -f logs/bot_stdout.log
+
+# Dashboard access
+tail -f logs/dashboard.log
 ```
 
-## Safety Features
+### Performance Metrics
 
-- Paper trading only (no real money)
-- Comprehensive validation before every trade
-- All decisions logged with reasoning
-- Position limits enforced
-- Market hours checking
-- API error handling with retries
-
-## Troubleshooting
-
-**Issue**: Import errors
 ```bash
-pip install -r requirements.txt --upgrade
+# Generate performance report
+python3 test_performance_tracker.py
+
+# View in dashboard
+open http://localhost:8080/performance
 ```
 
-**Issue**: API authentication failed
+## 🚀 Advanced Features
+
+### Strategy Optimizer
+
+The optimizer analyzes historical performance and recommends:
+- Optimal score thresholds
+- Component weight adjustments
+- Win rate improvements
+- Sharpe ratio optimization
+
 ```bash
-# Check .env file has correct credentials
-cat .env
+# Access optimizer
+open http://localhost:8080/optimizer
 ```
 
-**Issue**: EODHD rate limit
+### Performance Tracking
+
+Every trade is automatically recorded with:
+- Entry/exit scores and prices
+- Hold duration and profit/loss
+- News sentiment at entry
+- Exit reason (stop loss, target profit, etc.)
+
+Data is stored in `data/performance_history.json` for ML analysis.
+
+### Smart Reasons
+
+Analysis page shows intelligent explanations:
+- **Qualified**: "✓ Strong technicals, positive sentiment"
+- **Rejected**: "✗ Composite 17 pts below threshold"
+
+Powered by smart fallback logic with optional LLM enhancement.
+
+## 🔧 Configuration
+
+### Adjust Strategy (config/config.py)
+
+```python
+# Current optimized values
+min_composite_score: 72.5  # Raised from 55.0
+min_factor_score: 40.0
+
+# Weights (currently optimal)
+technical: 0.40
+sentiment: 0.30
+fundamental: 0.30
+```
+
+### Enable LLM Reasons
+
+```python
+# Edit src/llm_reason_generator.py line 23
+self.use_llm = True  # Enable cloud model
+
+# Restart dashboard
+./bot_control.sh restart
+```
+
+## 🐛 Troubleshooting
+
+**Issue**: Bot not trading
 ```bash
-# Clear cache to force fresh data
-rm -rf data/cache/
+# Check threshold - stocks must score ≥ 72.5
+# View analysis page to see scores
+open http://localhost:8080/analysis
 ```
 
-## Development
+**Issue**: Dashboard not loading
+```bash
+# Check if running
+ps aux | grep dashboard.py
+
+# Restart
+pkill -f dashboard.py
+python3 web/dashboard.py &
+```
+
+**Issue**: News API rate limit
+```bash
+# You've hit 100 requests/day limit
+# Bot defaults to sentiment=50 (neutral)
+# Upgrade at https://newsapi.org/pricing
+```
+
+## 📝 Development
 
 Follow guidelines in `AGENTS.md` for:
 - Code style (Black, isort)
@@ -165,13 +298,21 @@ Follow guidelines in `AGENTS.md` for:
 - Testing (pytest)
 - Linting (ruff)
 
-## Next Steps
+## 🎓 Next Steps
 
-1. **Install dependencies**: `pip install -r requirements.txt`
-2. **Test connection**: `python -c "from src.logger import logger; logger.info('test')"`
-3. **Run first scan**: `python src/main.py scan`
-4. **Monitor logs**: `tail -f logs/trading.log`
+1. **Monitor Performance**: Wait for real trades (market open)
+2. **Review Analytics**: Check /performance page after trades
+3. **Run Optimizer**: Get recommendations with more data
+4. **Adjust Strategy**: Use optimizer insights to improve
 
-## Disclaimer
+## ⚠️ Disclaimer
 
 This is for educational purposes only. Paper trading does not guarantee real trading performance. Never trade with money you can't afford to lose.
+
+## 📚 Documentation
+
+- `START_HERE.md` - Quick start guide
+- `WEB_DASHBOARD.md` - Dashboard features
+- `CONTINUOUS_TRADING.md` - Auto-trading setup
+- `REBALANCING.md` - Position replacement strategy
+- `AGENTS.md` - Development guidelines

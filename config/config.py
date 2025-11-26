@@ -27,8 +27,8 @@ class TradingConfig(BaseModel):
     max_position_size: float = Field(default=0.10)
     portfolio_value: float = Field(default=100000.0)
 
-    # Scoring thresholds (lowered for testing)
-    min_composite_score: float = Field(default=55.0)
+    # Scoring thresholds (optimized based on performance data)
+    min_composite_score: float = Field(default=72.5)
     min_factor_score: float = Field(default=40.0)
 
     # Technical indicator settings

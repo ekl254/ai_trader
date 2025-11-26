@@ -12,6 +12,7 @@ from config.config import config
 from src.logger import logger, log_trade_decision
 from src.risk_manager import risk_manager
 from src.position_tracker import position_tracker  # type: ignore
+from src.performance_tracker import PerformanceTracker  # type: ignore
 
 
 class TradeExecutor:
@@ -23,6 +24,7 @@ class TradeExecutor:
             config.alpaca.secret_key,
             paper=True,
         )
+        self.performance_tracker = PerformanceTracker()
 
     def place_market_order(
         self, symbol: str, qty: int, side: OrderSide
@@ -144,12 +146,19 @@ class TradeExecutor:
         order_id = self.place_market_order(symbol, shares, OrderSide.BUY)
 
         if order_id:
-            # Track position entry
+            # Track position entry with detailed score breakdown
             position_tracker.track_entry(
                 symbol=symbol,
                 entry_price=current_price,
                 score=score,
                 reason="new_position",
+                score_breakdown={
+                    "technical": reasoning.get("technical_score", 0),
+                    "sentiment": reasoning.get("sentiment_score", 0),
+                    "fundamental": reasoning.get("fundamental_score", 0),
+                },
+                news_sentiment=reasoning.get("news_sentiment"),
+                news_count=reasoning.get("news_count"),
             )
 
             logger.info(
@@ -209,9 +218,57 @@ class TradeExecutor:
             order_id = self.place_market_order(symbol, qty_to_sell, OrderSide.SELL)
 
             if order_id:
+                # Get position info before exit
+                position_data = position_tracker.data.get("positions", {}).get(symbol)
+
                 # Track position exit only if selling entire position
                 if sell_pct >= 1.0:
                     position_tracker.track_exit(symbol=symbol, exit_reason=reason)
+
+                    # Record complete trade for performance tracking
+                    if position_data:
+                        try:
+                            # Get current position details for exit price
+                            position = self.client.get_open_position(symbol)
+                            exit_price = (
+                                float(position.current_price)
+                                if position.current_price
+                                else 0
+                            )
+
+                            # Parse entry data
+                            entry_time = datetime.fromisoformat(
+                                position_data.get(
+                                    "entry_time", datetime.now().isoformat()
+                                )
+                            )
+                            entry_price = position_data.get("entry_price", 0)
+                            entry_score = position_data.get("score_breakdown", {})
+
+                            # Record the trade
+                            self.performance_tracker.record_trade(
+                                symbol=symbol,
+                                entry_time=entry_time,
+                                entry_price=entry_price,
+                                entry_score={
+                                    "composite": position_data.get("score", 0),
+                                    "technical": entry_score.get("technical", 0),
+                                    "sentiment": entry_score.get("sentiment", 0),
+                                    "fundamental": entry_score.get("fundamental", 0),
+                                },
+                                exit_time=datetime.now(),
+                                exit_price=exit_price,
+                                exit_reason=reason,
+                                quantity=qty_to_sell,
+                                news_sentiment=position_data.get("news_sentiment"),
+                                news_count=position_data.get("news_count"),
+                            )
+                        except Exception as e:
+                            logger.error(
+                                "failed_to_record_trade_performance",
+                                symbol=symbol,
+                                error=str(e),
+                            )
 
                 logger.info(
                     "sell_executed",

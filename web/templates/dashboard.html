@@ -65,6 +65,8 @@
                 <div class="nav-links">
                     <a href="/">Dashboard</a>
                     <a href="/analysis">Analysis</a>
+                    <a href="/performance">Performance</a>
+                    <a href="/optimizer">Optimizer</a>
                 </div>
             </div>
             <div class="status">
@@ -106,6 +108,33 @@
                 <h2>Today's P&L</h2>
                 <div class="value" id="profit-loss">$0.00</div>
                 <div class="label" id="profit-loss-pct">0.00%</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔄 Rebalancing Stats</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Total Rebalances</div>
+                    <div style="font-size: 28px; font-weight: 700;" id="rebal-total">0</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Avg Score Improvement</div>
+                    <div style="font-size: 28px; font-weight: 700; color: #10b981;" id="rebal-avg">+0.0</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Can Rebalance</div>
+                    <div style="font-size: 28px; font-weight: 700;" id="rebal-can">
+                        <span id="rebal-status-icon">⏳</span>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Cooldown Period</div>
+                    <div style="font-size: 28px; font-weight: 700;" id="rebal-cooldown">60 min</div>
+                </div>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="showRebalancingHistory()" style="font-size: 13px; padding: 8px 16px;">📊 View History</button>
             </div>
         </div>
 
@@ -209,10 +238,15 @@
                 return;
             }
 
-            let html = '<table><thead><tr><th>Symbol</th><th>Qty</th><th>Avg Price</th><th>Current Price</th><th>Market Value</th><th>P&L</th><th>P&L %</th></tr></thead><tbody>';
+            let html = '<table><thead><tr><th>Symbol</th><th>Qty</th><th>Avg Price</th><th>Current Price</th><th>Market Value</th><th>P&L</th><th>P&L %</th><th>Hold Time</th><th>Lock</th></tr></thead><tbody>';
             
             for (const pos of positions) {
                 const plClass = pos.unrealized_pl >= 0 ? 'profit' : 'loss';
+                const lockIcon = pos.is_locked ? '🔒' : '🔓';
+                const lockAction = pos.is_locked ? 'unlock' : 'lock';
+                const lockColor = pos.is_locked ? '#ef4444' : '#10b981';
+                const holdTime = pos.hold_duration_min ? `${Math.floor(pos.hold_duration_min / 60)}h ${pos.hold_duration_min % 60}m` : '-';
+                
                 html += `<tr>
                     <td><strong>${pos.symbol}</strong></td>
                     <td>${pos.qty}</td>
@@ -221,6 +255,13 @@
                     <td>${formatCurrency(pos.market_value)}</td>
                     <td class="${plClass}">${formatCurrency(pos.unrealized_pl)}</td>
                     <td class="${plClass}">${formatPercent(pos.unrealized_plpc)}</td>
+                    <td>${holdTime}</td>
+                    <td>
+                        <button onclick="toggleLock('${pos.symbol}')" 
+                                style="background: ${lockColor}; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                            ${lockIcon} ${lockAction}
+                        </button>
+                    </td>
                 </tr>`;
             }
             
@@ -344,12 +385,95 @@
             setTimeout(refreshAll, 1000);
         }
 
+        async function updateRebalancingStats() {
+            const data = await fetchData('/api/rebalancing/stats');
+            if (!data || data.error) return;
+
+            document.getElementById('rebal-total').textContent = data.total_rebalances;
+            document.getElementById('rebal-avg').textContent = data.avg_score_improvement 
+                ? `+${data.avg_score_improvement.toFixed(1)}` 
+                : '+0.0';
+            document.getElementById('rebal-cooldown').textContent = `${data.cooldown_minutes} min`;
+            
+            const statusIcon = document.getElementById('rebal-status-icon');
+            if (data.can_rebalance_now) {
+                statusIcon.textContent = '✅';
+                statusIcon.style.color = '#10b981';
+            } else {
+                statusIcon.textContent = '⏳';
+                statusIcon.style.color = '#ef4444';
+            }
+        }
+
+        async function toggleLock(symbol) {
+            // Get current lock status
+            const positions = await fetchData('/api/positions');
+            const position = positions.find(p => p.symbol === symbol);
+            const isLocked = position ? position.is_locked : false;
+            
+            const action = isLocked ? 'unlock' : 'lock';
+            const url = `/api/positions/${action}/${symbol}`;
+            
+            showNotification(`${isLocked ? 'Unlocking' : 'Locking'} ${symbol}...`, 'info');
+            
+            const result = await fetchData(url, { method: 'POST' });
+            
+            if (result && result.status === 'success') {
+                showNotification(result.message, 'success');
+                await updatePositions();
+            } else {
+                showNotification(`Failed to ${action} ${symbol}`, 'error');
+            }
+        }
+
+        async function showRebalancingHistory() {
+            const history = await fetchData('/api/rebalancing/history?limit=20');
+            
+            if (!history || history.length === 0) {
+                showNotification('No rebalancing history available', 'info');
+                return;
+            }
+            
+            let html = '<div style="background: #0f172a; padding: 20px; border-radius: 8px; max-height: 500px; overflow-y: auto;">';
+            html += '<h3 style="margin-bottom: 15px;">Recent Rebalancing Events</h3>';
+            html += '<table><thead><tr><th>Time</th><th>Old Symbol</th><th>Old Score</th><th>New Symbol</th><th>New Score</th><th>Improvement</th></tr></thead><tbody>';
+            
+            for (const event of history) {
+                const improvement = event.new_score - event.old_score;
+                const improvementClass = improvement >= 0 ? 'profit' : 'loss';
+                const time = new Date(event.timestamp).toLocaleString();
+                
+                html += `<tr>
+                    <td>${time}</td>
+                    <td><strong>${event.old_symbol}</strong></td>
+                    <td>${event.old_score.toFixed(1)}</td>
+                    <td><strong>${event.new_symbol}</strong></td>
+                    <td>${event.new_score.toFixed(1)}</td>
+                    <td class="${improvementClass}">+${improvement.toFixed(1)}</td>
+                </tr>`;
+            }
+            
+            html += '</tbody></table></div>';
+            
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+            modal.innerHTML = `
+                <div style="background: #1e293b; border-radius: 12px; padding: 30px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto;">
+                    ${html}
+                    <button onclick="this.closest('div[style*=fixed]').remove()" class="btn btn-secondary" style="margin-top: 20px;">Close</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
         async function refreshAll() {
             await Promise.all([
                 updateStatus(),
                 updatePositions(),
                 updateOrders(),
-                updateLogs()
+                updateLogs(),
+                updateRebalancingStats()
             ]);
         }
 

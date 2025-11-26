@@ -295,7 +295,7 @@ class TradingEngine:
         except Exception as e:
             logger.error("trading_session_failed", error=str(e))
 
-    def run_continuous_trading(self) -> None:
+    def run_continuous_trading(self, auto_restart: bool = True) -> None:
         """Run continuous trading throughout market hours.
 
         Strategy:
@@ -303,8 +303,16 @@ class TradingEngine:
         - Position management every 2 minutes (stop losses, take profits)
         - Automatically buy when slots available
         - Automatically sell when conditions met
+        - If auto_restart=True, waits for market to open instead of exiting
+
+        Args:
+            auto_restart: If True, bot waits for market open and auto-restarts
         """
-        logger.info("continuous_trading_started", universe_size=len(self.universe))
+        logger.info(
+            "continuous_trading_started",
+            universe_size=len(self.universe),
+            auto_restart=auto_restart,
+        )
 
         scan_count = 0
         last_scan_time = None
@@ -314,8 +322,15 @@ class TradingEngine:
             try:
                 # Check if market is open
                 if not self.is_market_open():
-                    logger.info("market_closed_stopping_trading")
-                    break
+                    if auto_restart:
+                        logger.info(
+                            "market_closed_waiting_for_open", check_interval_min=5
+                        )
+                        time.sleep(300)  # Wait 5 minutes, then check again
+                        continue
+                    else:
+                        logger.info("market_closed_stopping_trading")
+                        break
 
                 current_time = datetime.now(pytz.timezone("US/Eastern"))
 
@@ -381,7 +396,9 @@ def main() -> None:
         if command == "scan":
             engine.run_trading_session()
         elif command == "continuous":
-            engine.run_continuous_trading()
+            # Check for auto-restart flag
+            auto_restart = "--auto-restart" in sys.argv
+            engine.run_continuous_trading(auto_restart=auto_restart)
         elif command == "eod":
             engine.run_eod_routine()
         elif command == "manage":
@@ -389,6 +406,7 @@ def main() -> None:
         else:
             logger.error("unknown_command", command=command)
             print("Usage: python src/main.py [scan|continuous|eod|manage]")
+            print("  continuous --auto-restart: Run 24/7, auto-start when market opens")
     else:
         # Default: run trading session
         engine.run_trading_session()
