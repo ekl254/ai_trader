@@ -1,13 +1,17 @@
-"""NewsAPI client for fetching news articles."""
+"""News client for fetching financial news articles.
+
+Uses Alpaca News API as primary source (free with trading account, better financial coverage).
+Falls back to NewsAPI.org if Alpaca fails.
+"""
 
 import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Any, Optional
 import requests
 
 from src.logger import logger
 
-# Reputable news domains (add more as needed)
+# Reputable news domains for NewsAPI fallback
 REPUTABLE_SOURCES = {
     "reuters.com",
     "wsj.com",
@@ -16,23 +20,121 @@ REPUTABLE_SOURCES = {
     "ft.com",
     "businessinsider.com",
     "nytimes.com",
+    "benzinga.com",
+    "marketwatch.com",
 }
 
 
-class NewsAPIClient:
-    """Client for NewsAPI.org to fetch news articles."""
+class AlpacaNewsClient:
+    """Client for Alpaca's built-in News API - free with trading account."""
 
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or os.getenv("NEWSAPI_KEY")
-        self.base_url = "https://newsapi.org/v2"
-        self._cache = {}  # Simple in-memory cache: {(symbol, days_back): (timestamp, articles)}
-        self._cache_ttl = 14400  # 4 hours in seconds
+    def __init__(self):
+        self.api_key = os.getenv("ALPACA_API_KEY")
+        self.secret_key = os.getenv("ALPACA_SECRET_KEY")
+        self._cache: Dict[str, tuple] = {}
+        self._cache_ttl = 1800  # 30 minutes (Alpaca news updates frequently)
+        self._client = None
+
+    def _get_client(self):
+        """Lazy-load Alpaca NewsClient."""
+        if self._client is None:
+            try:
+                from alpaca.data.historical import NewsClient
+
+                self._client = NewsClient(self.api_key, self.secret_key)
+            except Exception as e:
+                logger.error("alpaca_news_client_init_failed", error=str(e))
+                return None
+        return self._client
 
     def get_stock_news(
         self, symbol: str, days_back: int = 7, max_articles: int = 20
     ) -> List[Dict[str, Any]]:
         """
-        Fetch news articles for a stock symbol.
+        Fetch news articles for a stock symbol from Alpaca.
+
+        Args:
+            symbol: Stock ticker symbol
+            days_back: Number of days to look back
+            max_articles: Maximum number of articles to return
+
+        Returns:
+            List of article dictionaries with title, description, url, publishedAt
+        """
+        # Check cache first
+        cache_key = f"alpaca_{symbol}_{days_back}"
+        now = datetime.now().timestamp()
+        if cache_key in self._cache:
+            timestamp, cached_articles = self._cache[cache_key]
+            if (now - timestamp) < self._cache_ttl:
+                logger.info("alpaca_news_cache_hit", symbol=symbol)
+                return cached_articles
+
+        client = self._get_client()
+        if client is None:
+            return []
+
+        try:
+            from alpaca.data.requests import NewsRequest
+
+            # Calculate date range
+            end_date = datetime.now(timezone.utc)
+            start_date = end_date - timedelta(days=days_back)
+
+            request = NewsRequest(
+                symbols=symbol,
+                start=start_date,
+                end=end_date,
+                limit=max_articles,
+            )
+
+            news_response = client.get_news(request)
+
+            # Convert to standard format
+            articles = []
+            for article in news_response.data.get("news", []):
+                articles.append(
+                    {
+                        "title": article.headline,
+                        "description": article.summary
+                        if hasattr(article, "summary")
+                        else "",
+                        "url": article.url,
+                        "publishedAt": str(article.created_at),
+                        "source": article.source,
+                        "symbols": article.symbols,  # Bonus: related symbols
+                    }
+                )
+
+            logger.info(
+                "alpaca_news_fetched",
+                symbol=symbol,
+                count=len(articles),
+            )
+
+            # Cache the result
+            self._cache[cache_key] = (now, articles)
+            return articles
+
+        except Exception as e:
+            logger.error("alpaca_news_error", symbol=symbol, error=str(e))
+            return []
+
+
+class NewsAPIClient:
+    """Client for NewsAPI.org - fallback source."""
+
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key or os.getenv("NEWSAPI_KEY")
+        self.base_url = "https://newsapi.org/v2"
+        self._cache = {}
+        self._cache_ttl = 14400  # 4 hours
+
+    def get_stock_news(
+        self, symbol: str, days_back: int = 7, max_articles: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch news articles for a stock symbol from NewsAPI.
 
         Args:
             symbol: Stock ticker symbol
@@ -42,7 +144,6 @@ class NewsAPIClient:
         Returns:
             List of article dictionaries with title, description, content, publishedAt
         """
-        # Check cache first
         cache_key = (symbol, days_back)
         if cache_key in self._cache:
             timestamp, cached_articles = self._cache[cache_key]
@@ -51,18 +152,13 @@ class NewsAPIClient:
                 return cached_articles
 
         try:
-            # Calculate date range
             to_date = datetime.now()
             from_date = to_date - timedelta(days=days_back)
 
-            # Build targeted query - search for company name AND financial context
-            # Avoid generic terms that match unrelated articles
             company_name = self._company_name(symbol)
             if company_name != symbol:
-                # We have a known company name - use it with financial context
                 query = f'("{company_name}" OR "{symbol}") AND (earnings OR stock OR shares OR revenue OR profit OR CEO OR quarterly)'
             else:
-                # Unknown company - use symbol with financial terms
                 query = f'"{symbol}" AND (stock OR shares OR earnings OR trading)'
 
             params = {
@@ -70,7 +166,7 @@ class NewsAPIClient:
                 "from": from_date.strftime("%Y-%m-%d"),
                 "to": to_date.strftime("%Y-%m-%d"),
                 "language": "en",
-                "sortBy": "relevancy",  # Changed from publishedAt to get more relevant results
+                "sortBy": "relevancy",
                 "pageSize": max_articles,
                 "apiKey": self.api_key,
             }
@@ -89,12 +185,11 @@ class NewsAPIClient:
                 filtered = []
                 for article in articles:
                     source_url = article.get("url", "")
-                    # Extract domain
                     domain = source_url.split("//")[-1].split("/")[0]
                     if any(rep in domain for rep in REPUTABLE_SOURCES):
                         filtered.append(article)
 
-                # Deduplicate articles by URL to avoid repeats
+                # Deduplicate
                 seen_urls = set()
                 unique_articles = []
                 for article in filtered:
@@ -109,12 +204,10 @@ class NewsAPIClient:
                     count=len(unique_articles),
                 )
 
-                # Update cache
                 self._cache[cache_key] = (datetime.now().timestamp(), unique_articles)
-
                 return unique_articles
+
             elif response.status_code == 426:
-                # Upgrade required - free tier limitation
                 logger.warning(
                     "newsapi_upgrade_required",
                     symbol=symbol,
@@ -135,7 +228,7 @@ class NewsAPIClient:
             return []
 
     def _company_name(self, symbol: str) -> str:
-        """Return a friendly company name if we have a mapping, else the symbol itself."""
+        """Return a friendly company name if we have a mapping."""
         TICKER_COMPANY_MAP = {
             "AAPL": "Apple",
             "MSFT": "Microsoft",
@@ -226,87 +319,54 @@ class NewsAPIClient:
         }
         return TICKER_COMPANY_MAP.get(symbol.upper(), symbol)
 
-    def get_business_news(
-        self, symbol: str, max_articles: int = 20
+
+class HybridNewsClient:
+    """
+    Hybrid news client that uses Alpaca News as primary source
+    and falls back to NewsAPI.org if needed.
+
+    Benefits of Alpaca News:
+    - Free with trading account (no separate API key needed)
+    - News is tagged with stock symbols (more accurate)
+    - Sources are financial-focused (Benzinga, etc.)
+    - No rate limits beyond reasonable usage
+    """
+
+    def __init__(self):
+        self.alpaca_client = AlpacaNewsClient()
+        self.newsapi_client = NewsAPIClient()
+        self._use_alpaca = True  # Try Alpaca first
+
+    def get_stock_news(
+        self, symbol: str, days_back: int = 7, max_articles: int = 20
     ) -> List[Dict[str, Any]]:
-        """Fetch business news from US top headlines, filtered by reputable sources and ticker/company name."""
-        try:
-            query = f"{symbol} OR {self._company_name(symbol)}"
-            params = {
-                "q": query,
-                "category": "business",
-                "country": "us",
-                "pageSize": max_articles,
-                "apiKey": self.api_key,
-            }
-            response = requests.get(
-                f"{self.base_url}/top-headlines",
-                params=params,
-                timeout=30,
+        """
+        Fetch news articles for a stock symbol.
+        Uses Alpaca News first, falls back to NewsAPI.
+
+        Args:
+            symbol: Stock ticker symbol
+            days_back: Number of days to look back
+            max_articles: Maximum number of articles to return
+
+        Returns:
+            List of article dictionaries
+        """
+        articles = []
+
+        # Try Alpaca first (better for stocks)
+        if self._use_alpaca:
+            articles = self.alpaca_client.get_stock_news(
+                symbol, days_back, max_articles
             )
-            if response.status_code == 200:
-                data = response.json()
-                articles = data.get("articles", [])
-                # Filter reputable sources
-                filtered = []
-                for article in articles:
-                    source_url = article.get("url", "")
-                    domain = source_url.split("//")[-1].split("/")[0]
-                    if any(rep in domain for rep in REPUTABLE_SOURCES):
-                        filtered.append(article)
-                # Deduplicate
-                seen = set()
-                unique = []
-                for a in filtered:
-                    u = a.get("url")
-                    if u and u not in seen:
-                        seen.add(u)
-                        unique.append(a)
-                logger.info(
-                    "newsapi_business_fetched",
-                    symbol=symbol,
-                    count=len(unique),
-                )
-                return unique
-            else:
-                logger.error(
-                    "newsapi_business_failed",
-                    status_code=response.status_code,
-                )
-                return []
-        except Exception as e:
-            logger.error("newsapi_business_error", error=str(e))
-            return []
+            if articles:
+                return articles
 
-    def get_top_headlines(
-        self, category: str = "business", country: str = "us", max_articles: int = 10
-    ) -> List[Dict[str, Any]]:
-        """Legacy method kept for compatibility – fetch generic top headlines."""
-        try:
-            params = {
-                "category": category,
-                "country": country,
-                "pageSize": max_articles,
-                "apiKey": self.api_key,
-            }
-            response = requests.get(
-                f"{self.base_url}/top-headlines",
-                params=params,
-                timeout=30,
-            )
-            if response.status_code == 200:
-                data = response.json()
-                return data.get("articles", [])
-            else:
-                logger.error(
-                    "newsapi_headlines_failed",
-                    status_code=response.status_code,
-                )
-                return []
-        except Exception as e:
-            logger.error("newsapi_headlines_error", error=str(e))
-            return []
+        # Fall back to NewsAPI
+        articles = self.newsapi_client.get_stock_news(symbol, days_back, max_articles)
+
+        return articles
 
 
-# Global instance
-newsapi_client = NewsAPIClient()
+# Global instance - use hybrid client by default
+newsapi_client = HybridNewsClient()

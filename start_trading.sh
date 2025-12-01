@@ -3,7 +3,7 @@
 # AI Trading Bot Auto-Starter
 # This script ensures continuous trading runs automatically
 
-PROJECT_DIR="/Users/enocklangat/Documents/AI/ai_trader"
+PROJECT_DIR="/Users/enocklangat/Documents/AI/ai_trader 2"
 LOG_FILE="$PROJECT_DIR/logs/trading.log"
 PID_FILE="$PROJECT_DIR/trading_bot.pid"
 

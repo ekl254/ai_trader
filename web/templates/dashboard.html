@@ -55,10 +55,51 @@
         .notification { position: fixed; top: 20px; right: 20px; padding: 16px 24px; border-radius: 8px; background: #1e293b; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); z-index: 1000; display: none; }
         .notification.show { display: block; animation: slideIn 0.3s; }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        /* Position Detail Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-content { background: #1e293b; border-radius: 16px; padding: 0; max-width: 900px; width: 100%; max-height: 90vh; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .modal-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 24px; margin: 0; display: flex; align-items: center; gap: 12px; }
+        .modal-header .close-btn { background: rgba(255,255,255,0.2); border: none; color: white; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal-header .close-btn:hover { background: rgba(255,255,255,0.3); transform: rotate(90deg); }
+        .modal-body { padding: 24px; overflow-y: auto; max-height: calc(90vh - 80px); }
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .detail-card { background: #0f172a; border-radius: 12px; padding: 16px; }
+        .detail-card .label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 6px; }
+        .detail-card .value { font-size: 24px; font-weight: 700; }
+        .detail-card .sub { font-size: 13px; color: #64748b; margin-top: 4px; }
+        .chart-container { background: #0f172a; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+        .chart-container h3 { font-size: 16px; margin-bottom: 12px; color: #94a3b8; }
+        .section-box { background: #0f172a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .section-box h3 { font-size: 16px; margin-bottom: 12px; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        .section-box .content { font-size: 14px; line-height: 1.8; white-space: pre-wrap; }
+        .section-box .content strong { color: #e2e8f0; }
+        .ticker-link { cursor: pointer; color: #3b82f6; text-decoration: none; transition: all 0.2s; }
+        .ticker-link:hover { color: #60a5fa; text-decoration: underline; }
+        .price-levels { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .price-bar { flex: 1; height: 8px; background: #334155; border-radius: 4px; position: relative; overflow: hidden; }
+        .price-marker { position: absolute; width: 4px; height: 100%; background: #3b82f6; border-radius: 2px; }
+        .stop-marker { background: #ef4444; }
+        .target-marker { background: #10b981; }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Position Detail Modal -->
+        <div class="modal-overlay" id="position-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><span id="modal-symbol">AAPL</span> Position Details</h2>
+                    <button class="close-btn" onclick="closePositionModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <div style="text-align: center; padding: 40px; color: #64748b;">Loading...</div>
+                </div>
+            </div>
+        </div>
+
         <div class="header">
             <div class="header-top">
                 <h1>🤖 AI Trading Dashboard</h1>
@@ -248,7 +289,7 @@
                 const holdTime = pos.hold_duration_min ? `${Math.floor(pos.hold_duration_min / 60)}h ${pos.hold_duration_min % 60}m` : '-';
                 
                 html += `<tr>
-                    <td><strong>${pos.symbol}</strong></td>
+                    <td><strong><a class="ticker-link" onclick="showPositionDetails('${pos.symbol}')">${pos.symbol}</a></strong></td>
                     <td>${pos.qty}</td>
                     <td>${formatCurrency(pos.avg_entry_price)}</td>
                     <td>${formatCurrency(pos.current_price)}</td>
@@ -482,6 +523,132 @@
 
         // Auto-refresh every 5 seconds
         setInterval(refreshAll, 5000);
+
+        // Position Detail Modal Functions
+        async function showPositionDetails(symbol) {
+            const modal = document.getElementById('position-modal');
+            const modalBody = document.getElementById('modal-body');
+            const modalSymbol = document.getElementById('modal-symbol');
+            
+            modalSymbol.textContent = symbol;
+            modalBody.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading position details...</div>';
+            modal.classList.add('active');
+            
+            try {
+                const data = await fetchData(`/api/positions/${symbol}/details`);
+                
+                if (!data || data.error) {
+                    modalBody.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error: ${data?.error || 'Failed to load position details'}</div>`;
+                    return;
+                }
+                
+                const plClass = data.unrealized_pl >= 0 ? 'profit' : 'loss';
+                const plSign = data.unrealized_pl >= 0 ? '+' : '';
+                
+                // Calculate price position for visual bar (0-100%)
+                const priceRange = data.take_profit_price - data.stop_loss_price;
+                const pricePosition = ((data.current_price - data.stop_loss_price) / priceRange) * 100;
+                const clampedPosition = Math.max(0, Math.min(100, pricePosition));
+                
+                let html = `
+                    <!-- Price Overview Cards -->
+                    <div class="detail-grid">
+                        <div class="detail-card">
+                            <div class="label">Entry Price</div>
+                            <div class="value">${formatCurrency(data.entry_price)}</div>
+                            <div class="sub">${data.entry_time_formatted}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="label">Current Price</div>
+                            <div class="value">${formatCurrency(data.current_price)}</div>
+                            <div class="sub">Qty: ${data.qty} shares</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="label">Unrealized P&L</div>
+                            <div class="value ${plClass}">${plSign}${formatCurrency(data.unrealized_pl)}</div>
+                            <div class="sub ${plClass}">${plSign}${data.unrealized_plpc.toFixed(2)}%</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="label">Hold Duration</div>
+                            <div class="value">${data.hold_duration}</div>
+                            <div class="sub">${data.is_locked ? '🔒 Locked' : '🔓 Unlocked'}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- TradingView Chart -->
+                    <div class="chart-container">
+                        <h3>📈 Price Chart</h3>
+                        <div id="tradingview-widget" style="height: 400px;">
+                            <iframe 
+                                src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&locale=en&utm_source=localhost&utm_medium=widget_new&utm_campaign=chart&utm_term=${symbol}"
+                                style="width: 100%; height: 100%; border: none; border-radius: 8px;"
+                                allowtransparency="true"
+                                scrolling="no"
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                    </div>
+                    
+                    <!-- Price Level Visualization -->
+                    <div class="section-box">
+                        <h3>📊 Price Levels</h3>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                            <span style="color: #ef4444;">Stop Loss: ${formatCurrency(data.stop_loss_price)}</span>
+                            <span style="color: #3b82f6;">Current: ${formatCurrency(data.current_price)}</span>
+                            <span style="color: #10b981;">Target: ${formatCurrency(data.take_profit_price)}</span>
+                        </div>
+                        <div class="price-bar">
+                            <div class="price-marker stop-marker" style="left: 0%;"></div>
+                            <div class="price-marker" style="left: ${clampedPosition}%;"></div>
+                            <div class="price-marker target-marker" style="left: 100%;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #64748b;">
+                            <span>${data.pct_to_stop.toFixed(1)}% above stop</span>
+                            <span>${data.pct_to_target.toFixed(1)}% to target</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Entry Reasoning -->
+                    <div class="section-box">
+                        <h3>📝 Entry Reasoning</h3>
+                        <div class="content">${data.entry_reasoning.join('\n').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
+                    </div>
+                    
+                    <!-- Exit Plan -->
+                    <div class="section-box">
+                        <h3>🎯 Exit Plan</h3>
+                        <div class="content">${data.exit_plan.join('\n').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button class="btn btn-secondary" onclick="toggleLock('${symbol}'); closePositionModal();">
+                            ${data.is_locked ? '🔓 Unlock Position' : '🔒 Lock Position'}
+                        </button>
+                        <button class="btn btn-refresh" onclick="closePositionModal();">Close</button>
+                    </div>
+                `;
+                
+                modalBody.innerHTML = html;
+                
+            } catch (error) {
+                modalBody.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading position details: ${error.message}</div>`;
+            }
+        }
+        
+        function closePositionModal() {
+            document.getElementById('position-modal').classList.remove('active');
+        }
+        
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePositionModal();
+        });
+        
+        // Close modal on overlay click
+        document.getElementById('position-modal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) closePositionModal();
+        });
     </script>
 </body>
 </html>

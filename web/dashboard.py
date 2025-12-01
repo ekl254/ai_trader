@@ -683,6 +683,155 @@ def api_rebalancing_history():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/positions/<symbol>/details")
+def api_position_details(symbol: str):
+    """Get detailed information for a specific position."""
+    try:
+        from datetime import datetime, timezone
+
+        client = TradingClient(
+            config.alpaca.api_key, config.alpaca.secret_key, paper=True
+        )
+
+        # Get current position from Alpaca
+        positions = client.get_all_positions()
+        position = None
+        for pos in positions:
+            if pos.symbol.upper() == symbol.upper():
+                position = pos
+                break
+
+        if not position:
+            return jsonify({"error": f"Position {symbol} not found"}), 404
+
+        # Get tracker data for entry metadata
+        tracker = PositionTracker()
+        position_data = tracker.data.get("positions", {}).get(symbol.upper(), {})
+
+        # Calculate hold duration
+        entry_time_str = position_data.get("entry_time")
+        hold_duration_str = "-"
+        entry_datetime = None
+        if entry_time_str:
+            entry_datetime = datetime.fromisoformat(entry_time_str)
+            now = datetime.now(timezone.utc)
+            duration = now - entry_datetime
+            days = duration.days
+            hours = duration.seconds // 3600
+            minutes = (duration.seconds % 3600) // 60
+            if days > 0:
+                hold_duration_str = f"{days}d {hours}h {minutes}m"
+            elif hours > 0:
+                hold_duration_str = f"{hours}h {minutes}m"
+            else:
+                hold_duration_str = f"{minutes}m"
+
+        # Get score breakdown
+        score_breakdown = position_data.get("score_breakdown", {})
+        entry_score = position_data.get("score", 0)
+        entry_reason = position_data.get("reason", "unknown")
+
+        # Calculate current P&L metrics
+        entry_price = float(position.avg_entry_price)
+        current_price = (
+            float(position.current_price) if position.current_price else entry_price
+        )
+        unrealized_pl = float(position.unrealized_pl) if position.unrealized_pl else 0
+        unrealized_plpc = (
+            float(position.unrealized_plpc) * 100 if position.unrealized_plpc else 0
+        )
+
+        # Calculate stop loss and take profit levels based on config
+        stop_loss_pct = config.trading.stop_loss_pct
+        take_profit_pct = config.trading.take_profit_pct
+        stop_loss_price = entry_price * (1 - stop_loss_pct / 100)
+        take_profit_price = entry_price * (1 + take_profit_pct / 100)
+
+        # Distance to stop/target
+        pct_to_stop = ((current_price - stop_loss_price) / current_price) * 100
+        pct_to_target = ((take_profit_price - current_price) / current_price) * 100
+
+        # Build exit plan explanation
+        exit_plan = []
+        exit_plan.append(
+            f"**Stop Loss**: ${stop_loss_price:.2f} ({stop_loss_pct}% below entry)"
+        )
+        exit_plan.append(f"  → Currently {pct_to_stop:.1f}% above stop loss")
+        exit_plan.append(
+            f"**Take Profit**: ${take_profit_price:.2f} ({take_profit_pct}% above entry)"
+        )
+        exit_plan.append(f"  → Currently {pct_to_target:.1f}% from target")
+        exit_plan.append("")
+        exit_plan.append("**Exit Conditions:**")
+        exit_plan.append("• Price hits stop loss → Automatic sell")
+        exit_plan.append("• Price hits take profit → Automatic sell")
+        exit_plan.append(f"• Score drops significantly → May rebalance (if unlocked)")
+        exit_plan.append(f"• Better opportunity found → May rebalance (if unlocked)")
+
+        # Build entry reasoning
+        entry_reasoning = []
+        if entry_reason == "new_position":
+            entry_reasoning.append("📊 **Entered as new position**")
+        elif entry_reason == "rebalancing":
+            entry_reasoning.append(
+                "🔄 **Entered via rebalancing** (replaced lower-scoring position)"
+            )
+        else:
+            entry_reasoning.append(f"📊 **Entry type:** {entry_reason}")
+
+        if score_breakdown:
+            entry_reasoning.append("")
+            entry_reasoning.append("**Score Breakdown at Entry:**")
+            tech = score_breakdown.get("technical", 0)
+            sent = score_breakdown.get("sentiment", 0)
+            fund = score_breakdown.get("fundamental", 0)
+            entry_reasoning.append(f"• Technical: {tech:.1f}/100")
+            entry_reasoning.append(f"• Sentiment: {sent:.1f}/100")
+            entry_reasoning.append(f"• Fundamental: {fund:.1f}/100")
+            entry_reasoning.append(f"• **Composite: {entry_score:.1f}/100**")
+
+        # News sentiment at entry
+        news_sentiment = position_data.get("news_sentiment")
+        news_count = position_data.get("news_count")
+        if news_sentiment is not None:
+            entry_reasoning.append("")
+            entry_reasoning.append(
+                f"**News at Entry:** {news_count or 0} articles, sentiment: {news_sentiment:.3f}"
+            )
+
+        return jsonify(
+            {
+                "symbol": symbol.upper(),
+                "qty": float(position.qty),
+                "entry_price": entry_price,
+                "current_price": current_price,
+                "market_value": float(position.market_value)
+                if position.market_value
+                else 0,
+                "unrealized_pl": unrealized_pl,
+                "unrealized_plpc": unrealized_plpc,
+                "entry_time": entry_time_str,
+                "entry_time_formatted": entry_datetime.strftime("%Y-%m-%d %H:%M UTC")
+                if entry_datetime
+                else "-",
+                "hold_duration": hold_duration_str,
+                "entry_score": entry_score,
+                "score_breakdown": score_breakdown,
+                "entry_reasoning": entry_reasoning,
+                "exit_plan": exit_plan,
+                "stop_loss_price": stop_loss_price,
+                "take_profit_price": take_profit_price,
+                "pct_to_stop": pct_to_stop,
+                "pct_to_target": pct_to_target,
+                "is_locked": tracker.is_locked(symbol.upper()),
+            }
+        )
+    except Exception as e:
+        import traceback
+
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
 @app.route("/api/positions/lock/<symbol>", methods=["POST"])
 def api_lock_position(symbol: str):
     """Lock a position to prevent rebalancing."""
