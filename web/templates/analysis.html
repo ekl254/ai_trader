@@ -55,6 +55,9 @@
         .score-fill-high { background: #10b981; }
         .score-fill-medium { background: #fbbf24; }
         .score-fill-low { background: #ef4444; }
+        .last-updated { font-size: 12px; color: #64748b; text-align: right; margin-bottom: 10px; }
+        @keyframes flash-new { 0% { background: rgba(16, 185, 129, 0.3); } 100% { background: transparent; } }
+        .flash-new { animation: flash-new 1s ease-out; }
         /* Modal Styles */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
         .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
@@ -157,14 +160,26 @@
 
     <script>
         let analysisData = [];
+        let previousDataCount = 0;
         let currentFilter = 'all';
         let currentSort = 'time-desc';
         let groupBySymbol = false;
         let searchQuery = '';
+        let lastUpdateTime = null;
+
+        // Helper function to handle fetch with auth check
+        async function fetchWithAuth(url, options = {}) {
+            const response = await fetch(url, options);
+            if (response.status === 401) {
+                window.location.href = '/login';
+                throw new Error('Authentication required');
+            }
+            return response;
+        }
 
         async function fetchStatus() {
             try {
-                const response = await fetch('/api/status');
+                const response = await fetchWithAuth('/api/status');
                 const data = await response.json();
                 if (data.nyse_time) {
                     document.getElementById('nyse-time').textContent = data.nyse_time.time;
@@ -177,10 +192,14 @@
 
         async function fetchAnalysis() {
             try {
-                const response = await fetch('/api/analysis');
-                analysisData = await response.json();
+                const response = await fetchWithAuth('/api/analysis');
+                const newData = await response.json();
+                const hasNewData = newData.length !== previousDataCount;
+                previousDataCount = newData.length;
+                analysisData = newData;
+                lastUpdateTime = new Date();
                 updateStats();
-                renderAnalysisTable();
+                renderAnalysisTable(hasNewData);
             } catch (error) {
                 document.getElementById('analysis-container').innerHTML =
                     '<div class="empty">Error loading analysis data</div>';
@@ -237,10 +256,10 @@
 
         function handleSearch() {
             searchQuery = document.getElementById('tickerSearch').value.trim().toUpperCase();
-            renderAnalysisTable();
+            renderAnalysisTable(false);
         }
 
-        function renderAnalysisTable() {
+        function renderAnalysisTable(highlightNew = false) {
             const container = document.getElementById('analysis-container');
             let filtered = analysisData;
 
@@ -265,14 +284,19 @@
                 return;
             }
 
+            // Add last updated timestamp
+            const lastUpdatedHtml = lastUpdateTime 
+                ? `<div class="last-updated">Last updated: ${lastUpdateTime.toLocaleTimeString()}</div>`
+                : '';
+
             if (groupBySymbol) {
-                renderGroupedTable(container, filtered);
+                renderGroupedTable(container, filtered, lastUpdatedHtml, highlightNew);
             } else {
-                renderFlatTable(container, filtered);
+                renderFlatTable(container, filtered, lastUpdatedHtml, highlightNew);
             }
         }
 
-        function renderGroupedTable(container, data) {
+        function renderGroupedTable(container, data, lastUpdatedHtml, highlightNew) {
             const grouped = {};
             data.forEach(item => {
                 if (!grouped[item.symbol]) grouped[item.symbol] = [];
@@ -315,16 +339,18 @@
                     </div>
                 `;
             });
-            container.innerHTML = html;
+            container.innerHTML = lastUpdatedHtml + html;
         }
 
-        function renderFlatTable(container, filtered) {
+        function renderFlatTable(container, filtered, lastUpdatedHtml, highlightNew) {
+            const flashClass = highlightNew ? 'flash-new' : '';
             const html = `
+                ${lastUpdatedHtml}
                 <table>
                     <thead>
                         <tr><th>Symbol</th><th>Time</th><th>Composite</th><th>Technical</th><th>Fundamental</th><th>Sentiment</th><th>Status</th><th>Reason</th></tr>
                     </thead>
-                    <tbody>
+                    <tbody class="${flashClass}">
                         ${filtered.map(item => `
                             <tr>
                                 <td><span class="symbol" onclick="showDetails('${item.symbol}')">${item.symbol}</span></td>
@@ -352,14 +378,14 @@
                 document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentFilter = btn.dataset.filter;
-                renderAnalysisTable();
+                renderAnalysisTable(false);
             });
         });
 
         // Sort dropdown
         document.getElementById('sortSelect').addEventListener('change', (e) => {
             currentSort = e.target.value;
-            renderAnalysisTable();
+            renderAnalysisTable(false);
         });
 
         function toggleGrouping() {
@@ -367,7 +393,7 @@
             const btn = document.getElementById('groupToggle');
             btn.textContent = groupBySymbol ? 'Ungroup' : 'Group by Symbol';
             btn.classList.toggle('active', groupBySymbol);
-            renderAnalysisTable();
+            renderAnalysisTable(false);
         }
 
         // Modal functions
@@ -381,7 +407,7 @@
             modal.classList.add('active');
 
             try {
-                const response = await fetch(`/api/analysis/${symbol}/details`);
+                const response = await fetchWithAuth(`/api/analysis/${symbol}/details`);
                 const data = await response.json();
 
                 if (data.error) {
@@ -450,9 +476,9 @@
         fetchStatus();
         fetchAnalysis();
 
-        // Auto-refresh
+        // Auto-refresh every 5 seconds for real-time updates during trading
         setInterval(fetchStatus, 5000);
-        setInterval(fetchAnalysis, 10000);
+        setInterval(fetchAnalysis, 5000);
     </script>
 </body>
 </html>

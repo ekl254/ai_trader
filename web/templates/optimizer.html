@@ -122,7 +122,11 @@
                             <strong>Threshold:</strong> <span id="current-threshold">55.0</span>
                         </div>
                         <div style="margin: 10px 0;">
-                            <strong>Expected Win Rate:</strong> <span id="current-expected-wr">--</span>
+                            <strong>Expected Win Rate:</strong>
+                            <span class="info-icon">?
+                                <span class="tooltip"><strong>Expected Win Rate</strong><br>Based on historical trades that would have qualified under this config. Shows win rate and sample size.</span>
+                            </span>
+                            <br><span id="current-expected-wr">--</span>
                         </div>
                     </div>
                     <div class="config-box optimal">
@@ -137,7 +141,11 @@
                             <strong>Threshold:</strong> <span id="optimal-threshold" class="profit">72.5</span>
                         </div>
                         <div style="margin: 10px 0;">
-                            <strong>Expected Win Rate:</strong> <span id="optimal-expected-wr" class="profit">--</span>
+                            <strong>Expected Win Rate:</strong>
+                            <span class="info-icon">?
+                                <span class="tooltip"><strong>Expected Win Rate</strong><br>Projected win rate if this optimal config were used. Green = better than current, Red = worse.</span>
+                            </span>
+                            <br><span id="optimal-expected-wr" class="profit">--</span>
                         </div>
                     </div>
                 </div>
@@ -300,6 +308,31 @@
                 document.getElementById('optimal-sent').textContent = (optimalWeights.sentiment * 100).toFixed(0) + '%';
                 document.getElementById('optimal-fund').textContent = (optimalWeights.fundamental * 100).toFixed(0) + '%';
                 document.getElementById('optimal-threshold').textContent = data.optimal_config.threshold;
+                
+                // Expected Win Rates
+                const currentExpWr = data.current_config.expected_win_rate;
+                const optimalExpWr = data.optimal_config.expected_win_rate;
+                
+                if (currentExpWr && currentExpWr.win_rate !== null) {
+                    document.getElementById('current-expected-wr').textContent = currentExpWr.win_rate.toFixed(1) + '% (' + currentExpWr.sample_size + ' trades)';
+                } else {
+                    document.getElementById('current-expected-wr').textContent = currentExpWr?.message || 'Insufficient data';
+                }
+                
+                if (optimalExpWr && optimalExpWr.win_rate !== null) {
+                    const optWrEl = document.getElementById('optimal-expected-wr');
+                    optWrEl.textContent = optimalExpWr.win_rate.toFixed(1) + '% (' + optimalExpWr.sample_size + ' trades)';
+                    // Color based on comparison
+                    if (currentExpWr && currentExpWr.win_rate !== null && optimalExpWr.win_rate > currentExpWr.win_rate) {
+                        optWrEl.classList.add('profit');
+                        optWrEl.classList.remove('loss');
+                    } else if (currentExpWr && currentExpWr.win_rate !== null && optimalExpWr.win_rate < currentExpWr.win_rate) {
+                        optWrEl.classList.add('loss');
+                        optWrEl.classList.remove('profit');
+                    }
+                } else {
+                    document.getElementById('optimal-expected-wr').textContent = optimalExpWr?.message || 'Insufficient data';
+                }
                 
                 // Recommendations
                 let recHtml = '';
