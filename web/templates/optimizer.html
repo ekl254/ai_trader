@@ -13,6 +13,12 @@
         .nav-links { display: flex; gap: 10px; margin-top: 15px; }
         .nav-links a { padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; border-radius: 6px; transition: all 0.3s; font-weight: 600; }
         .nav-links a:hover { background: rgba(255,255,255,0.3); }
+        .nav-links a.active { background: rgba(255,255,255,0.35); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
+        .nyse-time { background: rgba(0,0,0,0.2); padding: 12px 20px; border-radius: 8px; text-align: center; }
+        .nyse-time .time-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; display: block; margin-bottom: 4px; }
+        .nyse-time .time-value { font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace; display: block; }
+        .nyse-time .time-date { font-size: 12px; opacity: 0.8; display: block; margin-top: 2px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
         .card { background: #1e293b; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
         .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; }
@@ -49,12 +55,19 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎯 Strategy Optimizer</h1>
+            <div class="header-top">
+                <h1>🎯 Strategy Optimizer</h1>
+                <div class="nyse-time">
+                    <span class="time-label">NYSE Time (ET)</span>
+                    <span class="time-value" id="nyse-time">--:--:--</span>
+                    <span class="time-date" id="nyse-date">Loading...</span>
+                </div>
+            </div>
             <div class="nav-links">
                 <a href="/">Dashboard</a>
                 <a href="/analysis">Analysis</a>
                 <a href="/performance">Performance</a>
-                <a href="/optimizer">Optimizer</a>
+                <a href="/optimizer" class="active">Optimizer</a>
             </div>
         </div>
 
@@ -333,6 +346,22 @@ composite_score = (
 
         // Auto-refresh every 60 seconds
         setInterval(loadOptimizer, 60000);
+
+        // NYSE Time update
+        async function updateNYSETime() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                if (data.nyse_time) {
+                    document.getElementById('nyse-time').textContent = data.nyse_time.time;
+                    document.getElementById('nyse-date').textContent = data.nyse_time.date;
+                }
+            } catch (error) {
+                console.error('Failed to update NYSE time:', error);
+            }
+        }
+        updateNYSETime();
+        setInterval(updateNYSETime, 1000);
     </script>
 </body>
 </html>

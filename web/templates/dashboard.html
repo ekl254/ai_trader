@@ -11,9 +11,14 @@
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); }
         .header h1 { font-size: 32px; margin-bottom: 10px; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
-        .nav-links { display: flex; gap: 10px; }
+        .nav-links { display: flex; gap: 10px; margin-top: 15px; }
         .nav-links a { padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; border-radius: 6px; transition: all 0.3s; font-weight: 600; }
         .nav-links a:hover { background: rgba(255,255,255,0.3); }
+        .nav-links a.active { background: rgba(255,255,255,0.35); }
+        .nyse-time { background: rgba(0,0,0,0.2); padding: 12px 20px; border-radius: 8px; text-align: center; }
+        .nyse-time .time-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; display: block; margin-bottom: 4px; }
+        .nyse-time .time-value { font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace; display: block; }
+        .nyse-time .time-date { font-size: 12px; opacity: 0.8; display: block; margin-top: 2px; }
         .header .status { display: flex; align-items: center; gap: 15px; font-size: 18px; flex-wrap: wrap; }
         .status-badge { padding: 6px 16px; border-radius: 20px; font-weight: 600; }
         .status-badge.open { background: #10b981; }
@@ -102,13 +107,18 @@
 
         <div class="header">
             <div class="header-top">
-                <h1>🤖 AI Trading Dashboard</h1>
-                <div class="nav-links">
-                    <a href="/">Dashboard</a>
-                    <a href="/analysis">Analysis</a>
-                    <a href="/performance">Performance</a>
-                    <a href="/optimizer">Optimizer</a>
+                <h1>AI Trading Dashboard</h1>
+                <div class="nyse-time" id="nyse-time-display">
+                    <span class="time-label">NYSE Time</span>
+                    <span class="time-value" id="nyse-time">--:--:-- --</span>
+                    <span class="time-date" id="nyse-date">---</span>
                 </div>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="active">Dashboard</a>
+                <a href="/analysis">Analysis</a>
+                <a href="/performance">Performance</a>
+                <a href="/optimizer">Optimizer</a>
             </div>
             <div class="status">
                 <span>Market:</span>
@@ -120,10 +130,10 @@
                 </span>
             </div>
             <div class="controls">
-                <button class="btn btn-primary" id="btn-start" onclick="startTrading()">🚀 Start Continuous Trading</button>
-                <button class="btn btn-secondary" id="btn-stop" onclick="stopTrading()" style="display:none;">⏸️ Stop Trading</button>
-                <button class="btn btn-danger" id="btn-eod" onclick="endOfDay()">🔻 Close All Positions</button>
-                <button class="btn btn-refresh" onclick="refreshAll()">🔄 Refresh Data</button>
+                <button class="btn btn-primary" id="btn-start" onclick="startTrading()">Start Continuous Trading</button>
+                <button class="btn btn-secondary" id="btn-stop" onclick="stopTrading()" style="display:none;">Stop Trading</button>
+                <button class="btn btn-danger" id="btn-eod" onclick="endOfDay()">Close All Positions</button>
+                <button class="btn btn-refresh" onclick="refreshAll()">Refresh Data</button>
             </div>
         </div>
 
@@ -225,6 +235,12 @@
         async function updateStatus() {
             const data = await fetchData('/api/status');
             if (!data) return;
+
+            // Update NYSE time
+            if (data.nyse_time) {
+                document.getElementById('nyse-time').textContent = data.nyse_time.time;
+                document.getElementById('nyse-date').textContent = data.nyse_time.date;
+            }
 
             const market = data.market;
             const marketStatusEl = document.getElementById('market-status');

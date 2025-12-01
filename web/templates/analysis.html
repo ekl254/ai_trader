@@ -1,509 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Analysis - AI Trader</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            padding: 20px 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h1 {
-            color: #667eea;
-            font-size: 28px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 15px;
-        }
-
-        .nav-links a {
-            padding: 10px 20px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-
-        .nav-links a:hover {
-            background: #764ba2;
-            transform: translateY(-2px);
-        }
-
-        .card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            margin-bottom: 20px;
-        }
-
-        .card h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 22px;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }
-
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .stat-box {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .stat-box .label {
-            font-size: 14px;
-            opacity: 0.9;
-            margin-bottom: 5px;
-        }
-
-        .stat-box .value {
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        th,
-        td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        th {
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 0.5px;
-        }
-
-        tbody tr:hover {
-            background: #f8f9ff;
-        }
-
-        .symbol {
-            font-weight: bold;
-            color: #667eea;
-            font-size: 16px;
-        }
-
-        .score-badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .score-high {
-            background: #4caf50;
-            color: white;
-        }
-
-        .score-medium {
-            background: #ff9800;
-            color: white;
-        }
-
-        .score-low {
-            background: #f44336;
-            color: white;
-        }
-
-        .qualified-yes {
-            color: #4caf50;
-            font-weight: bold;
-        }
-
-        .qualified-no {
-            color: #f44336;
-            font-weight: bold;
-        }
-
-        .reason {
-            font-size: 13px;
-            color: #666;
-            max-width: 400px;
-        }
-
-        .timestamp {
-            font-size: 12px;
-            color: #999;
-            white-space: nowrap;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .empty {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-
-        .filter-bar {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .filter-btn {
-            padding: 8px 16px;
-            border: 2px solid #667eea;
-            background: white;
-            color: #667eea;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
-        }
-
-        .filter-btn:hover,
-        .filter-btn.active {
-            background: #667eea;
-            color: white;
-        }
-
-        .score-bar {
-            width: 100%;
-            height: 6px;
-            background: #e0e0e0;
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
-
-        .score-fill {
-            height: 100%;
-            transition: width 0.3s;
-        }
-
-        .score-fill-high {
-            background: #4caf50;
-        }
-
-        .score-fill-medium {
-            background: #ff9800;
-        }
-
-        .score-fill-low {
-            background: #f44336;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
+        .nav-links { display: flex; gap: 10px; margin-top: 15px; }
+        .nav-links a { padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; border-radius: 6px; transition: all 0.3s; font-weight: 600; }
+        .nav-links a:hover { background: rgba(255,255,255,0.3); }
+        .nav-links a.active { background: rgba(255,255,255,0.35); }
+        .nyse-time { background: rgba(0,0,0,0.2); padding: 12px 20px; border-radius: 8px; text-align: center; }
+        .nyse-time .time-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; display: block; margin-bottom: 4px; }
+        .nyse-time .time-value { font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace; display: block; }
+        .nyse-time .time-date { font-size: 12px; opacity: 0.8; display: block; margin-top: 2px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; }
+        .card .value { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+        .card .label { font-size: 14px; color: #64748b; }
+        .section { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .section h2 { font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; background: #0f172a; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; color: #94a3b8; }
+        td { padding: 12px; border-top: 1px solid #334155; }
+        tbody tr:hover { background: rgba(102, 126, 234, 0.1); }
+        .profit { color: #10b981; }
+        .loss { color: #ef4444; }
+        .empty { text-align: center; padding: 40px; color: #64748b; }
+        .loading { text-align: center; padding: 40px; color: #94a3b8; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .filter-btn { padding: 8px 16px; border: 2px solid #667eea; background: transparent; color: #667eea; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-weight: 600; font-size: 13px; }
+        .filter-btn:hover, .filter-btn.active { background: #667eea; color: white; }
+        .search-input { padding: 10px 15px; border: 2px solid #334155; border-radius: 8px; font-size: 14px; width: 250px; background: #0f172a; color: #e2e8f0; }
+        .search-input:focus { outline: none; border-color: #667eea; }
+        .search-input::placeholder { color: #64748b; }
+        .score-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 13px; }
+        .score-high { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .score-medium { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .score-low { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .qualified-yes { color: #10b981; font-weight: bold; }
+        .qualified-no { color: #ef4444; font-weight: bold; }
+        .reason { font-size: 12px; color: #94a3b8; max-width: 350px; }
+        .timestamp { font-size: 12px; color: #64748b; white-space: nowrap; }
+        .symbol { font-weight: bold; color: #667eea; cursor: pointer; }
+        .symbol:hover { text-decoration: underline; color: #818cf8; }
+        .score-bar { width: 100%; height: 4px; background: #334155; border-radius: 2px; overflow: hidden; margin-top: 4px; }
+        .score-fill { height: 100%; transition: width 0.3s; }
+        .score-fill-high { background: #10b981; }
+        .score-fill-medium { background: #fbbf24; }
+        .score-fill-low { background: #ef4444; }
         /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        .modal-content {
-            background: white;
-            margin: 5% auto;
-            padding: 0;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideIn 0.3s;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateY(-50px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 30px;
-            border-radius: 15px 15px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 24px;
-        }
-
-        .close-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            transition: all 0.3s;
-        }
-
-        .close-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: rotate(90deg);
-        }
-
-        .modal-body {
-            padding: 30px;
-        }
-
-        .detail-section {
-            margin-bottom: 25px;
-        }
-
-        .detail-section h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 18px;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 8px;
-        }
-
-        .sentiment-summary {
-            background: #f8f9ff;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-
-        .sentiment-summary p {
-            margin: 5px 0;
-            font-size: 15px;
-        }
-
-        .news-article {
-            background: #f8f9ff;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-
-        .news-article:hover {
-            background: #e8e9ff;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .news-article .article-title {
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 15px;
-        }
-
-        .news-article .article-meta {
-            display: flex;
-            gap: 15px;
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
-        }
-
-        .news-article .sentiment-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .sentiment-positive {
-            background: #4caf50;
-            color: white;
-        }
-
-        .sentiment-negative {
-            background: #f44336;
-            color: white;
-        }
-
-        .sentiment-neutral {
-            background: #ff9800;
-            color: white;
-        }
-
-        .article-link {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 13px;
-        }
-
-        .article-link:hover {
-            text-decoration: underline;
-        }
-
-        .loading-modal {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .symbol {
-            cursor: pointer;
-        }
-
-        .symbol:hover {
-            text-decoration: underline;
-        }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-content { background: #1e293b; border-radius: 16px; padding: 0; max-width: 800px; width: 100%; max-height: 90vh; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .modal-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 24px; margin: 0; }
+        .modal-header .close-btn { background: rgba(255,255,255,0.2); border: none; color: white; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal-header .close-btn:hover { background: rgba(255,255,255,0.3); transform: rotate(90deg); }
+        .modal-body { padding: 24px; overflow-y: auto; max-height: calc(90vh - 80px); }
+        .detail-section { margin-bottom: 20px; }
+        .detail-section h3 { color: #667eea; margin-bottom: 12px; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        .info-box { background: #0f172a; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
+        .info-box p { margin: 6px 0; font-size: 14px; }
+        .info-box strong { color: #e2e8f0; }
     </style>
 </head>
-
 <body>
     <div class="container">
+        <!-- Detail Modal -->
+        <div class="modal-overlay" id="detailModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-symbol">Symbol Details</h2>
+                    <button class="close-btn" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <div class="loading">Loading details...</div>
+                </div>
+            </div>
+        </div>
+
         <div class="header">
-            <h1>Trading Analysis</h1>
+            <div class="header-top">
+                <h1>Trading Analysis</h1>
+                <div class="nyse-time">
+                    <span class="time-label">NYSE Time</span>
+                    <span class="time-value" id="nyse-time">--:--:-- --</span>
+                    <span class="time-date" id="nyse-date">---</span>
+                </div>
+            </div>
             <div class="nav-links">
                 <a href="/">Dashboard</a>
-                <a href="/analysis">Analysis</a>
+                <a href="/analysis" class="active">Analysis</a>
                 <a href="/performance">Performance</a>
                 <a href="/optimizer">Optimizer</a>
             </div>
         </div>
 
-        <div class="card">
-            <h2>Scan Statistics</h2>
-            <div class="stats-row">
-                <div class="stat-box">
-                    <div class="label">Total Analyzed</div>
-                    <div class="value" id="total-analyzed">-</div>
-                </div>
-                <div class="stat-box">
-                    <div class="label">Qualified</div>
-                    <div class="value" id="total-qualified">-</div>
-                </div>
-                <div class="stat-box">
-                    <div class="label">Rejected</div>
-                    <div class="value" id="total-rejected">-</div>
-                </div>
-                <div class="stat-box">
-                    <div class="label">Avg Score</div>
-                    <div class="value" id="avg-score">-</div>
-                </div>
+        <div class="grid">
+            <div class="card">
+                <h2>Total Analyzed</h2>
+                <div class="value" id="total-analyzed">-</div>
+                <div class="label">Last 2 hours</div>
+            </div>
+            <div class="card">
+                <h2>Qualified</h2>
+                <div class="value profit" id="total-qualified">-</div>
+                <div class="label">Met all criteria</div>
+            </div>
+            <div class="card">
+                <h2>Rejected</h2>
+                <div class="value loss" id="total-rejected">-</div>
+                <div class="label">Below threshold</div>
+            </div>
+            <div class="card">
+                <h2>Avg Score</h2>
+                <div class="value" id="avg-score">-</div>
+                <div class="label">Composite</div>
             </div>
         </div>
 
-        <div class="card">
+        <div class="section">
             <h2>Ticker Analysis</h2>
-
             <div class="filter-bar">
-                <input type="text" id="tickerSearch" placeholder="🔍 Search ticker (e.g. NVDA, TSLA)..." 
-                       style="padding: 10px 15px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px; width: 300px; margin-right: 10px;"
-                       onkeyup="handleSearch()">
-                <button class="filter-btn active" data-filter="all">All Tickers</button>
-                <button class="filter-btn" data-filter="qualified">Qualified Only</button>
-                <button class="filter-btn" data-filter="rejected">Rejected Only</button>
-                <button class="filter-btn" data-filter="high">High Score (55+)</button>
-                <button class="filter-btn" data-filter="low">Low Score (<40)</button>
+                <input type="text" id="tickerSearch" class="search-input" placeholder="Search ticker (e.g. NVDA, TSLA)..." onkeyup="handleSearch()">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="qualified">Qualified</button>
+                <button class="filter-btn" data-filter="rejected">Rejected</button>
+                <button class="filter-btn" data-filter="high">High (55+)</button>
+                <button class="filter-btn" data-filter="low">Low (&lt;40)</button>
             </div>
-
             <div class="filter-bar">
-                <select id="sortSelect" class="filter-btn" style="cursor: pointer;">
-                    <option value="time-desc">Sort: Newest First</option>
-                    <option value="time-asc">Sort: Oldest First</option>
-                    <option value="symbol-asc">Sort: Symbol A-Z</option>
-                    <option value="symbol-desc">Sort: Symbol Z-A</option>
-                    <option value="score-desc">Sort: Highest Score</option>
-                    <option value="score-low">Sort: Lowest Score</option>
+                <select id="sortSelect" class="filter-btn" style="cursor: pointer; min-width: 180px;">
+                    <option value="time-desc">Newest First</option>
+                    <option value="time-asc">Oldest First</option>
+                    <option value="symbol-asc">Symbol A-Z</option>
+                    <option value="symbol-desc">Symbol Z-A</option>
+                    <option value="score-desc">Highest Score</option>
+                    <option value="score-low">Lowest Score</option>
                 </select>
                 <button class="filter-btn" id="groupToggle" onclick="toggleGrouping()">Group by Symbol</button>
             </div>
-
             <div id="analysis-container">
                 <div class="loading">Loading analysis data...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Detail Modal -->
-    <div id="detailModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-symbol">Symbol Details</h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body" id="modal-body">
-                <div class="loading-modal">Loading details...</div>
             </div>
         </div>
     </div>
@@ -514,6 +160,19 @@
         let currentSort = 'time-desc';
         let groupBySymbol = false;
         let searchQuery = '';
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                if (data.nyse_time) {
+                    document.getElementById('nyse-time').textContent = data.nyse_time.time;
+                    document.getElementById('nyse-date').textContent = data.nyse_time.date;
+                }
+            } catch (error) {
+                console.error('Failed to fetch status:', error);
+            }
+        }
 
         async function fetchAnalysis() {
             try {
@@ -543,28 +202,14 @@
 
         function sortData(data) {
             const sorted = [...data];
-
             switch (currentSort) {
-                case 'time-desc':
-                    sorted.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                    break;
-                case 'time-asc':
-                    sorted.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                    break;
-                case 'symbol-asc':
-                    sorted.sort((a, b) => a.symbol.localeCompare(b.symbol));
-                    break;
-                case 'symbol-desc':
-                    sorted.sort((a, b) => b.symbol.localeCompare(a.symbol));
-                    break;
-                case 'score-desc':
-                    sorted.sort((a, b) => b.composite_score - a.composite_score);
-                    break;
-                case 'score-low':
-                    sorted.sort((a, b) => a.composite_score - b.composite_score);
-                    break;
+                case 'time-desc': sorted.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); break;
+                case 'time-asc': sorted.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); break;
+                case 'symbol-asc': sorted.sort((a, b) => a.symbol.localeCompare(b.symbol)); break;
+                case 'symbol-desc': sorted.sort((a, b) => b.symbol.localeCompare(a.symbol)); break;
+                case 'score-desc': sorted.sort((a, b) => b.composite_score - a.composite_score); break;
+                case 'score-low': sorted.sort((a, b) => a.composite_score - b.composite_score); break;
             }
-
             return sorted;
         }
 
@@ -586,10 +231,7 @@
             if (diffMins < 60) return `${diffMins}m ago`;
             if (diffHours < 24) return `${diffHours}h ago`;
 
-            return date.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         }
 
         function handleSearch() {
@@ -599,16 +241,12 @@
 
         function renderAnalysisTable() {
             const container = document.getElementById('analysis-container');
-
-            // Filter data
             let filtered = analysisData;
-            
-            // Apply search filter first
+
             if (searchQuery) {
                 filtered = filtered.filter(d => d.symbol.toUpperCase().includes(searchQuery));
             }
-            
-            // Apply other filters
+
             if (currentFilter === 'qualified') {
                 filtered = filtered.filter(d => d.traded);
             } else if (currentFilter === 'rejected') {
@@ -619,7 +257,6 @@
                 filtered = filtered.filter(d => d.composite_score < 40);
             }
 
-            // Sort data
             filtered = sortData(filtered);
 
             if (filtered.length === 0) {
@@ -627,7 +264,6 @@
                 return;
             }
 
-            // Group by symbol if enabled
             if (groupBySymbol) {
                 renderGroupedTable(container, filtered);
             } else {
@@ -636,12 +272,9 @@
         }
 
         function renderGroupedTable(container, data) {
-            // Group by symbol
             const grouped = {};
             data.forEach(item => {
-                if (!grouped[item.symbol]) {
-                    grouped[item.symbol] = [];
-                }
+                if (!grouped[item.symbol]) grouped[item.symbol] = [];
                 grouped[item.symbol].push(item);
             });
 
@@ -652,54 +285,27 @@
                 const scoreClass = getScoreClass(latestScore);
 
                 html += `
-                    <div style="margin-bottom: 30px;">
-                        <h3 style="color: #667eea; cursor: pointer;" onclick="showDetails('${symbol}')">
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="color: #667eea; cursor: pointer; margin-bottom: 12px;" onclick="showDetails('${symbol}')">
                             ${symbol} <span class="score-badge score-${scoreClass}">${latestScore}</span>
-                            <span style="font-size: 14px; color: #999; font-weight: normal;">(${items.length} scans)</span>
+                            <span style="font-size: 13px; color: #64748b; font-weight: normal; margin-left: 8px;">(${items.length} scans)</span>
                         </h3>
                         <table>
                             <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>Composite</th>
-                                    <th>Technical</th>
-                                    <th>Fundamental</th>
-                                    <th>Sentiment</th>
-                                    <th>Status</th>
-                                    <th>Reason</th>
-                                </tr>
+                                <tr><th>Time</th><th>Composite</th><th>Technical</th><th>Fundamental</th><th>Sentiment</th><th>Status</th><th>Reason</th></tr>
                             </thead>
                             <tbody>
                                 ${items.map(item => `
                                     <tr>
                                         <td><span class="timestamp">${formatTimestamp(item.timestamp)}</span></td>
                                         <td>
-                                            <span class="score-badge score-${getScoreClass(item.composite_score)}">
-                                                ${item.composite_score}
-                                            </span>
-                                            <div class="score-bar">
-                                                <div class="score-fill score-fill-${getScoreClass(item.composite_score)}" 
-                                                     style="width: ${item.composite_score}%"></div>
-                                            </div>
+                                            <span class="score-badge score-${getScoreClass(item.composite_score)}">${item.composite_score}</span>
+                                            <div class="score-bar"><div class="score-fill score-fill-${getScoreClass(item.composite_score)}" style="width: ${item.composite_score}%"></div></div>
                                         </td>
-                                        <td>
-                                            <span class="score-badge score-${getScoreClass(item.technical_score)}">
-                                                ${item.technical_score}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="score-badge score-${getScoreClass(item.fundamental_score)}">
-                                                ${item.fundamental_score}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="score-badge score-${getScoreClass(item.sentiment_score)}">
-                                                ${item.sentiment_score}
-                                            </span>
-                                        </td>
-                                        <td class="${item.traded ? 'qualified-yes' : 'qualified-no'}">
-                                            ${item.traded ? '✓ QUALIFIED' : '✗ REJECTED'}
-                                        </td>
+                                        <td><span class="score-badge score-${getScoreClass(item.technical_score)}">${item.technical_score}</span></td>
+                                        <td><span class="score-badge score-${getScoreClass(item.fundamental_score)}">${item.fundamental_score}</span></td>
+                                        <td><span class="score-badge score-${getScoreClass(item.sentiment_score)}">${item.sentiment_score}</span></td>
+                                        <td class="${item.traded ? 'qualified-yes' : 'qualified-no'}">${item.traded ? 'QUALIFIED' : 'REJECTED'}</td>
                                         <td><div class="reason">${item.reason}</div></td>
                                     </tr>
                                 `).join('')}
@@ -708,7 +314,6 @@
                     </div>
                 `;
             });
-
             container.innerHTML = html;
         }
 
@@ -716,16 +321,7 @@
             const html = `
                 <table>
                     <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Time</th>
-                            <th>Composite</th>
-                            <th>Technical</th>
-                            <th>Fundamental</th>
-                            <th>Sentiment</th>
-                            <th>Status</th>
-                            <th>Reason</th>
-                        </tr>
+                        <tr><th>Symbol</th><th>Time</th><th>Composite</th><th>Technical</th><th>Fundamental</th><th>Sentiment</th><th>Status</th><th>Reason</th></tr>
                     </thead>
                     <tbody>
                         ${filtered.map(item => `
@@ -733,53 +329,29 @@
                                 <td><span class="symbol" onclick="showDetails('${item.symbol}')">${item.symbol}</span></td>
                                 <td><span class="timestamp">${formatTimestamp(item.timestamp)}</span></td>
                                 <td>
-                                    <span class="score-badge score-${getScoreClass(item.composite_score)}">
-                                        ${item.composite_score}
-                                    </span>
-                                    <div class="score-bar">
-                                        <div class="score-fill score-fill-${getScoreClass(item.composite_score)}" 
-                                             style="width: ${item.composite_score}%"></div>
-                                    </div>
+                                    <span class="score-badge score-${getScoreClass(item.composite_score)}">${item.composite_score}</span>
+                                    <div class="score-bar"><div class="score-fill score-fill-${getScoreClass(item.composite_score)}" style="width: ${item.composite_score}%"></div></div>
                                 </td>
-                                <td>
-                                    <span class="score-badge score-${getScoreClass(item.technical_score)}">
-                                        ${item.technical_score}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="score-badge score-${getScoreClass(item.fundamental_score)}">
-                                        ${item.fundamental_score}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="score-badge score-${getScoreClass(item.sentiment_score)}">
-                                        ${item.sentiment_score}
-                                    </span>
-                                </td>
-                                <td class="${item.traded ? 'qualified-yes' : 'qualified-no'}">
-                                    ${item.traded ? '✓ QUALIFIED' : '✗ REJECTED'}
-                                </td>
+                                <td><span class="score-badge score-${getScoreClass(item.technical_score)}">${item.technical_score}</span></td>
+                                <td><span class="score-badge score-${getScoreClass(item.fundamental_score)}">${item.fundamental_score}</span></td>
+                                <td><span class="score-badge score-${getScoreClass(item.sentiment_score)}">${item.sentiment_score}</span></td>
+                                <td class="${item.traded ? 'qualified-yes' : 'qualified-no'}">${item.traded ? 'QUALIFIED' : 'REJECTED'}</td>
                                 <td><div class="reason">${item.reason}</div></td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             `;
-
             container.innerHTML = html;
         }
 
         // Filter buttons
-        document.querySelectorAll('.filter-btn').forEach(btn => {
+        document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (btn.dataset.filter) {
-                    document.querySelectorAll('.filter-btn').forEach(b => {
-                        if (b.dataset.filter) b.classList.remove('active');
-                    });
-                    btn.classList.add('active');
-                    currentFilter = btn.dataset.filter;
-                    renderAnalysisTable();
-                }
+                document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderAnalysisTable();
             });
         });
 
@@ -789,7 +361,6 @@
             renderAnalysisTable();
         });
 
-        // Toggle grouping
         function toggleGrouping() {
             groupBySymbol = !groupBySymbol;
             const btn = document.getElementById('groupToggle');
@@ -798,12 +369,6 @@
             renderAnalysisTable();
         }
 
-        // Initial load
-        fetchAnalysis();
-
-        // Auto-refresh every 10 seconds
-        setInterval(fetchAnalysis, 10000);
-
         // Modal functions
         async function showDetails(symbol) {
             const modal = document.getElementById('detailModal');
@@ -811,29 +376,23 @@
             const modalBody = document.getElementById('modal-body');
 
             modalSymbol.textContent = `${symbol} - Decision Analysis`;
-            modalBody.innerHTML = '<div class="loading-modal">Loading analysis data...</div>';
-            modal.style.display = 'block';
+            modalBody.innerHTML = '<div class="loading">Loading analysis data...</div>';
+            modal.classList.add('active');
 
             try {
                 const response = await fetch(`/api/analysis/${symbol}/details`);
                 const data = await response.json();
 
                 if (data.error) {
-                    modalBody.innerHTML = `
-                        <div class="empty">
-                            <p>❌ ${data.error}</p>
-                            ${data.trace ? `<pre style="font-size: 11px; color: #999;">${data.trace}</pre>` : ''}
-                        </div>
-                    `;
+                    modalBody.innerHTML = `<div class="empty">${data.error}</div>`;
                     return;
                 }
 
-                // Build comprehensive analysis view
                 let html = `
                     <div class="detail-section">
                         <h3>Score Breakdown</h3>
-                        <div class="sentiment-summary">
-                            <p><strong>Composite Score:</strong> ${data.scores.composite}/100 ${data.decision_logic.qualified ? '✅ QUALIFIED' : '❌ REJECTED'}</p>
+                        <div class="info-box">
+                            <p><strong>Composite Score:</strong> ${data.scores.composite}/100 ${data.decision_logic.qualified ? '<span class="profit">QUALIFIED</span>' : '<span class="loss">REJECTED</span>'}</p>
                             <p><strong>Technical:</strong> ${data.scores.technical}/100 (40% weight)</p>
                             <p><strong>Sentiment:</strong> ${data.scores.sentiment}/100 (30% weight)</p>
                             <p><strong>Fundamental:</strong> ${data.scores.fundamental}/100 (30% weight)</p>
@@ -841,64 +400,58 @@
                     </div>
                     
                     <div class="detail-section">
-                        <h3>🤖 FinBERT Analysis</h3>
-                        <div class="sentiment-summary">
+                        <h3>FinBERT Analysis</h3>
+                        <div class="info-box">
                             ${data.news_analysis ? `
                                 <p><strong>Articles Analyzed:</strong> ${data.news_analysis.articles_count}</p>
                                 <p><strong>FinBERT Score:</strong> ${data.news_analysis.avg_sentiment?.toFixed(3)} (-1=bearish, +1=bullish)</p>
                                 <p><strong>Converted to 0-100:</strong> ${data.news_analysis.score?.toFixed(2)}/100</p>
-                                <p style="margin-top: 10px; padding: 10px; background: #e8f4f8; border-radius: 5px;">
-                                    <strong>How FinBERT works:</strong><br>
-                                    FinBERT is a BERT model fine-tuned on financial news. It reads each article title and description, 
-                                    then outputs a score from -1 (very negative) to +1 (very positive). We average all article scores 
-                                    and convert to 0-100 scale for easier interpretation.
-                                </p>
                             ` : `
-                                <p>⚠️ No news data available for this scan</p>
-                                <p style="font-size: 13px; color: #666;">When news isn't available (timeout or no articles), we default to neutral sentiment (50/100)</p>
+                                <p>No news data available for this scan. Using neutral sentiment (50/100).</p>
                             `}
                         </div>
                     </div>
                     
                     <div class="detail-section">
-                        <h3>📊 Decision Logic</h3>
-                        <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; line-height: 1.8;">
-                            ${data.reasoning.map(r => `<p style="margin: 5px 0;">${r}</p>`).join('')}
+                        <h3>Decision Logic</h3>
+                        <div class="info-box">
+                            ${data.reasoning.map(r => `<p>${r}</p>`).join('')}
                         </div>
                     </div>
                     
                     <div class="detail-section">
-                        <h3>⚙️ Trading Criteria</h3>
-                        <div class="sentiment-summary">
-                            <p>✓ Composite Score ≥ ${data.decision_logic.threshold_composite}</p>
-                            <p>✓ Technical Score ≥ ${data.decision_logic.threshold_technical}</p>
-                            <p>✓ Sentiment Score ≥ ${data.decision_logic.threshold_sentiment}</p>
-                            <p style="margin-top: 10px; font-size: 13px; color: #666;">
-                                All three conditions must be met for a stock to qualify for trading.
-                            </p>
+                        <h3>Trading Criteria</h3>
+                        <div class="info-box">
+                            <p>Composite Score >= ${data.decision_logic.threshold_composite}</p>
+                            <p>Technical Score >= ${data.decision_logic.threshold_technical}</p>
+                            <p>Sentiment Score >= ${data.decision_logic.threshold_sentiment}</p>
+                            <p style="margin-top: 10px; color: #64748b; font-size: 12px;">All three conditions must be met for a stock to qualify for trading.</p>
                         </div>
                     </div>
                 `;
-
                 modalBody.innerHTML = html;
-
             } catch (error) {
                 modalBody.innerHTML = `<div class="empty">Error loading details: ${error.message}</div>`;
             }
         }
 
         function closeModal() {
-            document.getElementById('detailModal').style.display = 'none';
+            document.getElementById('detailModal').classList.remove('active');
         }
 
-        // Close modal when clicking outside
-        window.onclick = function (event) {
-            const modal = document.getElementById('detailModal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        };
+        // Close modal on escape key or overlay click
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+        document.getElementById('detailModal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) closeModal();
+        });
+
+        // Initial load
+        fetchStatus();
+        fetchAnalysis();
+
+        // Auto-refresh
+        setInterval(fetchStatus, 5000);
+        setInterval(fetchAnalysis, 10000);
     </script>
 </body>
-
 </html>

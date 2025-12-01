@@ -20,14 +20,11 @@ from src.position_tracker import PositionTracker
 from src.performance_tracker import PerformanceTracker  # type: ignore
 from src.strategy_optimizer import StrategyOptimizer  # type: ignore
 from src.llm_reason_generator import get_llm_reason_generator  # type: ignore
-from src.llm_reason_generator import get_llm_reason_generator  # type: ignore
 
 app = Flask(__name__)
 
 
 # Initialize LLM reason generator (connects to VPS Ollama)
-llm_generator = get_llm_reason_generator()
-# Initialize LLM reason generator (will use OLLAMA_URL env var if set)
 llm_generator = get_llm_reason_generator()
 
 # Store trading process
@@ -324,6 +321,24 @@ def is_bot_running() -> bool:
         return False
 
 
+def get_nyse_time() -> Dict[str, Any]:
+    """Get current NYSE time."""
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo  # type: ignore
+
+    nyse_tz = ZoneInfo("America/New_York")
+    nyse_now = datetime.now(nyse_tz)
+
+    return {
+        "time": nyse_now.strftime("%I:%M:%S %p"),
+        "date": nyse_now.strftime("%a, %b %d, %Y"),
+        "datetime": nyse_now.isoformat(),
+        "timezone": "ET",
+    }
+
+
 @app.route("/api/status")
 def api_status():
     """API endpoint for market status."""
@@ -332,6 +347,7 @@ def api_status():
             "market": get_market_status(),
             "account": get_account_info(),
             "trading_running": is_bot_running(),
+            "nyse_time": get_nyse_time(),
             "timestamp": datetime.now().isoformat(),
         }
     )
@@ -966,4 +982,4 @@ if __name__ == "__main__":
     print("=" * 60)
     print()
 
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=8082, debug=False)
