@@ -359,8 +359,19 @@ def index():
 
 
 def is_bot_running() -> bool:
-    """Check if trading bot is running via PID file."""
+    """Check if trading bot is running via systemd service or PID file."""
     try:
+        # First check systemd service (preferred method)
+        result = subprocess.run(
+            ["systemctl", "is-active", "ai-trader"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.stdout.strip() == "active":
+            return True
+        
+        # Fallback: check PID file for manual runs
         pid_file = Path(__file__).parent.parent / "logs" / "bot.pid"
         if not pid_file.exists():
             return False
