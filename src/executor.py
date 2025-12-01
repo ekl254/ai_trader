@@ -1,18 +1,19 @@
 """Trade execution and order management."""
 
+import time
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, OrderType, TimeInForce
-from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest
 from alpaca.trading.models import Order, Position
+from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
 from config.config import config
-from src.logger import logger, log_trade_decision
-from src.risk_manager import risk_manager
-from src.position_tracker import position_tracker  # type: ignore
+from src.logger import log_trade_decision, logger
 from src.performance_tracker import PerformanceTracker  # type: ignore
+from src.position_tracker import position_tracker  # type: ignore
+from src.risk_manager import risk_manager
 
 
 class TradeExecutor:
@@ -364,8 +365,6 @@ class TradeExecutor:
         Returns:
             True if swap executed successfully
         """
-        import time
-
         score_diff = new_score - old_score
         is_partial = partial_sell_pct < 1.0
 

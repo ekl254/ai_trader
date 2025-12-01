@@ -5,8 +5,9 @@ Fully automated trading system using Alpaca Paper Trading with multi-factor anal
 ## 🚀 Features
 
 ### Core Trading
-- **Multi-Factor Strategy**: Technical indicators + FinBERT sentiment + Fundamental analysis
+- **Multi-Factor Strategy**: Technical indicators (50%) + FinBERT sentiment (50%)
 - **FinBERT Sentiment**: AI model trained specifically on financial news
+- **Market Regime Detection**: Pauses trading in strong bear markets (SPY trend analysis)
 - **Auto-Restart Mode**: Bot runs 24/7, automatically starts trading when market opens
 - **Risk Management**: Strict 2% risk per trade, automated stop losses
 - **Paper Trading**: Safe testing with Alpaca paper account
@@ -18,6 +19,9 @@ Fully automated trading system using Alpaca Paper Trading with multi-factor anal
 - **Smart Rebalancing**: Replace weak positions with stronger opportunities
 - **Intelligent Reasons**: LLM-enhanced decision explanations
 - **Real-time Dashboard**: Beautiful web interface with live updates
+- **Sentiment Caching**: 30-minute TTL cache reduces NewsAPI calls
+- **Market Regime Filter**: Detects bull/bear/neutral markets using SPY
+- **EMA Trend Confirmation**: 20/50 EMA crossover for trend validation
 
 ### Dashboard Pages
 - **Main Dashboard**: Portfolio overview, positions, orders
@@ -128,12 +132,15 @@ open http://localhost:8080
 ai_trader/
 ├── src/
 │   ├── main.py                    # Trading engine (auto-restart mode)
-│   ├── strategy.py                # Multi-factor scoring
+│   ├── strategy.py                # Multi-factor scoring (technical + sentiment)
 │   ├── executor.py                # Order execution
 │   ├── performance_tracker.py     # Trade history & analytics
 │   ├── strategy_optimizer.py      # Automated optimization
 │   ├── llm_reason_generator.py    # Smart decision explanations
-│   ├── sentiment.py               # FinBERT sentiment analysis
+│   ├── sentiment.py               # FinBERT sentiment analysis (with caching)
+│   ├── market_regime.py           # SPY-based market regime detection
+│   ├── newsapi_client.py          # News fetching with company name mapping
+│   ├── universe.py                # S&P 500 with liquidity filtering
 │   └── position_tracker.py        # Position management
 │
 ├── web/
@@ -146,6 +153,12 @@ ai_trader/
 │
 ├── config/
 │   └── config.py                  # Configuration (threshold: 72.5)
+│
+├── tests/
+│   ├── test_strategy.py           # Strategy scoring tests
+│   ├── test_executor.py           # Order execution tests
+│   ├── test_sentiment.py          # Sentiment analysis tests
+│   └── test_risk_manager.py       # Risk management tests
 │
 ├── data/
 │   └── performance_history.json   # Trade history (30 trades)
@@ -248,11 +261,25 @@ Powered by smart fallback logic with optional LLM enhancement.
 min_composite_score: 72.5  # Raised from 55.0
 min_factor_score: 40.0
 
-# Weights (currently optimal)
-technical: 0.40
-sentiment: 0.30
-fundamental: 0.30
+# Weights (simplified - no dead-weight fundamental)
+technical: 0.50  # RSI, MACD, Bollinger, Volume, EMA
+sentiment: 0.50  # FinBERT news sentiment
 ```
+
+### Technical Indicators
+- **RSI**: Oversold/overbought detection with gradient scoring
+- **MACD**: Signal crossover with histogram strength
+- **Bollinger Bands**: Dynamic column detection for price position
+- **Volume**: Price-direction weighted (bullish confirmation)
+- **EMA Crossover**: 20/50 EMA trend confirmation
+
+### Market Regime Detection
+The system monitors SPY to detect market conditions:
+- **Strong Bull**: SMA20 > SMA50 > SMA200, price above SMA20
+- **Bull**: Price above SMA50
+- **Neutral**: Mixed signals
+- **Bear**: Price below SMA50
+- **Strong Bear**: Trading paused (all SMAs declining)
 
 ### Enable LLM Reasons
 

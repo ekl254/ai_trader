@@ -144,15 +144,73 @@ def get_sp500_symbols() -> List[str]:
 
 def filter_liquid_stocks(symbols: List[str], min_volume: int = 1_000_000) -> List[str]:
     """
-    Filter stocks by liquidity.
+    Filter stocks by liquidity using actual volume data from Alpaca.
 
     Args:
         symbols: List of symbols to filter
-        min_volume: Minimum average daily volume
+        min_volume: Minimum average daily volume (default 1M)
 
     Returns:
         Filtered list of liquid symbols
     """
-    # For now, return top stocks (in production, check actual volume)
-    # Scanning top 100 most liquid S&P 500 stocks
-    return symbols[:100]  # Top 100 most liquid
+    from datetime import datetime, timedelta
+
+    try:
+        from alpaca.data.historical import StockHistoricalDataClient
+        from alpaca.data.requests import StockBarsRequest
+        from alpaca.data.timeframe import TimeFrame
+        from config.config import config
+
+        client = StockHistoricalDataClient(
+            config.alpaca.api_key, config.alpaca.secret_key
+        )
+
+        liquid_symbols = []
+
+        # Process in batches to avoid rate limits
+        batch_size = 50
+        for i in range(0, len(symbols), batch_size):
+            batch = symbols[i : i + batch_size]
+
+            try:
+                request = StockBarsRequest(
+                    symbol_or_symbols=batch,
+                    timeframe=TimeFrame.Day,
+                    start=datetime.now() - timedelta(days=20),
+                )
+                bars = client.get_stock_bars(request)
+
+                for symbol in batch:
+                    try:
+                        if symbol in bars.data:
+                            symbol_bars = bars.data[symbol]
+                            if len(symbol_bars) > 0:
+                                avg_volume = sum(
+                                    bar.volume for bar in symbol_bars
+                                ) / len(symbol_bars)
+                                if avg_volume >= min_volume:
+                                    liquid_symbols.append(symbol)
+                    except Exception:
+                        # Skip symbols with data issues
+                        continue
+
+            except Exception as e:
+                logger.warning(
+                    "batch_liquidity_check_failed", batch_start=i, error=str(e)
+                )
+                # On error, include batch symbols (fail-safe)
+                liquid_symbols.extend(batch)
+
+        logger.info(
+            "liquidity_filter_complete",
+            input_count=len(symbols),
+            output_count=len(liquid_symbols),
+            min_volume=min_volume,
+        )
+
+        return liquid_symbols if liquid_symbols else symbols[:100]
+
+    except Exception as e:
+        logger.error("liquidity_filter_failed", error=str(e))
+        # Fallback to top 100 symbols on error
+        return symbols[:100]

@@ -3,7 +3,7 @@
 import sys
 import time
 from datetime import datetime, time as dt_time, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import pytz  # type: ignore
 from alpaca.trading.client import TradingClient
@@ -13,6 +13,7 @@ from config.config import config
 from src.data_provider import alpaca_provider
 from src.executor import executor
 from src.logger import logger
+from src.market_regime import market_regime_detector, MarketRegime
 from src.strategy import strategy
 from src.universe import get_sp500_symbols, filter_liquid_stocks
 from src.position_tracker import position_tracker  # type: ignore
@@ -51,13 +52,39 @@ class TradingEngine:
         """Scan universe and execute trades (with optional rebalancing)."""
         logger.info("starting_market_scan", universe_size=len(self.universe))
 
+        # Check market regime before trading
+        regime_data = market_regime_detector.get_market_regime()
+        regime = regime_data.get("regime", "neutral")
+        should_trade = regime_data.get("should_trade", True)
+        position_multiplier = regime_data.get("position_size_multiplier", 1.0)
+        max_positions_override = regime_data.get("max_positions_override")
+
+        logger.info(
+            "market_regime_check",
+            regime=regime,
+            should_trade=should_trade,
+            position_multiplier=position_multiplier,
+            recommendation=regime_data.get("recommendation"),
+        )
+
+        # Skip trading in strong bear markets
+        if not should_trade:
+            logger.warning(
+                "trading_paused_due_to_regime",
+                regime=regime,
+                recommendation=regime_data.get("recommendation"),
+            )
+            return
+
         # Check how many open slots we have
         client = TradingClient(
             config.alpaca.api_key, config.alpaca.secret_key, paper=True
         )
         positions: List[Position] = client.get_all_positions()  # type: ignore
         current_positions = len(positions)
-        max_positions = config.trading.max_positions
+
+        # Use regime-adjusted max positions if available
+        max_positions = max_positions_override or config.trading.max_positions
         available_slots = max(0, max_positions - current_positions)
 
         logger.info(
@@ -65,6 +92,7 @@ class TradingEngine:
             current=current_positions,
             max=max_positions,
             available=available_slots,
+            regime_adjusted=max_positions_override is not None,
         )
 
         # Rescore existing positions if rebalancing enabled and all slots full

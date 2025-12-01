@@ -86,10 +86,19 @@ class Config(BaseModel):
     @classmethod
     def from_env(cls) -> "Config":
         """Load configuration from environment variables."""
+        api_key = os.getenv("ALPACA_API_KEY")
+        secret_key = os.getenv("ALPACA_SECRET_KEY")
+
+        if not api_key or not secret_key:
+            raise ValueError(
+                "ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables are required. "
+                "Please set them in your .env file or environment."
+            )
+
         return cls(
             alpaca=AlpacaConfig(
-                api_key=os.getenv("ALPACA_API_KEY", ""),
-                secret_key=os.getenv("ALPACA_SECRET_KEY", ""),
+                api_key=api_key,
+                secret_key=secret_key,
                 base_url=os.getenv(
                     "ALPACA_BASE_URL", "https://paper-api.alpaca.markets"
                 ),

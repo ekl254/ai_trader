@@ -1,6 +1,6 @@
 """Data provider for market data from Alpaca."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 import pandas as pd
@@ -27,9 +27,9 @@ class AlpacaProvider:
         request = StockBarsRequest(
             symbol_or_symbols=symbol,
             timeframe=timeframe,
-            start=datetime.now() - timedelta(days=days),
+            start=datetime.now(timezone.utc) - timedelta(days=days),
         )
-        
+
         try:
             bars = self.client.get_stock_bars(request)
             df = bars.df
@@ -44,7 +44,10 @@ class AlpacaProvider:
         try:
             request = StockLatestTradeRequest(symbol_or_symbols=symbol)
             trade = self.client.get_stock_latest_trade(request)
-            return {"price": float(trade[symbol].price), "time": trade[symbol].timestamp}
+            return {
+                "price": float(trade[symbol].price),
+                "time": trade[symbol].timestamp,
+            }
         except Exception as e:
             logger.error("latest_trade_failed", symbol=symbol, error=str(e))
             raise

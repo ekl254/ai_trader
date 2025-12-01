@@ -31,10 +31,30 @@ class TradingStrategy:
             df["MACD_signal"] = macd["MACDs_12_26_9"]
         bbands = ta.bbands(close_series)
         if bbands is not None:
-            # pandas-ta returns column names with double std parameter
-            df["BB_upper"] = bbands["BBU_5_2.0_2.0"]
-            df["BB_lower"] = bbands["BBL_5_2.0_2.0"]
-            df["BB_mid"] = bbands["BBM_5_2.0_2.0"]
+            # Dynamically find BB column names (pandas-ta naming can vary)
+            bb_cols = bbands.columns.tolist()
+            bb_upper_col = (
+                [c for c in bb_cols if c.startswith("BBU_")][0]
+                if any(c.startswith("BBU_") for c in bb_cols)
+                else None
+            )
+            bb_lower_col = (
+                [c for c in bb_cols if c.startswith("BBL_")][0]
+                if any(c.startswith("BBL_") for c in bb_cols)
+                else None
+            )
+            bb_mid_col = (
+                [c for c in bb_cols if c.startswith("BBM_")][0]
+                if any(c.startswith("BBM_") for c in bb_cols)
+                else None
+            )
+
+            if bb_upper_col:
+                df["BB_upper"] = bbands[bb_upper_col]
+            if bb_lower_col:
+                df["BB_lower"] = bbands[bb_lower_col]
+            if bb_mid_col:
+                df["BB_mid"] = bbands[bb_mid_col]
 
         latest = df.iloc[-1]
 
@@ -50,15 +70,21 @@ class TradingStrategy:
             # Scale 30-70 range to 50-100 (prefer middle range)
             rsi_score = 100 - abs(rsi_value - 50) * 2
 
-        # MACD Score
+        # MACD Score - gradient based on histogram strength
         macd_value = latest.get("MACD")
         macd_signal = latest.get("MACD_signal")
         if pd.isna(macd_value) or pd.isna(macd_signal):
             macd_score = 50.0
-        elif macd_value > macd_signal:
-            macd_score = 75.0  # Bullish
         else:
-            macd_score = 25.0  # Bearish
+            macd_histogram = macd_value - macd_signal
+            # Scale histogram to score: positive = bullish, negative = bearish
+            # Typical histogram range is roughly -2 to +2 for most stocks
+            if macd_histogram > 0:
+                # Bullish: score 50-100 based on strength
+                macd_score = min(100, 50 + (macd_histogram * 25))
+            else:
+                # Bearish: score 0-50 based on strength
+                macd_score = max(0, 50 + (macd_histogram * 25))
 
         # Bollinger Bands Score
         close = latest["close"]
@@ -78,15 +104,56 @@ class TradingStrategy:
             position = (close - bb_lower) / bb_range if bb_range > 0 else 0.5
             bb_score = (1 - abs(position - 0.5) * 2) * 100
 
-        # Volume Score
+        # Volume Score - contextualized with price direction
         avg_volume = df["volume"].tail(20).mean()
         current_volume = latest["volume"]
         volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
-        volume_score = min(100, volume_ratio * 50)  # Cap at 100
 
-        # Weighted average
+        # Check if price is up or down today
+        prev_close = df["close"].iloc[-2] if len(df) > 1 else latest["close"]
+        price_change_pct = (
+            (latest["close"] - prev_close) / prev_close if prev_close > 0 else 0
+        )
+
+        # High volume on up days is bullish, high volume on down days is bearish
+        if price_change_pct > 0:
+            # Up day with volume = bullish confirmation
+            volume_score = min(100, 50 + (volume_ratio - 1) * 30)
+        elif price_change_pct < -0.005:  # Down more than 0.5%
+            # Down day with high volume = bearish (selling pressure)
+            volume_score = max(0, 50 - (volume_ratio - 1) * 30)
+        else:
+            # Flat day - neutral volume score
+            volume_score = 50.0
+
+        # Add trend confirmation via EMA
+        df["EMA_20"] = ta.ema(close_series, length=20)
+        df["EMA_50"] = ta.ema(close_series, length=50)
+        ema_20 = latest.get("EMA_20")
+        ema_50 = latest.get("EMA_50")
+
+        # Trend score: above both EMAs = bullish, below both = bearish
+        if not pd.isna(ema_20) and not pd.isna(ema_50):
+            if close > ema_20 > ema_50:
+                trend_score = 80.0  # Strong uptrend
+            elif close > ema_20 and close > ema_50:
+                trend_score = 65.0  # Moderate uptrend
+            elif close < ema_20 < ema_50:
+                trend_score = 20.0  # Strong downtrend
+            elif close < ema_20 and close < ema_50:
+                trend_score = 35.0  # Moderate downtrend
+            else:
+                trend_score = 50.0  # Mixed/consolidation
+        else:
+            trend_score = 50.0
+
+        # Weighted average - added trend component
         technical_score = (
-            rsi_score * 0.3 + macd_score * 0.3 + bb_score * 0.25 + volume_score * 0.15
+            rsi_score * 0.25
+            + macd_score * 0.25
+            + bb_score * 0.20
+            + volume_score * 0.15
+            + trend_score * 0.15
         )
 
         details = {
@@ -94,9 +161,19 @@ class TradingStrategy:
             "rsi_score": rsi_score,
             "macd": float(macd_value) if not pd.isna(macd_value) else None,
             "macd_signal": float(macd_signal) if not pd.isna(macd_signal) else None,
+            "macd_histogram": float(macd_value - macd_signal)
+            if not pd.isna(macd_value) and not pd.isna(macd_signal)
+            else None,
             "macd_score": macd_score,
             "bb_score": bb_score,
+            "bb_upper": float(bb_upper) if not pd.isna(bb_upper) else None,
+            "bb_lower": float(bb_lower) if not pd.isna(bb_lower) else None,
+            "volume_ratio": round(volume_ratio, 2),
             "volume_score": volume_score,
+            "price_change_pct": round(price_change_pct * 100, 2),
+            "ema_20": float(ema_20) if not pd.isna(ema_20) else None,
+            "ema_50": float(ema_50) if not pd.isna(ema_50) else None,
+            "trend_score": trend_score,
             "total": technical_score,
         }
 
@@ -140,10 +217,9 @@ class TradingStrategy:
         )
         sentiment_score, sentiment_details = self.calculate_sentiment_score(symbol)
 
-        # Weighted composite score
-        composite_score = (
-            technical_score * 0.4 + fundamental_score * 0.3 + sentiment_score * 0.3
-        )
+        # Weighted composite score (removed fundamental dead weight)
+        # Technical: 50%, Sentiment: 50%
+        composite_score = technical_score * 0.5 + sentiment_score * 0.5
 
         reasoning = {
             "technical": technical_details,

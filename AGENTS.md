@@ -1,24 +1,24 @@
 # Agent Guidelines for AI Trading System
 
 ## Build/Test Commands
-- Python tests: `pytest tests/` (single test: `pytest tests/test_file.py::test_name`)
-- Lint: `ruff check .` (auto-fix: `ruff check --fix .`)
-- Format: `black . && isort .`
-- Type check: `mypy src/`
+- **Run all tests**: `pytest tests/`
+- **Single test file**: `pytest tests/test_risk_manager.py`
+- **Single test**: `pytest tests/test_risk_manager.py::test_position_size_calculation -v`
+- **Lint**: `ruff check .` (auto-fix: `ruff check --fix .`)
+- **Format**: `black . && isort .`
+- **Type check**: `mypy src/`
 
 ## Code Style
-- **Imports**: stdlib → third-party → local (use `isort` profile black)
-- **Formatting**: Black (line length 88), double quotes for strings
-- **Types**: Use type hints for all function signatures, return types required
-- **Naming**: snake_case for functions/variables, PascalCase for classes, UPPER_CASE for constants
-- **Error Handling**: Use explicit exceptions, never bare `except:`, log all errors with context
-- **Async**: Prefer async/await for I/O operations (API calls, file operations)
-- **Documentation**: Docstrings for all public functions (Google style), inline comments for complex logic
-- **API Keys**: Never hardcode, use environment variables via `python-dotenv`
+- **Imports**: stdlib → third-party → local (isort profile=black, line_length=88)
+- **Formatting**: Black defaults (88 chars), double quotes
+- **Types**: Type hints required on all functions; use `Optional[]`, `Dict[]`, `List[]`
+- **Naming**: snake_case (funcs/vars), PascalCase (classes), UPPER_CASE (constants)
+- **Error Handling**: Always `except Exception as e:`, log with `logger.error("event", error=str(e))`
+- **Docstrings**: Google style, required for public functions
+- **Config**: Use `config.config` for settings, env vars via `python-dotenv`
 
-## Trading System Specifics
-- **Risk Management**: Always validate 2% position sizing before execution
-- **Logging**: Use structured logging (JSON) with trade reasoning for audit trail
-- **API Calls**: Implement exponential backoff, respect rate limits (EODHD: 20 req/day free tier)
-- **Testing**: Mock all external APIs (Alpaca, EODHD), test risk calculations extensively
-- **Data**: Cache market data locally to minimize API usage, validate all input data
+## Trading System Rules
+- **Risk**: Validate 2% position sizing via `risk_manager.calculate_position_size()` before trades
+- **Logging**: Use `structlog` with JSON format; include trade reasoning for audit trail
+- **API Calls**: Alpaca for trading/data, NewsAPI for sentiment; mock all external APIs in tests
+- **Testing**: Mock external APIs with `pytest-mock`; test risk calculations extensively
