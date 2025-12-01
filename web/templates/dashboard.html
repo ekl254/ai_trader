@@ -131,14 +131,8 @@
                 <span id="market-time"></span>
                 <span class="trading-status" id="trading-status">
                     <span id="trading-indicator">●</span>
-                    <span id="trading-text">Idle</span>
+                    <span id="trading-text">Checking...</span>
                 </span>
-            </div>
-            <div class="controls">
-                <button class="btn btn-primary" id="btn-start" onclick="startTrading()">Start Continuous Trading</button>
-                <button class="btn btn-secondary" id="btn-stop" onclick="stopTrading()" style="display:none;">Stop Trading</button>
-                <button class="btn btn-danger" id="btn-eod" onclick="endOfDay()">Close All Positions</button>
-                <button class="btn btn-refresh" onclick="refreshAll()">Refresh Data</button>
             </div>
         </div>
 
@@ -261,7 +255,7 @@
             const nextTime = market.is_open ? market.next_close : market.next_open;
             document.getElementById('market-time').textContent = market.is_open ? `Closes: ${nextTime}` : `Opens: ${nextTime}`;
 
-            // Update trading status
+            // Update trading status based on market and bot service
             const tradingStatus = document.getElementById('trading-status');
             const tradingIndicator = document.getElementById('trading-indicator');
             const tradingText = document.getElementById('trading-text');
@@ -269,16 +263,11 @@
             if (data.trading_running) {
                 tradingStatus.classList.add('running');
                 tradingIndicator.classList.add('pulse');
-                tradingText.textContent = 'Continuous Trading Active';
-                document.getElementById('btn-start').style.display = 'none';
-                document.getElementById('btn-stop').style.display = 'inline-block';
+                tradingText.textContent = market.is_open ? 'Bot Active - Trading' : 'Bot Active - Market Closed';
             } else {
                 tradingStatus.classList.remove('running');
                 tradingIndicator.classList.remove('pulse');
-                tradingText.textContent = 'Idle';
-                document.getElementById('btn-start').style.display = 'inline-block';
-                document.getElementById('btn-start').disabled = false;
-                document.getElementById('btn-stop').style.display = 'none';
+                tradingText.textContent = 'Bot Inactive';
             }
 
             const account = data.account;
@@ -438,71 +427,6 @@
             }
             
             container.innerHTML = html || '<div class="empty">No logs yet</div>';
-        }
-
-        async function startTrading() {
-            if (document.getElementById('btn-start').disabled) return;
-            
-            showNotification('Starting continuous trading...', 'info');
-            document.getElementById('btn-start').disabled = true;
-            document.getElementById('btn-start').style.display = 'none';
-            document.getElementById('btn-stop').style.display = 'inline-block';
-            
-            const result = await fetchData('/api/trade/start', { method: 'POST' });
-            
-            if (result && result.status === 'started') {
-                showNotification('Continuous trading started! Scanning all S&P 500 stocks every 15 minutes.', 'success');
-            } else {
-                showNotification('Failed to start trading', 'error');
-                document.getElementById('btn-start').disabled = false;
-                document.getElementById('btn-start').style.display = 'inline-block';
-                document.getElementById('btn-stop').style.display = 'none';
-            }
-            
-            setTimeout(refreshAll, 2000);
-        }
-
-        async function stopTrading() {
-            showNotification('Stopping trading...', 'info');
-            
-            const result = await fetchData('/api/trade/stop', { method: 'POST' });
-            
-            if (result && result.status === 'stopping') {
-                showNotification('Trading will stop after current operations complete', 'success');
-                document.getElementById('btn-start').disabled = false;
-                document.getElementById('btn-start').style.display = 'inline-block';
-                document.getElementById('btn-stop').style.display = 'none';
-            }
-            
-            setTimeout(refreshAll, 1000);
-        }
-
-        async function managePositions() {
-            showNotification('Checking stop losses...', 'info');
-            const result = await fetchData('/api/trade/manage', { method: 'POST' });
-            
-            if (result && result.status === 'completed') {
-                showNotification('Position management completed!', 'success');
-            } else {
-                showNotification('Position management failed', 'error');
-            }
-            
-            setTimeout(refreshAll, 1000);
-        }
-
-        async function endOfDay() {
-            if (!confirm('Close all open positions? This action cannot be undone.')) return;
-            
-            showNotification('Closing all positions...', 'info');
-            const result = await fetchData('/api/trade/eod', { method: 'POST' });
-            
-            if (result && result.status === 'completed') {
-                showNotification('All positions closed!', 'success');
-            } else {
-                showNotification('Failed to close positions', 'error');
-            }
-            
-            setTimeout(refreshAll, 1000);
         }
 
         async function updateRebalancingStats() {
