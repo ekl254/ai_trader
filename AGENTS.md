@@ -7,6 +7,7 @@
 - **Lint**: `ruff check .` (auto-fix: `ruff check --fix .`)
 - **Format**: `black . && isort .`
 - **Type check**: `mypy src/`
+- **Run bot**: `PYTHONPATH=/root/ai_trader python src/main.py continuous --auto-restart`
 
 ## Code Style
 - **Imports**: stdlib → third-party → local (isort profile=black, line_length=88)
