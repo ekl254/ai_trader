@@ -38,6 +38,10 @@
         .slider-label { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .slider { width: 100%; height: 8px; border-radius: 5px; background: #334155; outline: none; }
         .slider::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #667eea; cursor: pointer; }
+        .info-icon { display: inline-block; width: 16px; height: 16px; background: #475569; color: #e2e8f0; border-radius: 50%; text-align: center; line-height: 16px; font-size: 11px; margin-left: 6px; cursor: help; position: relative; }
+        .tooltip { visibility: hidden; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%); background: #1e293b; color: #e2e8f0; padding: 12px 16px; border-radius: 8px; font-size: 13px; width: 280px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: 1px solid #334155; line-height: 1.5; font-weight: normal; }
+        .tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: #1e293b transparent transparent transparent; }
+        .info-icon:hover .tooltip { visibility: visible; }
         .recommendation { background: #1e293b; padding: 15px; border-left: 4px solid #667eea; margin: 10px 0; border-radius: 4px; }
         .recommendation.high { border-left-color: #ef4444; }
         .recommendation.medium { border-left-color: #fbbf24; }
@@ -144,21 +148,33 @@
                 
                 <div class="slider-container">
                     <div class="slider-label">
-                        <span>Technical Weight: <strong id="tech-weight-val">40%</strong></span>
+                        <span>Technical Weight: <strong id="tech-weight-val">40%</strong>
+                            <span class="info-icon">?
+                                <span class="tooltip"><strong>Technical Analysis</strong><br>Based on price patterns, RSI, moving averages, and volume. Higher weight = more emphasis on chart signals. Best for momentum-driven markets.</span>
+                            </span>
+                        </span>
                     </div>
                     <input type="range" min="0" max="70" value="40" class="slider" id="tech-weight">
                 </div>
 
                 <div class="slider-container">
                     <div class="slider-label">
-                        <span>Sentiment Weight: <strong id="sent-weight-val">30%</strong></span>
+                        <span>Sentiment Weight: <strong id="sent-weight-val">30%</strong>
+                            <span class="info-icon">?
+                                <span class="tooltip"><strong>News Sentiment</strong><br>Based on recent news articles and their positive/negative tone. Higher weight = more reactive to news events. Good for catching momentum from headlines.</span>
+                            </span>
+                        </span>
                     </div>
                     <input type="range" min="0" max="70" value="30" class="slider" id="sent-weight">
                 </div>
 
                 <div class="slider-container">
                     <div class="slider-label">
-                        <span>Fundamental Weight: <strong id="fund-weight-val">30%</strong></span>
+                        <span>Fundamental Weight: <strong id="fund-weight-val">30%</strong>
+                            <span class="info-icon">?
+                                <span class="tooltip"><strong>Fundamental Analysis</strong><br>Based on P/E ratio, earnings growth, and company financials. Higher weight = more focus on value metrics. Best for longer-term positions.</span>
+                            </span>
+                        </span>
                         <span id="weight-sum" class="warning">Total: 100%</span>
                     </div>
                     <input type="range" min="0" max="70" value="30" class="slider" id="fund-weight">
@@ -166,7 +182,11 @@
 
                 <div class="slider-container" style="margin-top: 30px;">
                     <div class="slider-label">
-                        <span>Minimum Score Threshold: <strong id="threshold-val">72.5</strong></span>
+                        <span>Minimum Score Threshold: <strong id="threshold-val">72.5</strong>
+                            <span class="info-icon">?
+                                <span class="tooltip"><strong>Entry Threshold</strong><br>Minimum composite score required to buy a stock. Higher = fewer but higher-quality trades. Lower = more trades but potentially lower win rate. Range: 50-85.</span>
+                            </span>
+                        </span>
                     </div>
                     <input type="range" min="50" max="85" step="2.5" value="72.5" class="slider" id="threshold-slider">
                 </div>
@@ -209,6 +229,23 @@
     </div>
 
     <script>
+        // Load current weights from API and set sliders
+        async function loadCurrentWeights() {
+            try {
+                const response = await fetch('/api/config/weights');
+                const data = await response.json();
+                
+                // Set sliders to current config values
+                document.getElementById('tech-weight').value = data.weights.technical * 100;
+                document.getElementById('sent-weight').value = data.weights.sentiment * 100;
+                document.getElementById('fund-weight').value = data.weights.fundamental * 100;
+                document.getElementById('threshold-slider').value = data.threshold;
+                updateSliderValues();
+            } catch (error) {
+                console.error('Failed to load current weights:', error);
+            }
+        }
+
         async function loadOptimizer() {
             try {
                 const response = await fetch('/api/optimizer/analyze');
@@ -239,7 +276,7 @@
                 document.getElementById('total-trades').textContent = data.current_performance.total_trades;
                 document.getElementById('projected-improvement').textContent = '+' + data.projected_improvement.combined_estimate.toFixed(1) + '%';
                 
-                // Current config
+                // Current config (from optimizer which reads from config)
                 const currentWeights = data.current_config.weights;
                 document.getElementById('current-tech').textContent = (currentWeights.technical * 100).toFixed(0) + '%';
                 document.getElementById('current-sent').textContent = (currentWeights.sentiment * 100).toFixed(0) + '%';
@@ -252,13 +289,6 @@
                 document.getElementById('optimal-sent').textContent = (optimalWeights.sentiment * 100).toFixed(0) + '%';
                 document.getElementById('optimal-fund').textContent = (optimalWeights.fundamental * 100).toFixed(0) + '%';
                 document.getElementById('optimal-threshold').textContent = data.optimal_config.threshold;
-                
-                // Update sliders
-                document.getElementById('tech-weight').value = optimalWeights.technical * 100;
-                document.getElementById('sent-weight').value = optimalWeights.sentiment * 100;
-                document.getElementById('fund-weight').value = optimalWeights.fundamental * 100;
-                document.getElementById('threshold-slider').value = data.optimal_config.threshold;
-                updateSliderValues();
                 
                 // Recommendations
                 let recHtml = '';
@@ -396,6 +426,7 @@
         document.getElementById('threshold-slider').addEventListener('input', updateSliderValues);
 
         // Load optimizer on page load
+        loadCurrentWeights();  // Load current weights into sliders first
         loadOptimizer();
 
         // Auto-refresh every 10 seconds
