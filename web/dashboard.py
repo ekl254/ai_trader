@@ -962,6 +962,149 @@ def optimizer_page():
     return render_template("optimizer.html")
 
 
+@app.route("/api/config/weights", methods=["GET"])
+def api_get_weights():
+    """Get current score weights and threshold."""
+    try:
+        return jsonify(
+            {
+                "weights": {
+                    "technical": config.trading.weight_technical,
+                    "sentiment": config.trading.weight_sentiment,
+                    "fundamental": config.trading.weight_fundamental,
+                },
+                "threshold": config.trading.min_composite_score,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/config/weights", methods=["POST"])
+def api_update_weights():
+    """Update score weights and threshold.
+    
+    Expects JSON body:
+    {
+        "technical": 0.50,
+        "sentiment": 0.50,
+        "fundamental": 0.00,
+        "threshold": 72.5
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+
+        # Extract values
+        tech_weight = data.get("technical")
+        sent_weight = data.get("sentiment")
+        fund_weight = data.get("fundamental")
+        threshold = data.get("threshold")
+
+        # Validate weights sum to 1.0
+        if tech_weight is not None and sent_weight is not None and fund_weight is not None:
+            weight_sum = tech_weight + sent_weight + fund_weight
+            if abs(weight_sum - 1.0) > 0.01:
+                return jsonify(
+                    {
+                        "error": f"Weights must sum to 100%. Current sum: {weight_sum * 100:.1f}%"
+                    }
+                ), 400
+
+            # Validate individual weights
+            for name, val in [("technical", tech_weight), ("sentiment", sent_weight), ("fundamental", fund_weight)]:
+                if val < 0 or val > 1:
+                    return jsonify({"error": f"{name} weight must be between 0 and 1"}), 400
+
+        # Validate threshold
+        if threshold is not None:
+            if threshold < 0 or threshold > 100:
+                return jsonify({"error": "Threshold must be between 0 and 100"}), 400
+
+        # Update config values in memory
+        if tech_weight is not None:
+            config.trading.weight_technical = tech_weight
+        if sent_weight is not None:
+            config.trading.weight_sentiment = sent_weight
+        if fund_weight is not None:
+            config.trading.weight_fundamental = fund_weight
+        if threshold is not None:
+            config.trading.min_composite_score = threshold
+
+        # Save to .env file for persistence across restarts
+        env_file = Path(__file__).parent.parent / ".env"
+        env_updates = {}
+        
+        if tech_weight is not None:
+            env_updates["WEIGHT_TECHNICAL"] = str(tech_weight)
+        if sent_weight is not None:
+            env_updates["WEIGHT_SENTIMENT"] = str(sent_weight)
+        if fund_weight is not None:
+            env_updates["WEIGHT_FUNDAMENTAL"] = str(fund_weight)
+        if threshold is not None:
+            env_updates["MIN_COMPOSITE_SCORE"] = str(threshold)
+
+        if env_updates:
+            _update_env_file(env_file, env_updates)
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Configuration updated successfully",
+                "weights": {
+                    "technical": config.trading.weight_technical,
+                    "sentiment": config.trading.weight_sentiment,
+                    "fundamental": config.trading.weight_fundamental,
+                },
+                "threshold": config.trading.min_composite_score,
+                "note": "Changes applied immediately. Bot restart not required.",
+            }
+        )
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+def _update_env_file(env_file: Path, updates: Dict[str, str]) -> None:
+    """Update or add environment variables in .env file."""
+    # Read existing content
+    existing_lines = []
+    if env_file.exists():
+        with open(env_file, "r") as f:
+            existing_lines = f.readlines()
+
+    # Track which keys we've updated
+    updated_keys = set()
+    new_lines = []
+
+    for line in existing_lines:
+        line_stripped = line.strip()
+        if line_stripped and not line_stripped.startswith("#"):
+            # Check if this line contains a key we want to update
+            for key, value in updates.items():
+                if line_stripped.startswith(f"{key}="):
+                    new_lines.append(f"{key}={value}\n")
+                    updated_keys.add(key)
+                    break
+            else:
+                # Line doesn't match any update key, keep as is
+                new_lines.append(line)
+        else:
+            # Empty line or comment, keep as is
+            new_lines.append(line)
+
+    # Add any keys that weren't already in the file
+    for key, value in updates.items():
+        if key not in updated_keys:
+            new_lines.append(f"{key}={value}\n")
+
+    # Write back
+    with open(env_file, "w") as f:
+        f.writelines(new_lines)
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("🚀 AI Trading Dashboard Starting")

@@ -217,9 +217,12 @@ class TradingStrategy:
         )
         sentiment_score, sentiment_details = self.calculate_sentiment_score(symbol)
 
-        # Weighted composite score (removed fundamental dead weight)
-        # Technical: 50%, Sentiment: 50%
-        composite_score = technical_score * 0.5 + sentiment_score * 0.5
+        # Weighted composite score using configurable weights
+        composite_score = (
+            technical_score * self.config.weight_technical
+            + sentiment_score * self.config.weight_sentiment
+            + fundamental_score * self.config.weight_fundamental
+        )
 
         reasoning = {
             "technical": technical_details,

@@ -50,6 +50,8 @@
         .config-box { background: #0f172a; padding: 20px; border-radius: 8px; border: 2px solid #334155; }
         .config-box.optimal { border-color: #10b981; }
         .loading { text-align: center; padding: 40px; color: #94a3b8; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
     </style>
 </head>
 <body>
@@ -170,8 +172,9 @@
                 </div>
 
                 <button class="btn btn-secondary" onclick="applySimulatedSettings()" style="margin-top: 20px;">
-                    💾 Show Config Code to Update
+                    💾 Apply Changes
                 </button>
+                <p style="color: #64748b; margin-top: 10px; font-size: 13px;">Changes are applied immediately - no bot restart required.</p>
             </div>
 
             <div class="section">
@@ -299,7 +302,7 @@
             }
         }
 
-        function applySimulatedSettings() {
+        async function applySimulatedSettings() {
             const tech = parseInt(document.getElementById('tech-weight').value) / 100;
             const sent = parseInt(document.getElementById('sent-weight').value) / 100;
             const fund = parseInt(document.getElementById('fund-weight').value) / 100;
@@ -307,32 +310,83 @@
             
             const sum = tech + sent + fund;
             if (Math.abs(sum - 1.0) > 0.01) {
-                alert('⚠️ Weights must sum to 100%! Currently: ' + (sum * 100).toFixed(0) + '%');
+                showNotification('Weights must sum to 100%! Currently: ' + (sum * 100).toFixed(0) + '%', 'error');
                 return;
             }
             
-            const code = `# Update config/config.py
-
-# In TradingConfig class, update these values:
-min_composite_score: float = Field(default=${threshold})
-
-# Note: Score weights are currently hardcoded in src/main.py
-# You would need to update the score calculation to use:
-technical_weight = ${tech.toFixed(3)}
-sentiment_weight = ${sent.toFixed(3)}
-fundamental_weight = ${fund.toFixed(3)}
-
-composite_score = (
-    technical_score * ${tech.toFixed(3)} +
-    sentiment_score * ${sent.toFixed(3)} +
-    fundamental_score * ${fund.toFixed(3)}
-)
-
-# After updating, restart the bot:
-# ./bot_control.sh restart
-`;
+            // Disable button while saving
+            const btn = document.querySelector('.btn-secondary');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Applying...';
             
-            alert('📋 Copy this code to update your config:\n\n' + code);
+            try {
+                const response = await fetch('/api/config/weights', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        technical: tech,
+                        sentiment: sent,
+                        fundamental: fund,
+                        threshold: threshold
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    showNotification('Configuration updated successfully! Changes applied immediately.', 'success');
+                    // Reload optimizer to show updated values
+                    setTimeout(loadOptimizer, 500);
+                } else {
+                    showNotification('Error: ' + (data.error || 'Failed to update config'), 'error');
+                }
+            } catch (error) {
+                showNotification('Network error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+        
+        function showNotification(message, type) {
+            // Remove existing notification
+            const existing = document.getElementById('notification');
+            if (existing) existing.remove();
+            
+            const notification = document.createElement('div');
+            notification.id = 'notification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                border-radius: 8px;
+                font-weight: 600;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            
+            if (type === 'success') {
+                notification.style.background = '#10b981';
+                notification.style.color = 'white';
+            } else {
+                notification.style.background = '#ef4444';
+                notification.style.color = 'white';
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
         }
 
         // Slider event listeners
@@ -344,24 +398,31 @@ composite_score = (
         // Load optimizer on page load
         loadOptimizer();
 
-        // Auto-refresh every 60 seconds
-        setInterval(loadOptimizer, 60000);
+        // Auto-refresh every 10 seconds
+        setInterval(loadOptimizer, 10000);
 
-        // NYSE Time update
-        async function updateNYSETime() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                if (data.nyse_time) {
-                    document.getElementById('nyse-time').textContent = data.nyse_time.time;
-                    document.getElementById('nyse-date').textContent = data.nyse_time.date;
-                }
-            } catch (error) {
-                console.error('Failed to update NYSE time:', error);
-            }
+        // NYSE Time - Update every second using client-side calculation
+        function updateNYSETimeLocal() {
+            const now = new Date();
+            const options = { 
+                timeZone: 'America/New_York',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            };
+            const dateOptions = {
+                timeZone: 'America/New_York',
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            };
+            document.getElementById('nyse-time').textContent = now.toLocaleTimeString('en-US', options);
+            document.getElementById('nyse-date').textContent = now.toLocaleDateString('en-US', dateOptions);
         }
-        updateNYSETime();
-        setInterval(updateNYSETime, 1000);
+        updateNYSETimeLocal();
+        setInterval(updateNYSETimeLocal, 1000);
     </script>
 </body>
 </html>

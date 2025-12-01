@@ -537,8 +537,31 @@
         // Initial load
         refreshAll();
 
-        // Auto-refresh every 5 seconds
-        setInterval(refreshAll, 5000);
+        // Auto-refresh every 2 seconds for real-time feel
+        setInterval(refreshAll, 2000);
+
+        // NYSE Time - Update every second using client-side calculation
+        function updateNYSETimeLocal() {
+            const now = new Date();
+            const options = { 
+                timeZone: 'America/New_York',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            };
+            const dateOptions = {
+                timeZone: 'America/New_York',
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            };
+            document.getElementById('nyse-time').textContent = now.toLocaleTimeString('en-US', options);
+            document.getElementById('nyse-date').textContent = now.toLocaleDateString('en-US', dateOptions);
+        }
+        updateNYSETimeLocal();
+        setInterval(updateNYSETimeLocal, 1000);
 
         // Position Detail Modal Functions
         async function showPositionDetails(symbol) {

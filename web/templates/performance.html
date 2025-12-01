@@ -380,29 +380,36 @@
         loadScoreAnalysis();
         loadExitAnalysis();
 
-        // Auto-refresh every 30 seconds
+        // Auto-refresh every 5 seconds for near real-time updates
         setInterval(() => {
             loadMetrics();
             loadRecentTrades();
             loadScoreAnalysis();
             loadExitAnalysis();
-        }, 30000);
+        }, 5000);
 
-        // NYSE Time update
-        async function updateNYSETime() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                if (data.nyse_time) {
-                    document.getElementById('nyse-time').textContent = data.nyse_time.time;
-                    document.getElementById('nyse-date').textContent = data.nyse_time.date;
-                }
-            } catch (error) {
-                console.error('Failed to update NYSE time:', error);
-            }
+        // NYSE Time - Update every second using client-side calculation
+        function updateNYSETimeLocal() {
+            const now = new Date();
+            const options = { 
+                timeZone: 'America/New_York',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            };
+            const dateOptions = {
+                timeZone: 'America/New_York',
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            };
+            document.getElementById('nyse-time').textContent = now.toLocaleTimeString('en-US', options);
+            document.getElementById('nyse-date').textContent = now.toLocaleDateString('en-US', dateOptions);
         }
-        updateNYSETime();
-        setInterval(updateNYSETime, 1000);
+        updateNYSETimeLocal();
+        setInterval(updateNYSETimeLocal, 1000);
     </script>
 </body>
 </html>

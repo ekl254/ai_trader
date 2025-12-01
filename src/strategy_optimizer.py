@@ -19,10 +19,11 @@ class StrategyOptimizer:
     def __init__(self):
         """Initialize strategy optimizer."""
         self.performance_tracker = PerformanceTracker()
+        # Read weights from config instead of hardcoded values
         self.current_weights = {
-            "technical": 0.40,
-            "sentiment": 0.30,
-            "fundamental": 0.30,
+            "technical": config.trading.weight_technical,
+            "sentiment": config.trading.weight_sentiment,
+            "fundamental": config.trading.weight_fundamental,
         }
         self.current_threshold = config.trading.min_composite_score
         self.min_trades_for_optimization = 30
