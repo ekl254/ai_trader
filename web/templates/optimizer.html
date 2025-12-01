@@ -74,6 +74,7 @@
                 <a href="/analysis">Analysis</a>
                 <a href="/performance">Performance</a>
                 <a href="/optimizer" class="active">Optimizer</a>
+                <a href="/logout" style="background: rgba(239,68,68,0.3); margin-left: auto;">Logout</a>
             </div>
         </div>
 
@@ -229,10 +230,20 @@
     </div>
 
     <script>
+        // Helper function to handle fetch with auth check
+        async function fetchWithAuth(url, options = {}) {
+            const response = await fetch(url, options);
+            if (response.status === 401) {
+                window.location.href = '/login';
+                throw new Error('Authentication required');
+            }
+            return response;
+        }
+
         // Load current weights from API and set sliders
         async function loadCurrentWeights() {
             try {
-                const response = await fetch('/api/config/weights');
+                const response = await fetchWithAuth('/api/config/weights');
                 const data = await response.json();
                 
                 // Set sliders to current config values
@@ -248,7 +259,7 @@
 
         async function loadOptimizer() {
             try {
-                const response = await fetch('/api/optimizer/analyze');
+                const response = await fetchWithAuth('/api/optimizer/analyze');
                 const data = await response.json();
                 
                 document.getElementById('loading').style.display = 'none';
@@ -351,7 +362,7 @@
             btn.innerHTML = '⏳ Applying...';
             
             try {
-                const response = await fetch('/api/config/weights', {
+                const response = await fetchWithAuth('/api/config/weights', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

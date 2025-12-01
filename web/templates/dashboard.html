@@ -42,6 +42,10 @@
         .card .label { font-size: 14px; color: #64748b; }
         .profit { color: #10b981; }
         .loss { color: #ef4444; }
+        .flash-green { animation: flashGreen 0.5s ease; }
+        .flash-red { animation: flashRed 0.5s ease; }
+        @keyframes flashGreen { 0% { background: rgba(16, 185, 129, 0.4); } 100% { background: transparent; } }
+        @keyframes flashRed { 0% { background: rgba(239, 68, 68, 0.4); } 100% { background: transparent; } }
         .section { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
         .section h2 { font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 12px; }
         table { width: 100%; border-collapse: collapse; }
@@ -119,6 +123,7 @@
                 <a href="/analysis">Analysis</a>
                 <a href="/performance">Performance</a>
                 <a href="/optimizer">Optimizer</a>
+                <a href="/logout" style="background: rgba(239,68,68,0.3); margin-left: auto;">Logout</a>
             </div>
             <div class="status">
                 <span>Market:</span>
@@ -190,7 +195,10 @@
         </div>
 
         <div class="section">
-            <h2>📊 Open Positions</h2>
+            <h2 style="display: flex; justify-content: space-between; align-items: center;">
+                <span>📊 Open Positions</span>
+                <span id="positions-updated" style="font-size: 12px; font-weight: normal; color: #64748b;"></span>
+            </h2>
             <div id="positions-table"></div>
         </div>
 
@@ -232,6 +240,9 @@
             return value.toFixed(2) + '%';
         }
 
+        // Store previous account values for change detection
+        let previousAccount = {};
+
         async function updateStatus() {
             const data = await fetchData('/api/status');
             if (!data) return;
@@ -271,18 +282,42 @@
             }
 
             const account = data.account;
-            document.getElementById('portfolio-value').textContent = formatCurrency(account.portfolio_value);
+            
+            // Flash portfolio value if changed
+            const portfolioEl = document.getElementById('portfolio-value');
+            if (previousAccount.portfolio_value !== undefined && previousAccount.portfolio_value !== account.portfolio_value) {
+                portfolioEl.classList.remove('flash-green', 'flash-red');
+                void portfolioEl.offsetWidth; // Force reflow to restart animation
+                portfolioEl.classList.add(account.portfolio_value > previousAccount.portfolio_value ? 'flash-green' : 'flash-red');
+            }
+            portfolioEl.textContent = formatCurrency(account.portfolio_value);
+            
             document.getElementById('buying-power').textContent = formatCurrency(account.buying_power);
             document.getElementById('cash').textContent = formatCurrency(account.cash);
             
             const plEl = document.getElementById('profit-loss');
+            // Flash P&L if changed
+            if (previousAccount.profit_loss !== undefined && previousAccount.profit_loss !== account.profit_loss) {
+                plEl.classList.remove('flash-green', 'flash-red');
+                void plEl.offsetWidth; // Force reflow
+                plEl.classList.add(account.profit_loss > previousAccount.profit_loss ? 'flash-green' : 'flash-red');
+            }
             plEl.textContent = formatCurrency(account.profit_loss);
             plEl.className = account.profit_loss >= 0 ? 'value profit' : 'value loss';
             
             const plPctEl = document.getElementById('profit-loss-pct');
             plPctEl.textContent = formatPercent(account.profit_loss_pct);
             plPctEl.className = account.profit_loss >= 0 ? 'label profit' : 'label loss';
+            
+            // Store for next comparison
+            previousAccount = {
+                portfolio_value: account.portfolio_value,
+                profit_loss: account.profit_loss
+            };
         }
+
+        // Store previous position data for change detection
+        let previousPositions = {};
 
         async function updatePositions() {
             const positions = await fetchData('/api/positions');
@@ -292,6 +327,7 @@
             
             if (positions.length === 0) {
                 container.innerHTML = '<div class="empty">No open positions</div>';
+                previousPositions = {};
                 return;
             }
 
@@ -304,14 +340,29 @@
                 const lockColor = pos.is_locked ? '#ef4444' : '#10b981';
                 const holdTime = pos.hold_duration_min ? `${Math.floor(pos.hold_duration_min / 60)}h ${pos.hold_duration_min % 60}m` : '-';
                 
-                html += `<tr>
+                // Detect changes for highlighting
+                const prev = previousPositions[pos.symbol] || {};
+                const priceChanged = prev.current_price !== undefined && prev.current_price !== pos.current_price;
+                const plChanged = prev.unrealized_pl !== undefined && prev.unrealized_pl !== pos.unrealized_pl;
+                
+                // Determine flash class
+                let priceFlash = '';
+                let plFlash = '';
+                if (priceChanged) {
+                    priceFlash = pos.current_price > prev.current_price ? 'flash-green' : 'flash-red';
+                }
+                if (plChanged) {
+                    plFlash = pos.unrealized_pl > prev.unrealized_pl ? 'flash-green' : 'flash-red';
+                }
+                
+                html += `<tr id="pos-row-${pos.symbol}">
                     <td><strong><a class="ticker-link" onclick="showPositionDetails('${pos.symbol}')">${pos.symbol}</a></strong></td>
                     <td>${pos.qty}</td>
                     <td>${formatCurrency(pos.avg_entry_price)}</td>
-                    <td>${formatCurrency(pos.current_price)}</td>
-                    <td>${formatCurrency(pos.market_value)}</td>
-                    <td class="${plClass}">${formatCurrency(pos.unrealized_pl)}</td>
-                    <td class="${plClass}">${formatPercent(pos.unrealized_plpc)}</td>
+                    <td class="${priceFlash}" id="price-${pos.symbol}">${formatCurrency(pos.current_price)}</td>
+                    <td id="value-${pos.symbol}">${formatCurrency(pos.market_value)}</td>
+                    <td class="${plClass} ${plFlash}" id="pl-${pos.symbol}">${formatCurrency(pos.unrealized_pl)}</td>
+                    <td class="${plClass}" id="plpct-${pos.symbol}">${formatPercent(pos.unrealized_plpc)}</td>
                     <td>${holdTime}</td>
                     <td>
                         <button onclick="toggleLock('${pos.symbol}')" 
@@ -320,10 +371,22 @@
                         </button>
                     </td>
                 </tr>`;
+                
+                // Store current values for next comparison
+                previousPositions[pos.symbol] = {
+                    current_price: pos.current_price,
+                    unrealized_pl: pos.unrealized_pl,
+                    market_value: pos.market_value
+                };
             }
             
             html += '</tbody></table>';
             container.innerHTML = html;
+            
+            // Update last refresh timestamp
+            const now = new Date();
+            document.getElementById('positions-updated').textContent = 
+                `Last updated: ${now.toLocaleTimeString()}`;
         }
 
         async function updateOrders() {

@@ -2,14 +2,17 @@
 """Web dashboard for AI Trading System."""
 
 import json
+import os
+import secrets
 import subprocess
 import sys
 import threading
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 from typing import Any, Dict, List
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,6 +25,62 @@ from src.strategy_optimizer import StrategyOptimizer  # type: ignore
 from src.llm_reason_generator import get_llm_reason_generator  # type: ignore
 
 app = Flask(__name__)
+app.secret_key = os.getenv("DASHBOARD_SECRET_KEY", secrets.token_hex(32))
+
+# Authentication credentials from environment
+DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME", "langatenock@gmail.com")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "kibetekl")
+
+
+def login_required(f):
+    """Decorator to require login for routes."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not DASHBOARD_PASSWORD:
+            # No password set, allow access (for development)
+            return f(*args, **kwargs)
+        if not session.get("authenticated"):
+            # Check if this is an API request (return JSON 401) or page request (redirect)
+            is_api_request = (
+                request.is_json 
+                or request.path.startswith("/api/")
+                or request.headers.get("Accept", "").startswith("application/json")
+                or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            )
+            if is_api_request:
+                return jsonify({"error": "Authentication required", "redirect": "/login"}), 401
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Login page."""
+    if not DASHBOARD_PASSWORD:
+        # No password configured, redirect to dashboard
+        return redirect(url_for("index"))
+    
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        
+        if username == DASHBOARD_USERNAME and password == DASHBOARD_PASSWORD:
+            session["authenticated"] = True
+            session["username"] = username
+            return redirect(url_for("index"))
+        else:
+            error = "Invalid username or password"
+    
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    """Logout and clear session."""
+    session.clear()
+    return redirect(url_for("login"))
 
 
 # Initialize LLM reason generator (connects to VPS Ollama)
@@ -293,6 +352,7 @@ def _get_trade_reason(
 
 
 @app.route("/")
+@login_required
 def index():
     """Main dashboard page."""
     return render_template("dashboard.html")
@@ -340,6 +400,7 @@ def get_nyse_time() -> Dict[str, Any]:
 
 
 @app.route("/api/status")
+@login_required
 def api_status():
     """API endpoint for market status."""
     return jsonify(
@@ -354,18 +415,21 @@ def api_status():
 
 
 @app.route("/api/positions")
+@login_required
 def api_positions():
     """API endpoint for positions."""
     return jsonify(get_positions())
 
 
 @app.route("/api/orders")
+@login_required
 def api_orders():
     """API endpoint for orders."""
     return jsonify(get_recent_orders())
 
 
 @app.route("/api/logs")
+@login_required
 def api_logs():
     """API endpoint for logs."""
     limit = int(request.args.get("limit", 50))
@@ -373,18 +437,21 @@ def api_logs():
 
 
 @app.route("/analysis")
+@login_required
 def analysis_page():
     """Analysis page showing ticker scores."""
     return render_template("analysis.html")
 
 
 @app.route("/performance")
+@login_required
 def performance_page():
     """Performance analytics page."""
     return render_template("performance.html")
 
 
 @app.route("/api/analysis")
+@login_required
 def api_analysis() -> Any:
     """Get recent ticker analysis."""
     data = get_analysis_data()
@@ -392,6 +459,7 @@ def api_analysis() -> Any:
 
 
 @app.route("/api/analysis/<symbol>/details")
+@login_required
 def api_symbol_details(symbol: str) -> Any:
     """Get detailed analysis for a specific symbol showing actual scan data and reasoning."""
     try:
@@ -578,6 +646,7 @@ def api_symbol_details(symbol: str) -> Any:
 
 
 @app.route("/api/trade/start", methods=["POST"])
+@login_required
 def start_trading():
     """Start continuous trading."""
     if is_bot_running():
@@ -603,6 +672,7 @@ def start_trading():
 
 
 @app.route("/api/trade/stop", methods=["POST"])
+@login_required
 def stop_trading():
     """Stop continuous trading."""
     if not is_bot_running():
@@ -628,6 +698,7 @@ def stop_trading():
 
 
 @app.route("/api/trade/eod", methods=["POST"])
+@login_required
 def end_of_day_close():
     """Close all positions."""
     try:
@@ -644,6 +715,7 @@ def end_of_day_close():
 
 
 @app.route("/api/trade/manage", methods=["POST"])
+@login_required
 def manage_positions():
     """Manage positions (check stop losses)."""
     try:
@@ -660,6 +732,7 @@ def manage_positions():
 
 
 @app.route("/api/rebalancing/stats")
+@login_required
 def api_rebalancing_stats():
     """Get rebalancing statistics."""
     try:
@@ -687,6 +760,7 @@ def api_rebalancing_stats():
 
 
 @app.route("/api/rebalancing/history")
+@login_required
 def api_rebalancing_history():
     """Get rebalancing history."""
     try:
@@ -700,6 +774,7 @@ def api_rebalancing_history():
 
 
 @app.route("/api/positions/<symbol>/details")
+@login_required
 def api_position_details(symbol: str):
     """Get detailed information for a specific position."""
     try:
@@ -849,6 +924,7 @@ def api_position_details(symbol: str):
 
 
 @app.route("/api/positions/lock/<symbol>", methods=["POST"])
+@login_required
 def api_lock_position(symbol: str):
     """Lock a position to prevent rebalancing."""
     try:
@@ -868,6 +944,7 @@ def api_lock_position(symbol: str):
 
 
 @app.route("/api/positions/unlock/<symbol>", methods=["POST"])
+@login_required
 def api_unlock_position(symbol: str):
     """Unlock a position to allow rebalancing."""
     try:
@@ -887,6 +964,7 @@ def api_unlock_position(symbol: str):
 
 
 @app.route("/api/performance/metrics")
+@login_required
 def api_performance_metrics():
     """Get comprehensive performance metrics."""
     try:
@@ -900,6 +978,7 @@ def api_performance_metrics():
 
 
 @app.route("/api/performance/score-analysis")
+@login_required
 def api_score_analysis():
     """Get score correlation analysis."""
     try:
@@ -911,6 +990,7 @@ def api_score_analysis():
 
 
 @app.route("/api/performance/exit-analysis")
+@login_required
 def api_exit_analysis():
     """Get exit reason analysis."""
     try:
@@ -922,6 +1002,7 @@ def api_exit_analysis():
 
 
 @app.route("/api/performance/recent-trades")
+@login_required
 def api_recent_trades():
     """Get recent trades."""
     try:
@@ -934,6 +1015,7 @@ def api_recent_trades():
 
 
 @app.route("/api/performance/daily")
+@login_required
 def api_daily_performance():
     """Get daily performance stats."""
     try:
@@ -946,6 +1028,7 @@ def api_daily_performance():
 
 
 @app.route("/api/optimizer/analyze")
+@login_required
 def api_optimizer_analyze():
     """Get strategy optimization analysis and recommendations."""
     try:
@@ -957,12 +1040,14 @@ def api_optimizer_analyze():
 
 
 @app.route("/optimizer")
+@login_required
 def optimizer_page():
     """Strategy optimizer page."""
     return render_template("optimizer.html")
 
 
 @app.route("/api/config/weights", methods=["GET"])
+@login_required
 def api_get_weights():
     """Get current score weights and threshold."""
     try:
@@ -981,6 +1066,7 @@ def api_get_weights():
 
 
 @app.route("/api/config/weights", methods=["POST"])
+@login_required
 def api_update_weights():
     """Update score weights and threshold.
     
