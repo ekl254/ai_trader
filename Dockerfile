@@ -23,8 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 
 # Install Python dependencies
-# Note: Installing torch cpu-only version to save space if GPU not needed
+# Install CPU-only PyTorch first to save space (no CUDA ~700MB savings)
 RUN pip install --upgrade pip && \
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
@@ -36,14 +37,9 @@ RUN mkdir -p logs data
 # Expose port for dashboard
 EXPOSE 8082
 
-# Create entrypoint script
-RUN echo '#!/bin/bash\n\
-    # Start dashboard in background\n\
-    python web/dashboard.py &\n\
-    \n\
-    # Start continuous trading\n\
-    python -m src.main continuous\n\
-    ' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+# Copy and setup entrypoint
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Set entrypoint
 CMD ["/app/entrypoint.sh"]

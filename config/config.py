@@ -28,7 +28,7 @@ class TradingConfig(BaseModel):
     portfolio_value: float = Field(default=100000.0)
 
     # Scoring thresholds (optimized based on performance data)
-    min_composite_score: float = Field(default=72.5)
+    min_composite_score: float = Field(default=70.0)
     min_factor_score: float = Field(default=40.0)
 
     # Score weights for composite calculation (must sum to 1.0)
@@ -42,8 +42,8 @@ class TradingConfig(BaseModel):
     rsi_overbought: float = Field(default=70.0)
 
     # Risk management
-    stop_loss_pct: float = Field(default=0.02)  # 2% stop loss
-    take_profit_pct: float = Field(default=0.06)  # 6% take profit
+    stop_loss_pct: float = Field(default=0.03)  # 3% stop loss (optimized via 5-year backtest)
+    take_profit_pct: float = Field(default=0.08)  # 8% take profit (optimized via 5-year backtest)
     trailing_stop_pct: float = Field(default=0.02)  # 2% trailing stop
 
     # Position management
@@ -113,7 +113,7 @@ class Config(BaseModel):
                 risk_per_trade=float(os.getenv("RISK_PER_TRADE", "0.02")),
                 max_position_size=float(os.getenv("MAX_POSITION_SIZE", "0.10")),
                 portfolio_value=float(os.getenv("PORTFOLIO_VALUE", "100000")),
-                min_composite_score=float(os.getenv("MIN_COMPOSITE_SCORE", "72.5")),
+                min_composite_score=float(os.getenv("MIN_COMPOSITE_SCORE", "70.0")),
                 weight_technical=float(os.getenv("WEIGHT_TECHNICAL", "0.50")),
                 weight_sentiment=float(os.getenv("WEIGHT_SENTIMENT", "0.50")),
                 weight_fundamental=float(os.getenv("WEIGHT_FUNDAMENTAL", "0.00")),

@@ -1,4 +1,4 @@
-"""Risk management and position sizing."""
+"""Risk management and position sizing with regime-adaptive parameters."""
 
 from typing import Dict, Optional, Tuple
 
@@ -9,7 +9,7 @@ from src.logger import logger
 
 
 class RiskManager:
-    """Manages risk and position sizing."""
+    """Manages risk and position sizing with regime-adaptive parameters."""
 
     def __init__(self) -> None:
         self.config = config.trading
@@ -18,6 +18,53 @@ class RiskManager:
             config.alpaca.secret_key,
             paper=True,
         )
+        self._regime_params: Optional[Dict] = None
+
+    def set_regime_parameters(self, regime_params: Dict) -> None:
+        """
+        Set regime-specific trading parameters.
+        
+        Args:
+            regime_params: Dict with stop_loss_pct, take_profit_pct, etc.
+        """
+        self._regime_params = regime_params
+        logger.info(
+            "regime_parameters_set",
+            regime=regime_params.get("regime", "unknown"),
+            stop_loss=regime_params.get("stop_loss_pct"),
+            take_profit=regime_params.get("take_profit_pct"),
+            min_score=regime_params.get("min_score"),
+        )
+
+    def get_stop_loss_pct(self) -> float:
+        """Get current stop loss percentage (regime-adjusted or default)."""
+        if self._regime_params and "stop_loss_pct" in self._regime_params:
+            return self._regime_params["stop_loss_pct"]
+        return self.config.stop_loss_pct
+
+    def get_take_profit_pct(self) -> float:
+        """Get current take profit percentage (regime-adjusted or default)."""
+        if self._regime_params and "take_profit_pct" in self._regime_params:
+            return self._regime_params["take_profit_pct"]
+        return self.config.take_profit_pct
+
+    def get_min_score(self) -> float:
+        """Get current minimum score threshold (regime-adjusted or default)."""
+        if self._regime_params and "min_score" in self._regime_params:
+            return self._regime_params["min_score"]
+        return self.config.min_composite_score
+
+    def get_position_multiplier(self) -> float:
+        """Get position size multiplier for current regime."""
+        if self._regime_params and "position_multiplier" in self._regime_params:
+            return self._regime_params["position_multiplier"]
+        return 1.0
+
+    def get_max_positions(self) -> int:
+        """Get max positions for current regime."""
+        if self._regime_params and "max_positions" in self._regime_params:
+            return self._regime_params["max_positions"]
+        return self.config.max_positions
 
     def get_account_value(self) -> float:
         """Get current account value."""
@@ -53,24 +100,32 @@ class RiskManager:
         stop_loss_price: Optional[float] = None,
     ) -> Dict[str, float]:
         """
-        Calculate position size based on 2% risk rule.
+        Calculate position size based on risk rule with regime-adaptive parameters.
 
         Args:
             symbol: Stock symbol
             entry_price: Intended entry price
-            stop_loss_price: Stop loss price (if None, uses 2% below entry)
+            stop_loss_price: Stop loss price (if None, uses regime-adjusted %)
 
         Returns:
-            Dict with shares, position_value, risk_amount
+            Dict with shares, position_value, risk_amount, stop/take prices
         """
         account_value = self.get_account_value()
 
-        # Calculate risk amount (2% of account)
-        risk_amount = account_value * self.config.risk_per_trade
+        # Calculate risk amount (2% of account, adjusted by regime multiplier)
+        base_risk = account_value * self.config.risk_per_trade
+        risk_amount = base_risk * self.get_position_multiplier()
 
-        # Calculate stop loss if not provided
+        # Get regime-adjusted stop loss
+        stop_loss_pct = self.get_stop_loss_pct()
+        take_profit_pct = self.get_take_profit_pct()
+
+        # Calculate stop loss price if not provided
         if stop_loss_price is None:
-            stop_loss_price = entry_price * (1 - self.config.stop_loss_pct)
+            stop_loss_price = entry_price * (1 - stop_loss_pct)
+
+        # Calculate take profit price
+        take_profit_price = entry_price * (1 + take_profit_pct)
 
         # Calculate risk per share
         risk_per_share = entry_price - stop_loss_price
@@ -82,7 +137,13 @@ class RiskManager:
                 entry=entry_price,
                 stop=stop_loss_price,
             )
-            return {"shares": 0, "position_value": 0, "risk_amount": 0}
+            return {
+                "shares": 0, 
+                "position_value": 0, 
+                "risk_amount": 0,
+                "stop_loss_price": stop_loss_price,
+                "take_profit_price": take_profit_price,
+            }
 
         # Calculate shares based on risk
         shares = risk_amount / risk_per_share
@@ -121,19 +182,22 @@ class RiskManager:
             "position_value": position_value,
             "risk_amount": shares * risk_per_share,
             "stop_loss_price": stop_loss_price,
-            "risk_reward_ratio": (
-                entry_price * (1 + self.config.take_profit_pct) - entry_price
-            )
-            / risk_per_share
-            if risk_per_share > 0
-            else 0,
+            "stop_loss_pct": stop_loss_pct,
+            "take_profit_price": take_profit_price,
+            "take_profit_pct": take_profit_pct,
+            "risk_reward_ratio": (take_profit_price - entry_price) / risk_per_share if risk_per_share > 0 else 0,
+            "regime": self._regime_params.get("regime", "default") if self._regime_params else "default",
         }
 
         logger.info(
             "position_size_calculated",
             symbol=symbol,
             entry_price=entry_price,
-            **result,
+            regime=result["regime"],
+            stop_loss_pct=f"{stop_loss_pct:.1%}",
+            take_profit_pct=f"{take_profit_pct:.1%}",
+            shares=shares,
+            position_value=position_value,
         )
 
         return result
@@ -147,12 +211,14 @@ class RiskManager:
             logger.info("already_holding_position", symbol=symbol)
             return False
 
-        # Check max positions
-        if len(current_positions) >= self.config.max_positions:
+        # Check max positions (regime-adjusted)
+        max_positions = self.get_max_positions()
+        if len(current_positions) >= max_positions:
             logger.info(
                 "max_positions_reached",
                 current=len(current_positions),
-                max=self.config.max_positions,
+                max=max_positions,
+                regime=self._regime_params.get("regime", "default") if self._regime_params else "default",
             )
             return False
 

@@ -261,3 +261,201 @@ All visible in real-time on the dashboard!
 4. **Watch Magic**: Live updates in real-time!
 
 **That's it! No terminal commands needed - everything is in the browser!** 🎉
+
+---
+
+## 🌅 Premarket Features
+
+### Premarket Scanner
+The bot automatically scans for premarket opportunities between 4:00 AM - 9:30 AM ET:
+- Identifies stocks with significant overnight gaps
+- Detects unusual premarket volume activity
+- Queues top candidates for market open execution
+
+### Dashboard Premarket Section
+The main dashboard displays:
+- **Premarket Candidates**: Top 10 stocks queued for market open
+- **Performance Stats**: Historical premarket trade analytics
+
+### Premarket API Endpoints
+
+#### GET /api/premarket/candidates
+Returns current premarket candidates queued for market open.
+
+**Response:**
+```json
+{
+  "scan_time": "2025-12-02T08:30:00-05:00",
+  "candidates": [
+    {
+      "rank": 1,
+      "symbol": "NVDA",
+      "score": 85.5,
+      "price": 142.50,
+      "gap_pct": 2.3,
+      "volume_ratio": 1.8
+    }
+  ],
+  "count": 10,
+  "is_today": true
+}
+```
+
+#### GET /api/premarket/history
+Returns historical premarket performance data (last 30 days).
+
+**Query Parameters:**
+- cputime         unlimited
+filesize        unlimited
+datasize        unlimited
+stacksize       7MB
+coredumpsize    0kB
+addressspace    unlimited
+memorylocked    unlimited
+maxproc         2666
+descriptors     unlimited (optional): Number of days to return (default: 30)
+
+**Response:**
+```json
+[
+  {
+    "date": "2025-12-02",
+    "scan_time": "2025-12-02T08:30:00-05:00",
+    "candidates_count": 15,
+    "executed": [
+      {
+        "symbol": "NVDA",
+        "entry_price": 142.50,
+        "exit_price": 145.20,
+        "profit_loss_pct": 1.89
+      }
+    ]
+  }
+]
+```
+
+#### GET /api/premarket/stats
+Returns aggregated premarket performance statistics.
+
+**Response:**
+```json
+{
+  "total_days": 30,
+  "total_executed": 45,
+  "total_closed": 40,
+  "win_count": 28,
+  "loss_count": 12,
+  "win_rate": 70.0,
+  "avg_profit_pct": 1.25,
+  "total_profit_pct": 50.0,
+  "best_trade": {
+    "symbol": "TSLA",
+    "profit_pct": 5.2,
+    "date": "2025-11-25"
+  },
+  "worst_trade": {
+    "symbol": "AMD",
+    "profit_pct": -2.1,
+    "date": "2025-11-20"
+  }
+}
+```
+
+### Data Files
+-  - Current day's premarket candidates
+-  - Historical premarket performance (90 days retention)
+
+---
+
+## Premarket Features
+
+### Premarket Scanner
+The bot automatically scans for premarket opportunities between 4:00 AM - 9:30 AM ET:
+- Identifies stocks with significant overnight gaps
+- Detects unusual premarket volume activity
+- Queues top candidates for market open execution
+
+### Dashboard Premarket Section
+The main dashboard displays:
+- **Premarket Candidates**: Top 10 stocks queued for market open
+- **Performance Stats**: Historical premarket trade analytics
+
+### Premarket API Endpoints
+
+#### GET /api/premarket/candidates
+Returns current premarket candidates queued for market open.
+
+**Response:**
+```json
+{
+  "scan_time": "2025-12-02T08:30:00-05:00",
+  "candidates": [
+    {
+      "rank": 1,
+      "symbol": "NVDA",
+      "score": 85.5,
+      "price": 142.50,
+      "gap_pct": 2.3,
+      "volume_ratio": 1.8
+    }
+  ],
+  "count": 10,
+  "is_today": true
+}
+```
+
+#### GET /api/premarket/history
+Returns historical premarket performance data (last 30 days).
+
+**Query Parameters:**
+- limit (optional): Number of days to return (default: 30)
+
+**Response:**
+```json
+[
+  {
+    "date": "2025-12-02",
+    "scan_time": "2025-12-02T08:30:00-05:00",
+    "candidates_count": 15,
+    "executed": [
+      {
+        "symbol": "NVDA",
+        "entry_price": 142.50,
+        "exit_price": 145.20,
+        "profit_loss_pct": 1.89
+      }
+    ]
+  }
+]
+```
+
+#### GET /api/premarket/stats
+Returns aggregated premarket performance statistics.
+
+**Response:**
+```json
+{
+  "total_days": 30,
+  "total_executed": 45,
+  "total_closed": 40,
+  "win_count": 28,
+  "loss_count": 12,
+  "win_rate": 70.0,
+  "avg_profit_pct": 1.25,
+  "total_profit_pct": 50.0,
+  "best_trade": {
+    "symbol": "TSLA",
+    "profit_pct": 5.2,
+    "date": "2025-11-25"
+  },
+  "worst_trade": {
+    "symbol": "AMD",
+    "profit_pct": -2.1,
+    "date": "2025-11-20"
+  }
+}
+```
+
+### Data Files
+- data/premarket_candidates.json - Current day premarket candidates
+- data/premarket_history.json - Historical premarket performance (90 days retention)

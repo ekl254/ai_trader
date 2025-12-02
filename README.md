@@ -23,6 +23,14 @@ Fully automated trading system using Alpaca Paper Trading with multi-factor anal
 - **Market Regime Filter**: Detects bull/bear/neutral markets using SPY
 - **EMA Trend Confirmation**: 20/50 EMA crossover for trend validation
 
+### Premarket Scanner
+- **Pre-Market Analysis**: Scans top movers before market open (4:00-9:30 AM ET)
+- **Gap Detection**: Identifies stocks with significant overnight gaps
+- **Volume Surge Detection**: Finds unusual premarket volume activity
+- **Queued Execution**: Top candidates automatically queued for market open
+- **Performance Tracking**: Historical premarket trade performance analytics
+- **Dashboard Visibility**: Real-time premarket candidates and stats in web UI
+
 ### Dashboard Pages
 - **Main Dashboard**: Portfolio overview, positions, orders
 - **Analysis**: Scan results with smart qualification reasons
@@ -161,7 +169,9 @@ ai_trader/
 │   └── test_risk_manager.py       # Risk management tests
 │
 ├── data/
-│   └── performance_history.json   # Trade history (30 trades)
+│   ├── performance_history.json   # Trade history (30 trades)
+│   ├── premarket_candidates.json  # Current premarket candidates
+│   └── premarket_history.json     # Historical premarket performance
 │
 └── bot_control.sh                 # Bot lifecycle management
 ```

@@ -1,4 +1,4 @@
-"""Market regime detection for adaptive trading."""
+"""Market regime detection for adaptive trading with dynamic parameters."""
 
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Tuple, Optional
@@ -20,6 +20,65 @@ class MarketRegime(Enum):
     HIGH_VOLATILITY = "high_volatility"
 
 
+# Regime-specific trading parameters (optimized via backtesting study)
+REGIME_PARAMETERS = {
+    MarketRegime.STRONG_BULL: {
+        "stop_loss_pct": 0.05,      # 5% - wider stops in strong trends
+        "take_profit_pct": 0.12,    # 12% - let winners run
+        "min_score": 60,            # Lower threshold - ride the trend
+        "position_multiplier": 1.0,
+        "max_positions": 10,
+        "should_trade": True,
+        "description": "Strong uptrend - wider stops, aggressive targets"
+    },
+    MarketRegime.BULL: {
+        "stop_loss_pct": 0.04,      # 4% - moderately wide
+        "take_profit_pct": 0.10,    # 10% - good targets
+        "min_score": 65,            # Moderate threshold
+        "position_multiplier": 1.0,
+        "max_positions": 10,
+        "should_trade": True,
+        "description": "Bullish trend - normal trading with trend"
+    },
+    MarketRegime.NEUTRAL: {
+        "stop_loss_pct": 0.03,      # 3% - tighter for choppy markets
+        "take_profit_pct": 0.06,    # 6% - take profits quicker
+        "min_score": 70,            # Higher threshold - be selective
+        "position_multiplier": 0.75,
+        "max_positions": 7,
+        "should_trade": True,
+        "description": "Sideways market - be selective, tighter stops"
+    },
+    MarketRegime.BEAR: {
+        "stop_loss_pct": 0.02,      # 2% - tight stops
+        "take_profit_pct": 0.05,    # 5% - quick profits
+        "min_score": 75,            # High threshold - only best setups
+        "position_multiplier": 0.5,
+        "max_positions": 5,
+        "should_trade": True,
+        "description": "Bearish trend - defensive, tight stops"
+    },
+    MarketRegime.STRONG_BEAR: {
+        "stop_loss_pct": 0.02,      # 2% - very tight
+        "take_profit_pct": 0.04,    # 4% - take any profit
+        "min_score": 80,            # Very high threshold
+        "position_multiplier": 0.25,
+        "max_positions": 3,
+        "should_trade": False,      # Avoid new longs
+        "description": "Strong downtrend - capital preservation mode"
+    },
+    MarketRegime.HIGH_VOLATILITY: {
+        "stop_loss_pct": 0.04,      # 4% - wider for vol spikes
+        "take_profit_pct": 0.08,    # 8% - moderate targets
+        "min_score": 72,            # Elevated threshold
+        "position_multiplier": 0.5,
+        "max_positions": 5,
+        "should_trade": True,
+        "description": "High volatility - reduced size, wider stops"
+    },
+}
+
+
 class MarketRegimeDetector:
     """Detects current market regime using SPY and VIX indicators."""
 
@@ -32,7 +91,7 @@ class MarketRegimeDetector:
         Analyze current market regime using SPY trend and VIX levels.
 
         Returns:
-            Dict with regime, confidence, and trading adjustment recommendations
+            Dict with regime, trading parameters, and recommendations
         """
         cache_key = "market_regime"
         now = datetime.now(timezone.utc)
@@ -75,20 +134,26 @@ class MarketRegimeDetector:
                 latest_close, latest_ema20, latest_ema50, momentum_20d, volatility
             )
 
-            # Calculate position adjustment factor
-            adjustment = self._calculate_adjustment(regime, volatility)
+            # Get regime-specific parameters
+            params = REGIME_PARAMETERS[regime]
 
             result = {
                 "regime": regime.value,
+                "regime_enum": regime,
+                # Market data
                 "spy_price": round(latest_close, 2),
                 "spy_ema20": round(latest_ema20, 2),
                 "spy_ema50": round(latest_ema50, 2),
                 "momentum_20d": round(momentum_20d, 2),
                 "volatility": round(volatility, 2),
-                "position_size_multiplier": adjustment["position_multiplier"],
-                "should_trade": adjustment["should_trade"],
-                "max_positions_override": adjustment["max_positions"],
-                "recommendation": adjustment["recommendation"],
+                # Trading parameters (regime-adaptive)
+                "stop_loss_pct": params["stop_loss_pct"],
+                "take_profit_pct": params["take_profit_pct"],
+                "min_score": params["min_score"],
+                "position_size_multiplier": params["position_multiplier"],
+                "max_positions_override": params["max_positions"],
+                "should_trade": params["should_trade"],
+                "recommendation": params["description"],
                 "timestamp": now.isoformat(),
             }
 
@@ -100,6 +165,8 @@ class MarketRegimeDetector:
                 regime=regime.value,
                 momentum=momentum_20d,
                 volatility=volatility,
+                stop_loss=params["stop_loss_pct"],
+                take_profit=params["take_profit_pct"],
             )
 
             return result
@@ -139,59 +206,37 @@ class MarketRegimeDetector:
 
         return MarketRegime.NEUTRAL
 
-    def _calculate_adjustment(self, regime: MarketRegime, volatility: float) -> Dict:
-        """Calculate trading adjustments based on regime."""
-
-        adjustments = {
-            MarketRegime.STRONG_BULL: {
-                "position_multiplier": 1.0,
-                "should_trade": True,
-                "max_positions": None,  # Use default
-                "recommendation": "Full trading - strong uptrend confirmed",
-            },
-            MarketRegime.BULL: {
-                "position_multiplier": 1.0,
-                "should_trade": True,
-                "max_positions": None,
-                "recommendation": "Normal trading - bullish trend",
-            },
-            MarketRegime.NEUTRAL: {
-                "position_multiplier": 0.75,
-                "should_trade": True,
-                "max_positions": 7,
-                "recommendation": "Reduced exposure - mixed signals",
-            },
-            MarketRegime.BEAR: {
-                "position_multiplier": 0.5,
-                "should_trade": True,
-                "max_positions": 5,
-                "recommendation": "Defensive mode - bearish trend, reduce size",
-            },
-            MarketRegime.STRONG_BEAR: {
-                "position_multiplier": 0.25,
-                "should_trade": False,
-                "max_positions": 3,
-                "recommendation": "Capital preservation - avoid new longs",
-            },
-            MarketRegime.HIGH_VOLATILITY: {
-                "position_multiplier": 0.5,
-                "should_trade": True,
-                "max_positions": 5,
-                "recommendation": "High volatility - reduce position sizes",
-            },
+    def get_trading_parameters(self) -> Dict:
+        """
+        Get current regime-adjusted trading parameters.
+        
+        Returns:
+            Dict with stop_loss_pct, take_profit_pct, min_score
+        """
+        regime_data = self.get_market_regime()
+        return {
+            "regime": regime_data["regime"],
+            "stop_loss_pct": regime_data["stop_loss_pct"],
+            "take_profit_pct": regime_data["take_profit_pct"],
+            "min_score": regime_data["min_score"],
+            "position_multiplier": regime_data["position_size_multiplier"],
+            "max_positions": regime_data["max_positions_override"],
+            "recommendation": regime_data["recommendation"],
         }
-
-        return adjustments.get(regime, adjustments[MarketRegime.NEUTRAL])
 
     def _default_regime(self, reason: str) -> Dict:
         """Return default neutral regime on error."""
+        params = REGIME_PARAMETERS[MarketRegime.NEUTRAL]
         return {
             "regime": MarketRegime.NEUTRAL.value,
             "error": reason,
-            "position_size_multiplier": 0.75,
+            "stop_loss_pct": params["stop_loss_pct"],
+            "take_profit_pct": params["take_profit_pct"],
+            "min_score": params["min_score"],
+            "position_size_multiplier": params["position_multiplier"],
+            "max_positions_override": params["max_positions"],
             "should_trade": True,
-            "max_positions_override": 7,
-            "recommendation": f"Using default settings due to: {reason}",
+            "recommendation": f"Using default neutral settings due to: {reason}",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 

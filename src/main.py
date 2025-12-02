@@ -1,8 +1,10 @@
 """Main trading engine."""
 
+import json
 import sys
 import time
 from datetime import datetime, time as dt_time, timezone
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 import pytz  # type: ignore
@@ -19,11 +21,133 @@ from src.universe import get_sp500_symbols, filter_liquid_stocks
 from src.position_tracker import position_tracker  # type: ignore
 
 
+# File paths for premarket data persistence
+PREMARKET_CANDIDATES_FILE = Path(__file__).parent.parent / "data" / "premarket_candidates.json"
+PREMARKET_HISTORY_FILE = Path(__file__).parent.parent / "data" / "premarket_history.json"
+
+
+def save_premarket_candidates(candidates: List[Dict[str, Any]], scan_time: datetime) -> None:
+    """Save premarket candidates to file for dashboard visibility."""
+    data = {
+        "scan_time": scan_time.isoformat(),
+        "candidates": candidates,
+        "count": len(candidates),
+    }
+    try:
+        PREMARKET_CANDIDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(PREMARKET_CANDIDATES_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+        logger.info("premarket_candidates_saved", count=len(candidates))
+    except Exception as e:
+        logger.error("failed_to_save_premarket_candidates", error=str(e))
+
+
+def load_premarket_candidates() -> Dict[str, Any]:
+    """Load premarket candidates from file."""
+    try:
+        if PREMARKET_CANDIDATES_FILE.exists():
+            with open(PREMARKET_CANDIDATES_FILE, "r") as f:
+                return json.load(f)
+    except Exception as e:
+        logger.error("failed_to_load_premarket_candidates", error=str(e))
+    return {"scan_time": None, "candidates": [], "count": 0}
+
+
+def record_premarket_execution(
+    date: str,
+    candidates: List[Dict[str, Any]],
+    executed: List[Dict[str, Any]],
+    regime: str,
+) -> None:
+    """Record premarket scan and execution results for historical tracking."""
+    try:
+        # Load existing history
+        history = []
+        if PREMARKET_HISTORY_FILE.exists():
+            with open(PREMARKET_HISTORY_FILE, "r") as f:
+                history = json.load(f)
+        
+        # Create record for this day
+        record = {
+            "date": date,
+            "scan_time": datetime.now(pytz.timezone("US/Eastern")).isoformat(),
+            "regime": regime,
+            "total_candidates": len(candidates),
+            "top_candidates": [
+                {"symbol": c["symbol"], "score": c["score"], "price": c.get("price", 0)}
+                for c in candidates[:10]
+            ],
+            "executed": executed,
+            "execution_count": len(executed),
+        }
+        
+        # Check if we already have a record for today (update it)
+        existing_idx = None
+        for i, h in enumerate(history):
+            if h.get("date") == date:
+                existing_idx = i
+                break
+        
+        if existing_idx is not None:
+            # Update existing record
+            history[existing_idx] = record
+        else:
+            # Add new record
+            history.append(record)
+        
+        # Keep last 90 days of history
+        history = history[-90:]
+        
+        # Save
+        with open(PREMARKET_HISTORY_FILE, "w") as f:
+            json.dump(history, f, indent=2)
+        
+        logger.info("premarket_history_recorded", date=date, executed=len(executed))
+    except Exception as e:
+        logger.error("failed_to_record_premarket_history", error=str(e))
+
+
+def update_premarket_performance(symbol: str, entry_price: float, exit_price: float, exit_reason: str) -> None:
+    """Update premarket trade performance when a position is closed."""
+    try:
+        if not PREMARKET_HISTORY_FILE.exists():
+            return
+        
+        with open(PREMARKET_HISTORY_FILE, "r") as f:
+            history = json.load(f)
+        
+        # Find the most recent record where this symbol was executed
+        for record in reversed(history):
+            for executed in record.get("executed", []):
+                if executed.get("symbol") == symbol and "exit_price" not in executed:
+                    # Update with exit data
+                    executed["exit_price"] = exit_price
+                    executed["exit_reason"] = exit_reason
+                    executed["exit_time"] = datetime.now(pytz.timezone("US/Eastern")).isoformat()
+                    executed["profit_loss"] = exit_price - entry_price
+                    executed["profit_loss_pct"] = ((exit_price - entry_price) / entry_price) * 100
+                    
+                    # Save updated history
+                    with open(PREMARKET_HISTORY_FILE, "w") as f:
+                        json.dump(history, f, indent=2)
+                    
+                    logger.info(
+                        "premarket_performance_updated",
+                        symbol=symbol,
+                        profit_loss_pct=executed["profit_loss_pct"],
+                    )
+                    return
+    except Exception as e:
+        logger.error("failed_to_update_premarket_performance", error=str(e))
+
+
 class TradingEngine:
     """Main trading engine orchestrator."""
 
     def __init__(self) -> None:
         self.universe = self._load_universe()
+        self.premarket_candidates: List[Dict[str, Any]] = []  # Store premarket scan results
+        self.last_premarket_scan: Optional[datetime] = None
         logger.info("trading_engine_initialized", universe_size=len(self.universe))
 
     def _load_universe(self) -> List[str]:
@@ -48,22 +172,251 @@ class TradingEngine:
             logger.error("failed_to_check_market_status", error=str(e))
             return False
 
+    def is_premarket_hours(self) -> bool:
+        """Check if we're in premarket hours (4:00 AM - 9:30 AM ET)."""
+        try:
+            et = pytz.timezone("US/Eastern")
+            now = datetime.now(et)
+            current_time = now.time()
+            
+            # Premarket: 4:00 AM to 9:30 AM ET (weekdays only)
+            premarket_start = dt_time(4, 0)
+            premarket_end = dt_time(9, 30)
+            
+            # Check if it's a weekday (Monday=0, Sunday=6)
+            if now.weekday() >= 5:  # Saturday or Sunday
+                return False
+            
+            return premarket_start <= current_time < premarket_end
+        except Exception as e:
+            logger.error("failed_to_check_premarket_hours", error=str(e))
+            return False
+
+    def get_minutes_until_market_open(self) -> int:
+        """Get minutes until market opens (9:30 AM ET)."""
+        try:
+            et = pytz.timezone("US/Eastern")
+            now = datetime.now(et)
+            market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
+            
+            if now >= market_open:
+                return 0
+            
+            delta = market_open - now
+            return int(delta.total_seconds() / 60)
+        except Exception:
+            return 0
+
+    def run_premarket_scan(self) -> List[Dict[str, Any]]:
+        """Run premarket analysis to identify top candidates for market open.
+        
+        This scans the universe and scores stocks using available premarket data.
+        Results are stored and ready for immediate execution at market open.
+        """
+        logger.info("premarket_scan_started", universe_size=len(self.universe))
+        
+        # Get regime data for adaptive parameters
+        regime_data = market_regime_detector.get_market_regime()
+        regime = regime_data.get("regime", "neutral")
+        regime_min_score = regime_data.get("min_score", 70)
+        
+        logger.info(
+            "premarket_regime_check",
+            regime=regime,
+            min_score=regime_min_score,
+        )
+        
+        candidates = []
+        scanned = 0
+        errors = 0
+        
+        for i, symbol in enumerate(self.universe):
+            try:
+                # Log progress every 50 symbols
+                if (i + 1) % 50 == 0:
+                    logger.info(
+                        "premarket_scan_progress",
+                        progress=f"{i + 1}/{len(self.universe)}",
+                        candidates_found=len(candidates),
+                    )
+                
+                should_buy, score, reasoning = strategy.should_buy(symbol)
+                scanned += 1
+                
+                if should_buy:
+                    # Get current/premarket price
+                    try:
+                        latest = alpaca_provider.get_latest_trade(symbol)
+                        price = latest["price"]
+                    except Exception:
+                        price = 0  # Will get fresh price at market open
+                    
+                    candidates.append({
+                        "symbol": symbol,
+                        "score": score,
+                        "reasoning": reasoning,
+                        "price": price,
+                        "scanned_at": datetime.now(pytz.timezone("US/Eastern")).isoformat(),
+                    })
+                    logger.info(
+                        "premarket_candidate_found",
+                        symbol=symbol,
+                        score=score,
+                    )
+                
+                # Small delay to avoid rate limits
+                time.sleep(0.2)
+                
+            except Exception as e:
+                errors += 1
+                if errors <= 5:  # Only log first 5 errors
+                    logger.warning("premarket_scan_error", symbol=symbol, error=str(e))
+                continue
+        
+        # Sort by score
+        candidates.sort(key=lambda x: x["score"], reverse=True)
+        
+        # Store results in memory and file
+        self.premarket_candidates = candidates
+        self.last_premarket_scan = datetime.now(pytz.timezone("US/Eastern"))
+        
+        # Save to file for dashboard visibility
+        save_premarket_candidates(candidates, self.last_premarket_scan)
+        
+        logger.info(
+            "premarket_scan_completed",
+            scanned=scanned,
+            candidates=len(candidates),
+            errors=errors,
+            top_5=[c["symbol"] for c in candidates[:5]],
+        )
+        
+        return candidates
+
+    def execute_premarket_candidates(self, max_positions: int = 3) -> int:
+        """Execute trades for premarket candidates at market open.
+        
+        Returns number of trades executed.
+        """
+        if not self.premarket_candidates:
+            logger.info("no_premarket_candidates_to_execute")
+            return 0
+        
+        # Check how many slots available
+        client = TradingClient(
+            config.alpaca.api_key, config.alpaca.secret_key, paper=True
+        )
+        positions: List[Position] = client.get_all_positions()  # type: ignore
+        current_positions = len(positions)
+        available_slots = max(0, config.trading.max_positions - current_positions)
+        
+        if available_slots == 0:
+            logger.info("no_slots_for_premarket_candidates")
+            return 0
+        
+        trades_to_execute = min(available_slots, max_positions, len(self.premarket_candidates))
+        executed = 0
+        executed_trades = []
+        
+        # Get regime for historical record
+        regime_data = market_regime_detector.get_market_regime()
+        regime = regime_data.get("regime", "unknown")
+        
+        logger.info(
+            "executing_premarket_candidates",
+            candidates=len(self.premarket_candidates),
+            slots_available=available_slots,
+            will_execute=trades_to_execute,
+        )
+        
+        for candidate in self.premarket_candidates[:trades_to_execute]:
+            try:
+                # Get fresh price at market open
+                latest = alpaca_provider.get_latest_trade(candidate["symbol"])
+                current_price = latest["price"]
+                
+                success = executor.buy_stock(
+                    candidate["symbol"],
+                    candidate["score"],
+                    candidate["reasoning"],
+                    current_price,
+                )
+                
+                if success:
+                    executed += 1
+                    executed_trades.append({
+                        "symbol": candidate["symbol"],
+                        "score": candidate["score"],
+                        "premarket_price": candidate["price"],
+                        "execution_price": current_price,
+                        "execution_time": datetime.now(pytz.timezone("US/Eastern")).isoformat(),
+                    })
+                    logger.info(
+                        "premarket_candidate_executed",
+                        symbol=candidate["symbol"],
+                        score=candidate["score"],
+                        premarket_price=candidate["price"],
+                        execution_price=current_price,
+                    )
+                    time.sleep(1)
+                    
+            except Exception as e:
+                logger.error(
+                    "premarket_execution_failed",
+                    symbol=candidate["symbol"],
+                    error=str(e),
+                )
+        
+        # Record to history
+        today = datetime.now(pytz.timezone("US/Eastern")).strftime("%Y-%m-%d")
+        record_premarket_execution(
+            date=today,
+            candidates=self.premarket_candidates,
+            executed=executed_trades,
+            regime=regime,
+        )
+        
+        # Clear candidates after execution (but keep file for dashboard until next scan)
+        self.premarket_candidates = []
+        
+        logger.info("premarket_execution_completed", trades_executed=executed)
+        return executed
+
     def scan_and_trade(self, max_new_positions: int = 5) -> None:
         """Scan universe and execute trades (with optional rebalancing)."""
         logger.info("starting_market_scan", universe_size=len(self.universe))
 
-        # Check market regime before trading
+        # Check market regime and get adaptive trading parameters
         regime_data = market_regime_detector.get_market_regime()
         regime = regime_data.get("regime", "neutral")
         should_trade = regime_data.get("should_trade", True)
         position_multiplier = regime_data.get("position_size_multiplier", 1.0)
         max_positions_override = regime_data.get("max_positions_override")
+        
+        # Get regime-adaptive parameters
+        regime_stop_loss = regime_data.get("stop_loss_pct", 0.03)
+        regime_take_profit = regime_data.get("take_profit_pct", 0.08)
+        regime_min_score = regime_data.get("min_score", 70)
+        
+        # Set regime parameters in risk manager
+        from src.risk_manager import risk_manager
+        risk_manager.set_regime_parameters({
+            "regime": regime,
+            "stop_loss_pct": regime_stop_loss,
+            "take_profit_pct": regime_take_profit,
+            "min_score": regime_min_score,
+            "position_multiplier": position_multiplier,
+            "max_positions": max_positions_override,
+        })
 
         logger.info(
             "market_regime_check",
             regime=regime,
             should_trade=should_trade,
             position_multiplier=position_multiplier,
+            stop_loss_pct=f"{regime_stop_loss:.1%}",
+            take_profit_pct=f"{regime_take_profit:.1%}",
+            min_score=regime_min_score,
             recommendation=regime_data.get("recommendation"),
         )
 
@@ -327,10 +680,10 @@ class TradingEngine:
         """Run continuous trading throughout market hours.
 
         Strategy:
-        - Full universe scan every 15 minutes (looking for new opportunities)
+        - Premarket (4:00-9:30 AM ET): Scan universe and queue top candidates
+        - Market open: Execute premarket candidates immediately
+        - During market: Full universe scan every 15 minutes
         - Position management every 2 minutes (stop losses, take profits)
-        - Automatically buy when slots available
-        - Automatically sell when conditions met
         - If auto_restart=True, waits for market to open instead of exiting
 
         Args:
@@ -345,50 +698,120 @@ class TradingEngine:
         scan_count = 0
         last_scan_time = None
         last_manage_time = None
+        last_premarket_scan_time = None
+        executed_premarket_today = False
+        last_trading_day = None
 
         while True:
             try:
+                current_time = datetime.now(pytz.timezone("US/Eastern"))
+                current_date = current_time.date()
+                
+                # Reset daily flags at midnight
+                if last_trading_day != current_date:
+                    executed_premarket_today = False
+                    last_premarket_scan_time = None
+                    self.premarket_candidates = []
+                    last_trading_day = current_date
+                    logger.info("new_trading_day", date=str(current_date))
+                
                 # Check if market is open
-                if not self.is_market_open():
+                if self.is_market_open():
+                    # === MARKET IS OPEN ===
+                    
+                    # Execute premarket candidates at market open (once per day)
+                    if not executed_premarket_today and self.premarket_candidates:
+                        logger.info(
+                            "market_opened_executing_premarket_candidates",
+                            candidates=len(self.premarket_candidates),
+                        )
+                        trades = self.execute_premarket_candidates(max_positions=3)
+                        executed_premarket_today = True
+                        if trades > 0:
+                            last_scan_time = current_time  # Skip immediate rescan
+                    
+                    # Full universe scan every 15 minutes
+                    if (
+                        last_scan_time is None
+                        or (current_time - last_scan_time).total_seconds() >= 900
+                    ):
+                        logger.info(
+                            "starting_full_universe_scan",
+                            scan_number=scan_count + 1,
+                            symbols=len(self.universe),
+                        )
+                        self.scan_and_trade(max_new_positions=3)
+                        last_scan_time = current_time
+                        scan_count += 1
+
+                    # Manage positions every 2 minutes
+                    if (
+                        last_manage_time is None
+                        or (current_time - last_manage_time).total_seconds() >= 120
+                    ):
+                        logger.info("running_position_management_check")
+                        self.manage_positions()
+                        last_manage_time = current_time
+
+                    # Sleep for 30 seconds before next check
+                    time.sleep(30)
+                    
+                elif self.is_premarket_hours():
+                    # === PREMARKET HOURS (4:00 AM - 9:30 AM ET) ===
+                    minutes_to_open = self.get_minutes_until_market_open()
+                    
+                    # Run premarket scan once, about 30-60 minutes before market open
+                    # or if we haven't scanned today
+                    should_scan = (
+                        last_premarket_scan_time is None
+                        or (current_time - last_premarket_scan_time).total_seconds() >= 3600  # Re-scan every hour
+                    )
+                    
+                    if should_scan and minutes_to_open <= 90:  # Within 90 mins of open
+                        logger.info(
+                            "running_premarket_analysis",
+                            minutes_to_open=minutes_to_open,
+                        )
+                        self.run_premarket_scan()
+                        last_premarket_scan_time = current_time
+                        
+                        # Log top candidates
+                        if self.premarket_candidates:
+                            logger.info(
+                                "premarket_top_candidates",
+                                count=len(self.premarket_candidates),
+                                top_5=[(c["symbol"], c["score"]) for c in self.premarket_candidates[:5]],
+                                minutes_to_open=minutes_to_open,
+                            )
+                    else:
+                        logger.info(
+                            "premarket_waiting",
+                            minutes_to_open=minutes_to_open,
+                            has_candidates=len(self.premarket_candidates) > 0,
+                            next_scan_in="60 min" if last_premarket_scan_time else f"{max(0, 90 - minutes_to_open)} min",
+                        )
+                    
+                    # Check more frequently as we approach market open
+                    if minutes_to_open <= 5:
+                        time.sleep(30)  # Check every 30 seconds near open
+                    elif minutes_to_open <= 15:
+                        time.sleep(60)  # Check every minute
+                    else:
+                        time.sleep(300)  # Check every 5 minutes
+                        
+                else:
+                    # === MARKET CLOSED (not premarket) ===
                     if auto_restart:
                         logger.info(
-                            "market_closed_waiting_for_open", check_interval_min=5
+                            "market_closed_waiting", 
+                            check_interval_min=5,
+                            current_time=current_time.strftime("%H:%M ET"),
                         )
                         time.sleep(300)  # Wait 5 minutes, then check again
                         continue
                     else:
                         logger.info("market_closed_stopping_trading")
                         break
-
-                current_time = datetime.now(pytz.timezone("US/Eastern"))
-
-                # Full universe scan every 15 minutes
-                if (
-                    last_scan_time is None
-                    or (current_time - last_scan_time).total_seconds() >= 900
-                ):
-                    logger.info(
-                        "starting_full_universe_scan",
-                        scan_number=scan_count + 1,
-                        symbols=len(self.universe),
-                    )
-                    self.scan_and_trade(
-                        max_new_positions=3
-                    )  # Max 3 new positions per scan
-                    last_scan_time = current_time
-                    scan_count += 1
-
-                # Manage positions every 2 minutes (sell on stops/profits)
-                if (
-                    last_manage_time is None
-                    or (current_time - last_manage_time).total_seconds() >= 120
-                ):
-                    logger.info("running_position_management_check")
-                    self.manage_positions()
-                    last_manage_time = current_time
-
-                # Sleep for 30 seconds before next check
-                time.sleep(30)
 
             except KeyboardInterrupt:
                 logger.info("continuous_trading_interrupted")
@@ -431,10 +854,20 @@ def main() -> None:
             engine.run_eod_routine()
         elif command == "manage":
             engine.manage_positions()
+        elif command == "premarket":
+            # Run premarket scan manually
+            logger.info("manual_premarket_scan_requested")
+            candidates = engine.run_premarket_scan()
+            print(f"\n=== Premarket Scan Results ===")
+            print(f"Total candidates: {len(candidates)}")
+            print(f"\nTop 10 candidates:")
+            for i, c in enumerate(candidates[:10], 1):
+                print(f"  {i}. {c['symbol']}: score={c['score']:.1f}")
         else:
             logger.error("unknown_command", command=command)
-            print("Usage: python src/main.py [scan|continuous|eod|manage]")
-            print("  continuous --auto-restart: Run 24/7, auto-start when market opens")
+            print("Usage: python src/main.py [scan|continuous|eod|manage|premarket]")
+            print("  continuous --auto-restart: Run 24/7 with premarket analysis")
+            print("  premarket: Run premarket scan manually")
     else:
         # Default: run trading session
         engine.run_trading_session()

@@ -8,6 +8,10 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
       - ./.env:/app/.env
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./web:/app/web
+      - ./backtesting:/app/backtesting
     environment:
       - PYTHONUNBUFFERED=1
       - DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
@@ -15,7 +19,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 4G
     logging:
       driver: "json-file"
       options:

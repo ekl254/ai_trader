@@ -73,6 +73,18 @@
         .info-box { background: #0f172a; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
         .info-box p { margin: 6px 0; font-size: 14px; }
         .info-box strong { color: #e2e8f0; }
+        /* Regime Indicator Styles */
+        .regime-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; background: rgba(0,0,0,0.2); }
+        .regime-indicator .regime-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+        .regime-indicator .regime-value { font-size: 14px; font-weight: 700; padding: 4px 10px; border-radius: 12px; }
+        .regime-indicator .regime-params { font-size: 11px; opacity: 0.9; margin-left: 8px; }
+        .regime-strong_bull { background: #10b981; color: white; }
+        .regime-bull { background: #34d399; color: #0f172a; }
+        .regime-neutral { background: #94a3b8; color: #0f172a; }
+        .regime-bear { background: #f97316; color: white; }
+        .regime-strong_bear { background: #ef4444; color: white; }
+        .regime-high_volatility { background: #a855f7; color: white; }
+        .regime-unknown { background: #64748b; color: white; }
     </style>
 </head>
 <body>
@@ -93,6 +105,11 @@
         <div class="header">
             <div class="header-top">
                 <h1>Trading Analysis</h1>
+                <div class="regime-indicator" id="regime-indicator" title="Current market regime and adaptive trading parameters">
+                    <span class="regime-label">Regime</span>
+                    <span class="regime-value regime-unknown" id="regime-value">Loading...</span>
+                    <span class="regime-params" id="regime-params">SL: --% | TP: --% | Min: --</span>
+                </div>
                 <div class="nyse-time">
                     <span class="time-label">NYSE Time</span>
                     <span class="time-value" id="nyse-time">--:--:-- --</span>
@@ -472,13 +489,43 @@
             if (e.target.classList.contains('modal-overlay')) closeModal();
         });
 
+        // Fetch and update regime indicator
+        async function updateRegime() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                if (data.regime) {
+                    const regime = data.regime;
+                    const regimeValue = document.getElementById('regime-value');
+                    const regimeParams = document.getElementById('regime-params');
+                    
+                    const regimeDisplay = {
+                        'strong_bull': 'STRONG BULL', 'bull': 'BULL', 'neutral': 'NEUTRAL',
+                        'bear': 'BEAR', 'strong_bear': 'STRONG BEAR', 'high_volatility': 'HIGH VOL',
+                        'unknown': 'UNKNOWN', 'error': 'ERROR'
+                    };
+                    
+                    const regimeName = regime.regime || 'unknown';
+                    regimeValue.textContent = regimeDisplay[regimeName] || regimeName.toUpperCase();
+                    regimeValue.className = `regime-value regime-${regimeName}`;
+                    
+                    const slPct = ((regime.stop_loss_pct || 0.03) * 100).toFixed(0);
+                    const tpPct = ((regime.take_profit_pct || 0.08) * 100).toFixed(0);
+                    const minScore = regime.min_score || 70;
+                    regimeParams.textContent = `SL: ${slPct}% | TP: ${tpPct}% | Min: ${minScore}`;
+                }
+            } catch (e) { console.error('Regime fetch error:', e); }
+        }
+
         // Initial load
         fetchStatus();
         fetchAnalysis();
+        updateRegime();
 
         // Auto-refresh every 5 seconds for real-time updates during trading
         setInterval(fetchStatus, 5000);
         setInterval(fetchAnalysis, 5000);
+        setInterval(updateRegime, 10000);
     </script>
 </body>
 </html>

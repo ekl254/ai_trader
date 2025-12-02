@@ -182,7 +182,7 @@ class TradingStrategy:
     def calculate_fundamental_score(self, symbol: str) -> Tuple[float, Dict]:
         """Calculate fundamental analysis score (neutral - not using external fundamental data)."""
         # Simplified: no external fundamental data, always neutral
-        return 50.0, {"note": "Using technical + sentiment only"}
+        return 50.0, {"total": 50.0, "note": "Using technical + sentiment only"}
 
     def calculate_sentiment_score(self, symbol: str) -> Tuple[float, Dict]:
         """Calculate news sentiment score (0-100)."""
@@ -201,7 +201,7 @@ class TradingStrategy:
 
         except Exception as e:
             logger.error("sentiment_analysis_failed", symbol=symbol, error=str(e))
-            return 50.0, {"error": str(e)}
+            return 50.0, {"total": 50.0, "error": str(e)}
 
     def score_symbol(self, symbol: str) -> Tuple[float, Dict]:
         """Calculate composite score for a symbol."""
@@ -246,8 +246,10 @@ class TradingStrategy:
         """Determine if symbol should be bought."""
         score, reasoning = self.score_symbol(symbol)
 
-        # Check composite score
-        if score < self.config.min_composite_score:
+        # Check composite score (regime-adjusted)
+        from src.risk_manager import risk_manager
+        min_score = risk_manager.get_min_score()
+        if score < min_score:
             return False, score, reasoning
 
         # Check technical (required)

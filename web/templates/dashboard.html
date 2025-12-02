@@ -92,6 +92,18 @@
         .price-marker { position: absolute; width: 4px; height: 100%; background: #3b82f6; border-radius: 2px; }
         .stop-marker { background: #ef4444; }
         .target-marker { background: #10b981; }
+        /* Regime Indicator Styles */
+        .regime-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; background: rgba(0,0,0,0.2); margin-left: auto; }
+        .regime-indicator .regime-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+        .regime-indicator .regime-value { font-size: 14px; font-weight: 700; padding: 4px 10px; border-radius: 12px; }
+        .regime-indicator .regime-params { font-size: 11px; opacity: 0.9; margin-left: 8px; }
+        .regime-strong_bull { background: #10b981; color: white; }
+        .regime-bull { background: #34d399; color: #0f172a; }
+        .regime-neutral { background: #94a3b8; color: #0f172a; }
+        .regime-bear { background: #f97316; color: white; }
+        .regime-strong_bear { background: #ef4444; color: white; }
+        .regime-high_volatility { background: #a855f7; color: white; }
+        .regime-unknown { background: #64748b; color: white; }
     </style>
 </head>
 <body>
@@ -112,6 +124,11 @@
         <div class="header">
             <div class="header-top">
                 <h1>AI Trading Dashboard</h1>
+                <div class="regime-indicator" id="regime-indicator" title="Current market regime and adaptive trading parameters">
+                    <span class="regime-label">Regime</span>
+                    <span class="regime-value regime-unknown" id="regime-value">Loading...</span>
+                    <span class="regime-params" id="regime-params">SL: --% | TP: --% | Min: --</span>
+                </div>
                 <div class="nyse-time" id="nyse-time-display">
                     <span class="time-label">NYSE Time</span>
                     <span class="time-value" id="nyse-time">--:--:-- --</span>
@@ -188,6 +205,51 @@
             </div>
         </div>
 
+        <!-- Premarket Candidates Section -->
+        <div class="section" id="premarket-section">
+            <h2 style="display: flex; justify-content: space-between; align-items: center;">
+                <span>🌅 Premarket Candidates</span>
+                <span id="premarket-scan-time" style="font-size: 12px; font-weight: normal; color: #64748b;"></span>
+            </h2>
+            <div id="premarket-candidates">
+                <div class="empty">No premarket candidates available</div>
+            </div>
+        </div>
+
+        <!-- Premarket Performance History Section -->
+        <div class="section">
+            <h2>📊 Premarket Performance History</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Total Days</div>
+                    <div style="font-size: 28px; font-weight: 700;" id="pm-total-days">0</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Trades Executed</div>
+                    <div style="font-size: 28px; font-weight: 700;" id="pm-total-executed">0</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Win Rate</div>
+                    <div style="font-size: 28px; font-weight: 700; color: #10b981;" id="pm-win-rate">0%</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Avg P/L</div>
+                    <div style="font-size: 28px; font-weight: 700;" id="pm-avg-pl">0%</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Best Trade</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #10b981;" id="pm-best-trade">-</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Worst Trade</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #ef4444;" id="pm-worst-trade">-</div>
+                </div>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="showPremarketHistory()" style="font-size: 13px; padding: 8px 16px;">📋 View History</button>
+            </div>
+        </div>
+
         <div class="section">
             <h2 style="display: flex; justify-content: space-between; align-items: center;">
                 <span>📊 Open Positions</span>
@@ -242,7 +304,7 @@
             if (!data) return;
 
             // Update NYSE time
-            if (data.nyse_time) {
+            if (false && data.nyse_time) { // Disabled - using client-side time
                 document.getElementById('nyse-time').textContent = data.nyse_time.time;
                 document.getElementById('nyse-date').textContent = data.nyse_time.date;
             }
@@ -303,6 +365,35 @@
                 portfolio_value: account.portfolio_value,
                 profit_loss: account.profit_loss
             };
+
+            // Update regime indicator
+            if (data.regime) {
+                const regime = data.regime;
+                const regimeValue = document.getElementById('regime-value');
+                const regimeParams = document.getElementById('regime-params');
+                
+                // Format regime name for display
+                const regimeDisplay = {
+                    'strong_bull': 'STRONG BULL',
+                    'bull': 'BULL',
+                    'neutral': 'NEUTRAL',
+                    'bear': 'BEAR',
+                    'strong_bear': 'STRONG BEAR',
+                    'high_volatility': 'HIGH VOL',
+                    'unknown': 'UNKNOWN',
+                    'error': 'ERROR'
+                };
+                
+                const regimeName = regime.regime || 'unknown';
+                regimeValue.textContent = regimeDisplay[regimeName] || regimeName.toUpperCase();
+                regimeValue.className = `regime-value regime-${regimeName}`;
+                
+                // Format parameters
+                const slPct = ((regime.stop_loss_pct || 0.03) * 100).toFixed(0);
+                const tpPct = ((regime.take_profit_pct || 0.08) * 100).toFixed(0);
+                const minScore = regime.min_score || 70;
+                regimeParams.textContent = `SL: ${slPct}% | TP: ${tpPct}% | Min: ${minScore}`;
+            }
         }
 
         // Store previous position data for change detection
@@ -511,13 +602,132 @@
             document.body.appendChild(modal);
         }
 
+        // ========== PREMARKET FUNCTIONS ==========
+        async function updatePremarketCandidates() {
+            const data = await fetchData('/api/premarket/candidates');
+            if (!data) return;
+
+            const container = document.getElementById('premarket-candidates');
+            const scanTimeEl = document.getElementById('premarket-scan-time');
+            
+            // Update scan time
+            if (data.scan_time) {
+                const scanDate = new Date(data.scan_time);
+                const isToday = data.is_today;
+                scanTimeEl.textContent = isToday 
+                    ? `Scanned today at ${scanDate.toLocaleTimeString()}`
+                    : `Last scan: ${scanDate.toLocaleString()} (stale)`;
+                scanTimeEl.style.color = isToday ? '#10b981' : '#f97316';
+            } else {
+                scanTimeEl.textContent = 'No scan yet';
+            }
+
+            if (!data.candidates || data.candidates.length === 0) {
+                container.innerHTML = '<div class="empty">No premarket candidates queued. Scan runs ~90 min before market open.</div>';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>Rank</th><th>Symbol</th><th>Score</th><th>Price</th><th>Scanned At</th></tr></thead><tbody>';
+            
+            data.candidates.slice(0, 10).forEach((c, i) => {
+                const scoreClass = c.score >= 75 ? 'profit' : c.score >= 70 ? '' : 'loss';
+                const scannedAt = c.scanned_at ? new Date(c.scanned_at).toLocaleTimeString() : '-';
+                html += `<tr>
+                    <td><strong>#${i + 1}</strong></td>
+                    <td><strong>${c.symbol}</strong></td>
+                    <td class="${scoreClass}">${c.score.toFixed(1)}</td>
+                    <td>${c.price ? formatCurrency(c.price) : '-'}</td>
+                    <td>${scannedAt}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            if (data.count > 10) {
+                html += `<div style="text-align: center; margin-top: 10px; color: #64748b; font-size: 13px;">Showing top 10 of ${data.count} candidates</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        async function updatePremarketStats() {
+            const stats = await fetchData('/api/premarket/stats');
+            if (!stats || stats.error) return;
+
+            document.getElementById('pm-total-days').textContent = stats.total_days;
+            document.getElementById('pm-total-executed').textContent = stats.total_executed;
+            document.getElementById('pm-win-rate').textContent = `${stats.win_rate}%`;
+            document.getElementById('pm-win-rate').className = stats.win_rate >= 50 ? 'profit' : 'loss';
+            
+            const avgPl = stats.avg_profit_pct;
+            document.getElementById('pm-avg-pl').textContent = `${avgPl >= 0 ? '+' : ''}${avgPl}%`;
+            document.getElementById('pm-avg-pl').className = avgPl >= 0 ? 'profit' : 'loss';
+            
+            if (stats.best_trade) {
+                document.getElementById('pm-best-trade').textContent = 
+                    `${stats.best_trade.symbol} +${stats.best_trade.profit_pct.toFixed(1)}%`;
+            }
+            if (stats.worst_trade) {
+                document.getElementById('pm-worst-trade').textContent = 
+                    `${stats.worst_trade.symbol} ${stats.worst_trade.profit_pct.toFixed(1)}%`;
+            }
+        }
+
+        async function showPremarketHistory() {
+            const history = await fetchData('/api/premarket/history?limit=30');
+            
+            if (!history || history.length === 0) {
+                showNotification('No premarket history available yet', 'info');
+                return;
+            }
+            
+            let html = '<div style="background: #0f172a; padding: 20px; border-radius: 8px; max-height: 500px; overflow-y: auto;">';
+            html += '<h3 style="margin-bottom: 15px;">Premarket Trading History</h3>';
+            html += '<table><thead><tr><th>Date</th><th>Regime</th><th>Candidates</th><th>Executed</th><th>Trades</th></tr></thead><tbody>';
+            
+            for (const record of history) {
+                const regimeClass = record.regime === 'bull' || record.regime === 'strong_bull' 
+                    ? 'profit' : record.regime === 'bear' || record.regime === 'strong_bear' ? 'loss' : '';
+                
+                // Build trades summary
+                let tradesHtml = '';
+                for (const trade of record.executed || []) {
+                    const hasPL = 'profit_loss_pct' in trade;
+                    const plClass = hasPL ? (trade.profit_loss_pct >= 0 ? 'profit' : 'loss') : '';
+                    const plText = hasPL ? `${trade.profit_loss_pct >= 0 ? '+' : ''}${trade.profit_loss_pct.toFixed(1)}%` : 'Open';
+                    tradesHtml += `<span style="margin-right: 8px;">${trade.symbol}: <span class="${plClass}">${plText}</span></span>`;
+                }
+                
+                html += `<tr>
+                    <td><strong>${record.date}</strong></td>
+                    <td class="${regimeClass}">${(record.regime || 'unknown').toUpperCase()}</td>
+                    <td>${record.total_candidates}</td>
+                    <td>${record.execution_count}</td>
+                    <td style="font-size: 12px;">${tradesHtml || '-'}</td>
+                </tr>`;
+            }
+            
+            html += '</tbody></table></div>';
+            
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+            modal.innerHTML = `
+                <div style="background: #1e293b; border-radius: 12px; padding: 30px; max-width: 1000px; width: 100%; max-height: 90vh; overflow-y: auto;">
+                    ${html}
+                    <button onclick="this.closest('div[style*=fixed]').remove()" class="btn btn-secondary" style="margin-top: 20px;">Close</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
         async function refreshAll() {
             await Promise.all([
                 updateStatus(),
                 updatePositions(),
                 updateOrders(),
                 updateLogs(),
-                updateRebalancingStats()
+                updateRebalancingStats(),
+                updatePremarketCandidates(),
+                updatePremarketStats()
             ]);
         }
 
@@ -541,14 +751,24 @@
                 timeZone: 'America/New_York',
                 weekday: 'short',
                 month: 'short',
-                day: 'numeric',
+                day: '2-digit',
                 year: 'numeric'
             };
             document.getElementById('nyse-time').textContent = now.toLocaleTimeString('en-US', options);
             document.getElementById('nyse-date').textContent = now.toLocaleDateString('en-US', dateOptions);
         }
-        updateNYSETimeLocal();
-        setInterval(updateNYSETimeLocal, 1000);
+        
+        // Use precise timing to sync with system clock
+        function startNYSEClock() {
+            updateNYSETimeLocal();
+            const now = new Date();
+            const msUntilNextSecond = 1000 - now.getMilliseconds();
+            setTimeout(() => {
+                updateNYSETimeLocal();
+                setInterval(updateNYSETimeLocal, 1000);
+            }, msUntilNextSecond);
+        }
+        startNYSEClock();
 
         // Position Detail Modal Functions
         async function showPositionDetails(symbol) {

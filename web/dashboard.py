@@ -21,7 +21,8 @@ from alpaca.trading.client import TradingClient
 from config.config import config
 from src.position_tracker import PositionTracker
 from src.performance_tracker import PerformanceTracker  # type: ignore
-from src.strategy_optimizer import StrategyOptimizer  # type: ignore
+from src.strategy_optimizer import StrategyOptimizer
+from src.market_regime import market_regime_detector  # type: ignore
 from src.llm_reason_generator import get_llm_reason_generator  # type: ignore
 
 app = Flask(__name__)
@@ -164,7 +165,7 @@ def get_positions() -> List[Dict[str, Any]]:
 
                     entry_time = datetime.fromisoformat(entry_time_str)
                     hold_duration_min = int(
-                        (datetime.now() - entry_time).total_seconds() / 60
+                        (datetime.now(entry_time.tzinfo) - entry_time).total_seconds() / 60
                     )
                 entry_score = position_data.get("score")
 
@@ -359,9 +360,34 @@ def index():
 
 
 def is_bot_running() -> bool:
-    """Check if trading bot is running via systemd service or PID file."""
+    """Check if trading bot is running via Docker, systemd service, or PID file."""
     try:
-        # First check systemd service (preferred method)
+        # Check if running inside Docker container (bot runs as main process)
+        if os.path.exists('/.dockerenv'):
+            # Inside Docker - check if main trading process exists
+            try:
+                result = subprocess.run(
+                    ['pgrep', '-f', 'python.*main.py'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return True
+            except Exception:
+                pass
+            # Alternative: check if continuous trading started in logs
+            log_file = Path(__file__).parent.parent / "logs" / "trading.log"
+            if log_file.exists():
+                try:
+                    content = log_file.read_text()
+                    if 'continuous_trading_started' in content:
+                        return True
+                except Exception:
+                    pass
+            return True  # If in Docker, assume bot is running as main process
+        
+        # Outside Docker: check systemd service (preferred method)
         result = subprocess.run(
             ["systemctl", "is-active", "ai-trader"],
             capture_output=True,
@@ -378,7 +404,6 @@ def is_bot_running() -> bool:
 
         pid = int(pid_file.read_text().strip())
         # Check if process is actually running
-        import os
         import signal
 
         try:
@@ -413,11 +438,27 @@ def get_nyse_time() -> Dict[str, Any]:
 @app.route("/api/status")
 @login_required
 def api_status():
-    """API endpoint for market status."""
+    """API endpoint for market status with regime info."""
+    # Get regime data
+    try:
+        regime_data = market_regime_detector.get_market_regime()
+        regime_info = {
+            "regime": regime_data.get("regime", "unknown"),
+            "stop_loss_pct": regime_data.get("stop_loss_pct", 0.03),
+            "take_profit_pct": regime_data.get("take_profit_pct", 0.08),
+            "min_score": regime_data.get("min_score", 70),
+            "momentum_20d": regime_data.get("momentum_20d", 0),
+            "volatility": regime_data.get("volatility", 0),
+            "recommendation": regime_data.get("recommendation", ""),
+        }
+    except Exception as e:
+        regime_info = {"regime": "error", "error": str(e)}
+    
     return jsonify(
         {
             "market": get_market_status(),
             "account": get_account_info(),
+            "regime": regime_info,
             "trading_running": is_bot_running(),
             "nyse_time": get_nyse_time(),
             "timestamp": datetime.now().isoformat(),
@@ -437,6 +478,32 @@ def api_positions():
 def api_orders():
     """API endpoint for orders."""
     return jsonify(get_recent_orders())
+
+@app.route("/api/regime")
+@login_required
+def api_regime():
+    """API endpoint for current market regime and parameters."""
+    try:
+        regime_data = market_regime_detector.get_market_regime()
+        return jsonify({
+            "regime": regime_data.get("regime", "unknown"),
+            "spy_price": regime_data.get("spy_price", 0),
+            "spy_ema20": regime_data.get("spy_ema20", 0),
+            "spy_ema50": regime_data.get("spy_ema50", 0),
+            "momentum_20d": regime_data.get("momentum_20d", 0),
+            "volatility": regime_data.get("volatility", 0),
+            "stop_loss_pct": regime_data.get("stop_loss_pct", 0.03),
+            "take_profit_pct": regime_data.get("take_profit_pct", 0.08),
+            "min_score": regime_data.get("min_score", 70),
+            "max_positions": regime_data.get("max_positions_override", 10),
+            "should_trade": regime_data.get("should_trade", True),
+            "recommendation": regime_data.get("recommendation", ""),
+            "timestamp": regime_data.get("timestamp", ""),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 
 @app.route("/api/logs")
@@ -1202,6 +1269,153 @@ def _update_env_file(env_file: Path, updates: Dict[str, str]) -> None:
         f.writelines(new_lines)
 
 
+# ============ PREMARKET ENDPOINTS ============
+
+PREMARKET_CANDIDATES_FILE = Path(__file__).parent.parent / "data" / "premarket_candidates.json"
+PREMARKET_HISTORY_FILE = Path(__file__).parent.parent / "data" / "premarket_history.json"
+
+
+@app.route("/api/premarket/candidates")
+@login_required
+def api_premarket_candidates():
+    """Get current premarket candidates queued for market open."""
+    try:
+        if not PREMARKET_CANDIDATES_FILE.exists():
+            return jsonify({
+                "scan_time": None,
+                "candidates": [],
+                "count": 0,
+                "message": "No premarket scan has been run yet"
+            })
+        
+        with open(PREMARKET_CANDIDATES_FILE, "r") as f:
+            data = json.load(f)
+        
+        # Check if scan is from today
+        scan_time = data.get("scan_time")
+        is_today = False
+        if scan_time:
+            try:
+                from zoneinfo import ZoneInfo
+            except ImportError:
+                from backports.zoneinfo import ZoneInfo
+            
+            et = ZoneInfo("America/New_York")
+            scan_dt = datetime.fromisoformat(scan_time)
+            today = datetime.now(et).date()
+            is_today = scan_dt.date() == today
+        
+        return jsonify({
+            "scan_time": scan_time,
+            "candidates": data.get("candidates", [])[:20],  # Return top 20
+            "count": data.get("count", 0),
+            "is_today": is_today,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/premarket/history")
+@login_required
+def api_premarket_history():
+    """Get historical premarket performance data."""
+    try:
+        if not PREMARKET_HISTORY_FILE.exists():
+            return jsonify([])
+        
+        with open(PREMARKET_HISTORY_FILE, "r") as f:
+            history = json.load(f)
+        
+        # Return most recent first
+        limit = request.args.get("limit", 30, type=int)
+        return jsonify(list(reversed(history[-limit:])))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/premarket/stats")
+@login_required
+def api_premarket_stats():
+    """Get aggregated premarket performance statistics."""
+    try:
+        if not PREMARKET_HISTORY_FILE.exists():
+            return jsonify({
+                "total_days": 0,
+                "total_executed": 0,
+                "total_closed": 0,
+                "win_count": 0,
+                "loss_count": 0,
+                "win_rate": 0,
+                "avg_profit_pct": 0,
+                "total_profit_pct": 0,
+                "best_trade": None,
+                "worst_trade": None,
+            })
+        
+        with open(PREMARKET_HISTORY_FILE, "r") as f:
+            history = json.load(f)
+        
+        total_days = len(history)
+        total_executed = 0
+        total_closed = 0
+        win_count = 0
+        loss_count = 0
+        total_profit_pct = 0
+        best_trade = None
+        worst_trade = None
+        best_pct = float("-inf")
+        worst_pct = float("inf")
+        
+        for record in history:
+            for trade in record.get("executed", []):
+                total_executed += 1
+                
+                if "profit_loss_pct" in trade:
+                    total_closed += 1
+                    pct = trade["profit_loss_pct"]
+                    total_profit_pct += pct
+                    
+                    if pct >= 0:
+                        win_count += 1
+                    else:
+                        loss_count += 1
+                    
+                    if pct > best_pct:
+                        best_pct = pct
+                        best_trade = {
+                            "symbol": trade["symbol"],
+                            "profit_pct": pct,
+                            "date": record["date"],
+                        }
+                    
+                    if pct < worst_pct:
+                        worst_pct = pct
+                        worst_trade = {
+                            "symbol": trade["symbol"],
+                            "profit_pct": pct,
+                            "date": record["date"],
+                        }
+        
+        win_rate = (win_count / total_closed * 100) if total_closed > 0 else 0
+        avg_profit_pct = total_profit_pct / total_closed if total_closed > 0 else 0
+        
+        return jsonify({
+            "total_days": total_days,
+            "total_executed": total_executed,
+            "total_closed": total_closed,
+            "win_count": win_count,
+            "loss_count": loss_count,
+            "win_rate": round(win_rate, 1),
+            "avg_profit_pct": round(avg_profit_pct, 2),
+            "total_profit_pct": round(total_profit_pct, 2),
+            "best_trade": best_trade,
+            "worst_trade": worst_trade,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("🚀 AI Trading Dashboard Starting")
@@ -1223,3 +1437,5 @@ if __name__ == "__main__":
     print()
 
     app.run(host="0.0.0.0", port=8082, debug=False)
+
+
