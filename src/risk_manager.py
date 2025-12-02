@@ -202,8 +202,17 @@ class RiskManager:
 
         return result
 
-    def can_open_position(self, symbol: str) -> bool:
-        """Check if we can open a new position."""
+    def can_open_position(self, symbol: str, score: float = 0) -> bool:
+        """
+        Check if we can open a new position.
+        
+        Args:
+            symbol: Stock symbol
+            score: Composite score (optional) - high scores can exceed regime limits
+            
+        Returns:
+            True if position can be opened
+        """
         current_positions = self.get_current_positions()
 
         # Check if already holding
@@ -211,16 +220,47 @@ class RiskManager:
             logger.info("already_holding_position", symbol=symbol)
             return False
 
-        # Check max positions (regime-adjusted)
-        max_positions = self.get_max_positions()
-        if len(current_positions) >= max_positions:
+        # Get regime-adjusted max and absolute max from config
+        regime_max = self.get_max_positions()
+        absolute_max = self.config.max_positions  # Hard cap from config (usually 10)
+        current_count = len(current_positions)
+        
+        # Dynamic position limit based on score:
+        # - Score >= 80: Can go up to absolute max (high conviction)
+        # - Score >= 75: Can exceed regime limit by 2
+        # - Score >= 70: Can exceed regime limit by 1
+        # - Below 70: Stick to regime limit
+        if score >= 80:
+            effective_max = absolute_max
+        elif score >= 75:
+            effective_max = min(regime_max + 2, absolute_max)
+        elif score >= 70:
+            effective_max = min(regime_max + 1, absolute_max)
+        else:
+            effective_max = regime_max
+        
+        if current_count >= effective_max:
             logger.info(
                 "max_positions_reached",
-                current=len(current_positions),
-                max=max_positions,
+                current=current_count,
+                max=effective_max,
+                regime_max=regime_max,
+                absolute_max=absolute_max,
+                score=score,
                 regime=self._regime_params.get("regime", "default") if self._regime_params else "default",
             )
             return False
+        
+        # Log when we're exceeding regime limit due to high score
+        if current_count >= regime_max and current_count < effective_max:
+            logger.info(
+                "exceeding_regime_limit_high_score",
+                symbol=symbol,
+                score=score,
+                current=current_count,
+                regime_max=regime_max,
+                effective_max=effective_max,
+            )
 
         return True
 

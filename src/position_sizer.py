@@ -47,7 +47,7 @@ class DynamicPositionSizer:
     
     # Position size limits as percentage of portfolio
     MIN_POSITION_PCT = 0.05  # 5% minimum
-    MAX_POSITION_PCT = 0.15  # 15% maximum
+    MAX_POSITION_PCT = 0.12  # 15% maximum
     
     # Target cash reserve
     MIN_CASH_RESERVE_PCT = 0.10  # Keep at least 10% cash

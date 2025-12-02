@@ -133,7 +133,7 @@ class TradeExecutor:
         logger.info("attempting_buy", symbol=symbol, score=score, price=current_price)
 
         # Check if we can open position
-        if not risk_manager.can_open_position(symbol):
+        if not risk_manager.can_open_position(symbol, score=score):
             logger.info("cannot_open_position", symbol=symbol)
             return False
 
@@ -423,7 +423,7 @@ class TradeExecutor:
         """
         # Pre-check: Can we actually buy the new symbol?
         # This prevents selling the old position only to fail on the buy
-        if not risk_manager.can_open_position(new_symbol):
+        if not risk_manager.can_open_position(new_symbol, score=new_score):
             logger.warning(
                 "swap_aborted_target_already_held",
                 old_symbol=old_symbol,
