@@ -445,15 +445,6 @@ class TradeExecutor:
             sell_pct=partial_sell_pct if is_partial else 1.0,
         )
 
-        # Track rebalancing event
-        position_tracker.track_rebalance(
-            old_symbol=old_symbol,
-            new_symbol=new_symbol,
-            old_score=old_score,
-            new_score=new_score,
-            score_diff=score_diff,
-        )
-
         # First, sell the old position (partial or full)
         sell_success = self.sell_stock(
             old_symbol, "rebalancing", sell_pct=partial_sell_pct
@@ -487,6 +478,15 @@ class TradeExecutor:
             },
             news_sentiment=new_reasoning.get("sentiment", {}).get("total"),
             news_count=None,
+        )
+
+        # Track rebalancing event AFTER successful swap
+        position_tracker.track_rebalance(
+            old_symbol=old_symbol,
+            new_symbol=new_symbol,
+            old_score=old_score,
+            new_score=new_score,
+            score_diff=score_diff,
         )
 
         logger.info(
