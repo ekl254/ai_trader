@@ -298,5 +298,65 @@ class PositionTracker:
         }
 
 
+    def sync_with_alpaca(self, alpaca_positions: list) -> Dict[str, Any]:
+        """
+        Synchronize tracking data with actual Alpaca positions.
+        
+        - Adds missing positions (in Alpaca but not tracked)
+        - Removes stale positions (tracked but not in Alpaca)
+        
+        Args:
+            alpaca_positions: List of Position objects from Alpaca
+            
+        Returns:
+            Dict with sync results (added, removed, unchanged)
+        """
+        alpaca_symbols = {pos.symbol for pos in alpaca_positions}
+        tracked_symbols = set(self.data["positions"].keys())
+        
+        # Find discrepancies
+        missing = alpaca_symbols - tracked_symbols  # In Alpaca, not tracked
+        stale = tracked_symbols - alpaca_symbols    # Tracked, not in Alpaca
+        
+        results = {
+            "added": [],
+            "removed": [],
+            "unchanged": list(alpaca_symbols & tracked_symbols),
+        }
+        
+        # Add missing positions with placeholder data
+        for symbol in missing:
+            pos = next(p for p in alpaca_positions if p.symbol == symbol)
+            self.data["positions"][symbol] = {
+                "entry_time": datetime.now(timezone.utc).isoformat(),
+                "entry_price": float(pos.avg_entry_price),
+                "score": 0,  # Unknown - position predates tracking
+                "reason": "synced_from_alpaca",
+                "score_breakdown": {},
+                "news_sentiment": None,
+                "news_count": None,
+                "note": "Position existed before tracking sync"
+            }
+            results["added"].append(symbol)
+            logger.info("position_synced_from_alpaca", symbol=symbol, entry_price=float(pos.avg_entry_price))
+        
+        # Remove stale positions
+        for symbol in stale:
+            del self.data["positions"][symbol]
+            results["removed"].append(symbol)
+            logger.info("stale_position_removed", symbol=symbol)
+        
+        if results["added"] or results["removed"]:
+            self._save_data()
+            logger.info(
+                "position_tracking_synced",
+                added=len(results["added"]),
+                removed=len(results["removed"]),
+                total=len(self.data["positions"]),
+            )
+        
+        return results
+
+
 # Global tracker instance
 position_tracker = PositionTracker()

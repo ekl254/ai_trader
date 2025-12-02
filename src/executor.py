@@ -113,7 +113,8 @@ class TradeExecutor:
 
     def buy_stock(
         self, symbol: str, score: float, reasoning: Dict, current_price: float,
-        size_override: Optional[PositionSizeResult] = None
+        size_override: Optional[PositionSizeResult] = None,
+        skip_tracking: bool = False
     ) -> bool:
         """
         Execute a buy order with full risk management and dynamic sizing.
@@ -124,6 +125,7 @@ class TradeExecutor:
             reasoning: Reasoning dict with score breakdown
             current_price: Current stock price
             size_override: Optional pre-calculated position size
+            skip_tracking: If True, skip position tracking (used by swap_position)
 
         Returns:
             True if order placed successfully
@@ -177,19 +179,21 @@ class TradeExecutor:
             position_sizer.record_entry(symbol)
             
             # Track position entry with detailed score breakdown and sizing info
-            position_tracker.track_entry(
+            # Skip if called from swap_position (which handles its own tracking)
+            if not skip_tracking:
+                position_tracker.track_entry(
                 symbol=symbol,
                 entry_price=current_price,
                 score=score,
                 reason="new_position",
                 score_breakdown={
-                    "technical": reasoning.get("technical_score", 0),
-                    "sentiment": reasoning.get("sentiment_score", 0),
-                    "fundamental": reasoning.get("fundamental_score", 0),
+                    "technical": reasoning.get("technical", {}).get("total", 0),
+                    "sentiment": reasoning.get("sentiment", {}).get("total", 0),
+                    "fundamental": reasoning.get("fundamental", {}).get("total", 0),
                 },
-                news_sentiment=reasoning.get("news_sentiment"),
-                news_count=reasoning.get("news_count"),
-            )
+                news_sentiment=reasoning.get("sentiment", {}).get("total"),
+                news_count=None,  # News count not tracked in current sentiment structure
+                )
 
             logger.info(
                 "buy_executed",
@@ -223,7 +227,8 @@ class TradeExecutor:
             score=score,
             reasoning=reasoning,
             current_price=current_price,
-            size_override=size_result
+            size_override=size_result,
+            skip_tracking=False
         )
 
     def sell_stock(self, symbol: str, reason: str, sell_pct: float = 1.0) -> bool:
@@ -462,7 +467,8 @@ class TradeExecutor:
         time.sleep(2)
 
         # Then buy the new position (uses dynamic sizing automatically)
-        buy_success = self.buy_stock(new_symbol, new_score, new_reasoning, new_price)
+        # Pass skip_tracking=True since we track with reason="rebalancing" below
+        buy_success = self.buy_stock(new_symbol, new_score, new_reasoning, new_price, skip_tracking=True)
 
         if not buy_success:
             logger.error("swap_failed_on_buy", new_symbol=new_symbol)
@@ -475,12 +481,12 @@ class TradeExecutor:
             score=new_score,
             reason="rebalancing",
             score_breakdown={
-                "technical": new_reasoning.get("technical_score", 0),
-                "sentiment": new_reasoning.get("sentiment_score", 0),
-                "fundamental": new_reasoning.get("fundamental_score", 0),
+                "technical": new_reasoning.get("technical", {}).get("total", 0),
+                "sentiment": new_reasoning.get("sentiment", {}).get("total", 0),
+                "fundamental": new_reasoning.get("fundamental", {}).get("total", 0),
             },
-            news_sentiment=new_reasoning.get("news_sentiment"),
-            news_count=new_reasoning.get("news_count"),
+            news_sentiment=new_reasoning.get("sentiment", {}).get("total"),
+            news_count=None,
         )
 
         logger.info(

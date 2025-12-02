@@ -82,7 +82,7 @@ def get_sp500_symbols() -> List[str]:
 
         # Filter out NaN and clean symbols
         symbols = [
-            str(s).replace(".", "-").strip()
+            str(s).strip()
             for s in symbols
             if pd.notna(s) and len(str(s)) <= 5
         ]

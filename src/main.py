@@ -149,7 +149,32 @@ class TradingEngine:
         self.universe = self._load_universe()
         self.premarket_candidates: List[Dict[str, Any]] = []  # Store premarket scan results
         self.last_premarket_scan: Optional[datetime] = None
+        
+        # Sync position tracking with Alpaca on startup
+        self._sync_position_tracking()
+        
         logger.info("trading_engine_initialized", universe_size=len(self.universe))
+    
+    def _sync_position_tracking(self) -> None:
+        """Sync position tracking data with actual Alpaca positions."""
+        try:
+            client = TradingClient(
+                config.alpaca.api_key,
+                config.alpaca.secret_key,
+                paper=True,
+            )
+            positions = client.get_all_positions()
+            
+            if positions:
+                sync_result = position_tracker.sync_with_alpaca(positions)
+                if sync_result["added"] or sync_result["removed"]:
+                    logger.info(
+                        "position_tracking_synced_on_startup",
+                        added=sync_result["added"],
+                        removed=sync_result["removed"],
+                    )
+        except Exception as e:
+            logger.warning("position_sync_failed_on_startup", error=str(e))
 
     def _load_universe(self) -> List[str]:
         """Load and filter stock universe."""
