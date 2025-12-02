@@ -24,6 +24,7 @@ from src.performance_tracker import PerformanceTracker  # type: ignore
 from src.strategy_optimizer import StrategyOptimizer
 from src.market_regime import market_regime_detector  # type: ignore
 from src.llm_reason_generator import get_llm_reason_generator  # type: ignore
+from src.newsapi_client import newsapi_client
 
 app = Flask(__name__)
 app.secret_key = os.getenv("DASHBOARD_SECRET_KEY", secrets.token_hex(32))
@@ -1082,6 +1083,54 @@ def api_position_details(symbol: str):
 
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
+
+
+@app.route("/api/news/<symbol>")
+@login_required
+def api_symbol_news(symbol: str):
+    """Get latest news for a symbol."""
+    try:
+        days_back = request.args.get("days", 7, type=int)
+        max_articles = request.args.get("limit", 10, type=int)
+        
+        # Fetch news from Alpaca
+        articles = newsapi_client.get_stock_news(
+            symbol=symbol.upper(),
+            days_back=days_back,
+            max_articles=max_articles
+        )
+        
+        # Format articles for frontend
+        formatted_articles = []
+        for article in articles:
+            # Parse and format the date
+            published_at = article.get("publishedAt", "")
+            try:
+                if published_at:
+                    dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+                    formatted_date = dt.strftime("%b %d, %Y %H:%M")
+                else:
+                    formatted_date = "Unknown"
+            except:
+                formatted_date = published_at[:16] if len(published_at) > 16 else published_at
+            
+            formatted_articles.append({
+                "title": article.get("title", "No title"),
+                "description": article.get("description", "")[:200] + "..." if len(article.get("description", "")) > 200 else article.get("description", ""),
+                "url": article.get("url", ""),
+                "source": article.get("source", "Unknown"),
+                "publishedAt": formatted_date,
+                "symbols": article.get("symbols", []),
+            })
+        
+        return jsonify({
+            "symbol": symbol.upper(),
+            "count": len(formatted_articles),
+            "articles": formatted_articles
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 @app.route("/api/positions/lock/<symbol>", methods=["POST"])
 @login_required
