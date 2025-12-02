@@ -41,6 +41,7 @@ REGIME_PARAMETERS = {
         "description": "Bullish trend - normal trading with trend"
     },
     MarketRegime.NEUTRAL: {
+        # Allow full positions in neutral - we have cash to deploy
         "stop_loss_pct": 0.03,      # 3% - tighter for choppy markets
         "take_profit_pct": 0.06,    # 6% - take profits quicker
         "min_score": 70,            # Higher threshold - be selective

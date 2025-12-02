@@ -14,6 +14,7 @@ from src.logger import log_trade_decision, logger
 from src.performance_tracker import PerformanceTracker  # type: ignore
 from src.position_tracker import position_tracker  # type: ignore
 from src.risk_manager import risk_manager
+from src.position_sizer import position_sizer, PositionSizeResult
 
 
 class TradeExecutor:
@@ -111,10 +112,18 @@ class TradeExecutor:
             return None
 
     def buy_stock(
-        self, symbol: str, score: float, reasoning: Dict, current_price: float
+        self, symbol: str, score: float, reasoning: Dict, current_price: float,
+        size_override: Optional[PositionSizeResult] = None
     ) -> bool:
         """
-        Execute a buy order with full risk management.
+        Execute a buy order with full risk management and dynamic sizing.
+
+        Args:
+            symbol: Stock symbol
+            score: Composite score
+            reasoning: Reasoning dict with score breakdown
+            current_price: Current stock price
+            size_override: Optional pre-calculated position size
 
         Returns:
             True if order placed successfully
@@ -126,28 +135,48 @@ class TradeExecutor:
             logger.info("cannot_open_position", symbol=symbol)
             return False
 
-        # Calculate position size
-        position_info = risk_manager.calculate_position_size(symbol, current_price)
-        shares = int(position_info["shares"])
+        # Use dynamic position sizing
+        if size_override:
+            size_result = size_override
+        else:
+            size_result = position_sizer.calculate_position_size(
+                symbol=symbol,
+                current_price=current_price,
+                composite_score=score,
+            )
+        
+        shares = size_result.recommended_shares
 
         if shares <= 0:
             logger.warning("invalid_position_size", symbol=symbol)
             return False
 
-        # Validate trade
+        # Validate trade using risk manager
         is_valid, reason = risk_manager.validate_trade(symbol, shares, current_price)
         if not is_valid:
             logger.warning("trade_validation_failed", symbol=symbol, reason=reason)
             return False
 
-        # Log trade decision
+        # Log trade decision with sizing rationale
         log_trade_decision(logger, symbol, "BUY", reasoning, score)
+        logger.info(
+            "position_sizing_applied",
+            symbol=symbol,
+            recommended_size=size_result.recommended_size,
+            shares=shares,
+            conviction_mult=size_result.conviction_multiplier,
+            volatility_mult=size_result.volatility_multiplier,
+            rationale=size_result.rationale,
+        )
 
         # Execute order
         order_id = self.place_market_order(symbol, shares, OrderSide.BUY)
 
         if order_id:
-            # Track position entry with detailed score breakdown
+            # Record entry for daily limit tracking
+            position_sizer.record_entry(symbol)
+            
+            # Track position entry with detailed score breakdown and sizing info
             position_tracker.track_entry(
                 symbol=symbol,
                 entry_price=current_price,
@@ -167,13 +196,35 @@ class TradeExecutor:
                 symbol=symbol,
                 shares=shares,
                 price=current_price,
-                position_value=position_info["position_value"],
-                stop_loss=position_info["stop_loss_price"],
+                position_value=size_result.recommended_size,
+                conviction_multiplier=size_result.conviction_multiplier,
+                volatility_multiplier=size_result.volatility_multiplier,
                 order_id=order_id,
             )
             return True
 
         return False
+
+    def buy_stock_with_size(
+        self, 
+        symbol: str, 
+        score: float, 
+        reasoning: Dict, 
+        current_price: float,
+        size_result: PositionSizeResult
+    ) -> bool:
+        """
+        Execute a buy order with a pre-calculated position size.
+        
+        This is used by main.py when batch sizing is already done.
+        """
+        return self.buy_stock(
+            symbol=symbol,
+            score=score,
+            reasoning=reasoning,
+            current_price=current_price,
+            size_override=size_result
+        )
 
     def sell_stock(self, symbol: str, reason: str, sell_pct: float = 1.0) -> bool:
         """
@@ -365,6 +416,16 @@ class TradeExecutor:
         Returns:
             True if swap executed successfully
         """
+        # Pre-check: Can we actually buy the new symbol?
+        # This prevents selling the old position only to fail on the buy
+        if not risk_manager.can_open_position(new_symbol):
+            logger.warning(
+                "swap_aborted_target_already_held",
+                old_symbol=old_symbol,
+                new_symbol=new_symbol,
+            )
+            return False
+
         score_diff = new_score - old_score
         is_partial = partial_sell_pct < 1.0
 
@@ -400,9 +461,7 @@ class TradeExecutor:
         # Wait for sell to process
         time.sleep(2)
 
-        # Then buy the new position
-        # Note: buy_stock() will automatically track entry with reason="new_position"
-        # We should update this to indicate it's from rebalancing
+        # Then buy the new position (uses dynamic sizing automatically)
         buy_success = self.buy_stock(new_symbol, new_score, new_reasoning, new_price)
 
         if not buy_success:
@@ -415,6 +474,13 @@ class TradeExecutor:
             entry_price=new_price,
             score=new_score,
             reason="rebalancing",
+            score_breakdown={
+                "technical": new_reasoning.get("technical_score", 0),
+                "sentiment": new_reasoning.get("sentiment_score", 0),
+                "fundamental": new_reasoning.get("fundamental_score", 0),
+            },
+            news_sentiment=new_reasoning.get("news_sentiment"),
+            news_count=new_reasoning.get("news_count"),
         )
 
         logger.info(

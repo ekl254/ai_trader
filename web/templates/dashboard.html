@@ -480,15 +480,37 @@
                 return;
             }
 
+            // Get side colors
+            const getSideClass = (side) => {
+                return side === 'buy' ? 'profit' : 'loss';
+            };
+            
+            // Get status badge style
+            const getStatusStyle = (status) => {
+                const styles = {
+                    'filled': 'background: #10b981; color: white;',
+                    'partially_filled': 'background: #f59e0b; color: white;',
+                    'new': 'background: #3b82f6; color: white;',
+                    'pending_new': 'background: #3b82f6; color: white;',
+                    'canceled': 'background: #6b7280; color: white;',
+                    'expired': 'background: #6b7280; color: white;',
+                    'rejected': 'background: #ef4444; color: white;',
+                };
+                return styles[status] || 'background: #64748b; color: white;';
+            };
+
             let html = '<table><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Type</th><th>Status</th><th>Filled</th><th>Avg Price</th><th>Time</th></tr></thead><tbody>';
             
             for (const order of orders.slice(0, 10)) {
+                const sideClass = getSideClass(order.side);
+                const statusStyle = getStatusStyle(order.status);
+                
                 html += `<tr>
-                    <td><strong>${order.symbol}</strong></td>
-                    <td>${order.side}</td>
+                    <td><strong><a class="ticker-link" onclick="showSymbolDetails('${order.symbol}')">${order.symbol}</a></strong></td>
+                    <td class="${sideClass}" style="text-transform: uppercase; font-weight: 600;">${order.side}</td>
                     <td>${order.qty}</td>
                     <td>${order.type}</td>
-                    <td>${order.status}</td>
+                    <td><span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; ${statusStyle}">${order.status.toUpperCase()}</span></td>
                     <td>${order.filled_qty}</td>
                     <td>${order.filled_avg_price > 0 ? formatCurrency(order.filled_avg_price) : '-'}</td>
                     <td>${new Date(order.created_at).toLocaleString()}</td>
@@ -884,6 +906,185 @@
         
         function closePositionModal() {
             document.getElementById('position-modal').classList.remove('active');
+        }
+        
+        // Generic Symbol Details Modal (for orders and non-position symbols)
+        async function showSymbolDetails(symbol) {
+            const modal = document.getElementById('position-modal');
+            const modalBody = document.getElementById('modal-body');
+            const modalSymbol = document.getElementById('modal-symbol');
+            
+            modalSymbol.textContent = symbol;
+            modalBody.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading symbol details...</div>';
+            modal.classList.add('active');
+            
+            try {
+                // First, check if this is an open position
+                const positions = await fetchData('/api/positions');
+                const position = positions.find(p => p.symbol === symbol);
+                
+                if (position) {
+                    // Use the position details endpoint for open positions
+                    return showPositionDetails(symbol);
+                }
+                
+                // For non-position symbols, fetch from the generic endpoint
+                const data = await fetchData(`/api/symbol/${symbol}/details`);
+                
+                if (!data || data.error) {
+                    modalBody.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error: ${data?.error || 'Failed to load symbol details'}</div>`;
+                    return;
+                }
+                
+                let html = `
+                    <!-- Symbol Overview Cards -->
+                    <div class="detail-grid">
+                        <div class="detail-card">
+                            <div class="label">Current Price</div>
+                            <div class="value">${formatCurrency(data.current_price)}</div>
+                            <div class="sub">Last trade</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="label">Day Change</div>
+                            <div class="value ${data.day_change >= 0 ? 'profit' : 'loss'}">${data.day_change >= 0 ? '+' : ''}${formatCurrency(data.day_change)}</div>
+                            <div class="sub ${data.day_change_pct >= 0 ? 'profit' : 'loss'}">${data.day_change_pct >= 0 ? '+' : ''}${data.day_change_pct.toFixed(2)}%</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="label">Open</div>
+                            <div class="value">${formatCurrency(data.open_price)}</div>
+                            <div class="sub">Today's open</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="label">Previous Close</div>
+                            <div class="value">${formatCurrency(data.prev_close)}</div>
+                            <div class="sub">Yesterday</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Day Range -->
+                    <div class="section-box">
+                        <h3>📊 Day Range</h3>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                            <span style="color: #ef4444;">Low: ${formatCurrency(data.day_low)}</span>
+                            <span style="color: #3b82f6;">Current: ${formatCurrency(data.current_price)}</span>
+                            <span style="color: #10b981;">High: ${formatCurrency(data.day_high)}</span>
+                        </div>
+                        <div class="price-bar">
+                            <div class="price-marker stop-marker" style="left: 0%;"></div>
+                            <div class="price-marker" style="left: ${data.day_range_position}%;"></div>
+                            <div class="price-marker target-marker" style="left: 100%;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- TradingView Chart -->
+                    <div class="chart-container">
+                        <h3>📈 Price Chart</h3>
+                        <div id="tradingview-widget" style="height: 400px;">
+                            <iframe 
+                                src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&locale=en&utm_source=localhost&utm_medium=widget_new&utm_campaign=chart&utm_term=${symbol}"
+                                style="width: 100%; height: 100%; border: none; border-radius: 8px;"
+                                allowtransparency="true"
+                                scrolling="no"
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Orders for this Symbol -->
+                    <div class="section-box">
+                        <h3>📝 Recent Orders</h3>
+                        <div class="content" id="symbol-orders-list">Loading...</div>
+                    </div>
+                    
+                    <!-- Position Sizing -->
+                    <div class="section-box">
+                        <h3>📐 Position Sizing (if buying)</h3>
+                        <div class="content" id="symbol-sizing-info">Loading...</div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button class="btn btn-refresh" onclick="closePositionModal();">Close</button>
+                    </div>
+                `;
+                
+                modalBody.innerHTML = html;
+                
+                // Load recent orders for this symbol
+                loadSymbolOrders(symbol);
+                
+                // Load position sizing info
+                loadSymbolSizing(symbol);
+                
+            } catch (error) {
+                modalBody.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading symbol details: ${error.message}</div>`;
+            }
+        }
+        
+        async function loadSymbolOrders(symbol) {
+            const orders = await fetchData('/api/orders');
+            const symbolOrders = orders.filter(o => o.symbol === symbol).slice(0, 5);
+            
+            const container = document.getElementById('symbol-orders-list');
+            
+            if (symbolOrders.length === 0) {
+                container.innerHTML = 'No recent orders for this symbol';
+                return;
+            }
+            
+            let html = '<table style="width: 100%; font-size: 13px;"><thead><tr><th>Side</th><th>Qty</th><th>Status</th><th>Price</th><th>Time</th></tr></thead><tbody>';
+            
+            for (const order of symbolOrders) {
+                const sideClass = order.side === 'buy' ? 'profit' : 'loss';
+                html += `<tr>
+                    <td class="${sideClass}" style="text-transform: uppercase; font-weight: 600;">${order.side}</td>
+                    <td>${order.qty}</td>
+                    <td>${order.status}</td>
+                    <td>${order.filled_avg_price > 0 ? formatCurrency(order.filled_avg_price) : '-'}</td>
+                    <td>${new Date(order.created_at).toLocaleString()}</td>
+                </tr>`;
+            }
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        async function loadSymbolSizing(symbol) {
+            const container = document.getElementById('symbol-sizing-info');
+            
+            try {
+                const sizing = await fetchData(`/api/position-sizing/calculate/${symbol}?score=75`);
+                
+                if (sizing && !sizing.error) {
+                    container.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+                            <div>
+                                <strong>Recommended Size:</strong><br/>
+                                ${formatCurrency(sizing.recommended_size)}
+                            </div>
+                            <div>
+                                <strong>Shares:</strong><br/>
+                                ${sizing.recommended_shares}
+                            </div>
+                            <div>
+                                <strong>Conviction (75 score):</strong><br/>
+                                ${sizing.conviction_multiplier.toFixed(2)}x
+                            </div>
+                            <div>
+                                <strong>Volatility Adj:</strong><br/>
+                                ${sizing.volatility_multiplier.toFixed(2)}x
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; font-size: 12px; color: #64748b;">
+                            ${sizing.rationale}
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = sizing?.error || 'Unable to calculate position size';
+                }
+            } catch (e) {
+                container.innerHTML = 'Position sizing unavailable';
+            }
         }
         
         // Close modal on escape key

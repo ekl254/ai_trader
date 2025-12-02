@@ -198,15 +198,24 @@ def get_positions() -> List[Dict[str, Any]]:
 
 
 def get_recent_orders() -> List[Dict[str, Any]]:
-    """Get recent orders."""
+    """Get last 20 orders (all statuses)."""
     try:
+        from alpaca.trading.requests import GetOrdersRequest
+        from alpaca.trading.enums import QueryOrderStatus
+        
         client = TradingClient(
             config.alpaca.api_key, config.alpaca.secret_key, paper=True
         )
-        orders = client.get_orders()
+        
+        # Get last 20 orders regardless of status
+        request = GetOrdersRequest(
+            status=QueryOrderStatus.ALL,
+            limit=20,
+        )
+        orders = client.get_orders(filter=request)
 
         result = []
-        for order in list(orders)[:20]:
+        for order in list(orders):
             result.append(
                 {
                     "id": str(order.id),
@@ -478,6 +487,70 @@ def api_positions():
 def api_orders():
     """API endpoint for orders."""
     return jsonify(get_recent_orders())
+
+
+@app.route("/api/symbol/<symbol>/details")
+@login_required
+def api_generic_symbol_details(symbol: str):
+    """Get price and market data for any symbol (not necessarily a position)."""
+    try:
+        from src.data_provider import alpaca_provider
+        
+        symbol = symbol.upper()
+        
+        # Get latest trade price
+        latest = alpaca_provider.get_latest_trade(symbol)
+        current_price = latest["price"]
+        
+        # Get recent bars for OHLC data (days=5 to ensure we get today + yesterday)
+        bars = alpaca_provider.get_bars(symbol, days=5)
+        
+        if bars is not None and len(bars) >= 1:
+            today_bar = bars.iloc[-1]
+            open_price = float(today_bar["open"])
+            day_high = float(today_bar["high"])
+            day_low = float(today_bar["low"])
+            
+            # Previous close from yesterday's bar or today's open
+            if len(bars) >= 2:
+                prev_close = float(bars.iloc[-2]["close"])
+            else:
+                prev_close = open_price
+        else:
+            # Fallback values
+            open_price = current_price
+            day_high = current_price
+            day_low = current_price
+            prev_close = current_price
+        
+        # Calculate day change
+        day_change = current_price - prev_close
+        day_change_pct = ((current_price - prev_close) / prev_close * 100) if prev_close > 0 else 0
+        
+        # Calculate position in day range (0-100%)
+        day_range = day_high - day_low
+        if day_range > 0:
+            day_range_position = ((current_price - day_low) / day_range) * 100
+        else:
+            day_range_position = 50  # If no range, put in middle
+        
+        day_range_position = max(0, min(100, day_range_position))
+        
+        return jsonify({
+            "symbol": symbol,
+            "current_price": current_price,
+            "open_price": open_price,
+            "day_high": day_high,
+            "day_low": day_low,
+            "prev_close": prev_close,
+            "day_change": round(day_change, 2),
+            "day_change_pct": round(day_change_pct, 2),
+            "day_range_position": round(day_range_position, 1),
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
 
 @app.route("/api/regime")
 @login_required
@@ -945,10 +1018,15 @@ def api_position_details(symbol: str):
             entry_reasoning.append(
                 "🔄 **Entered via rebalancing** (replaced lower-scoring position)"
             )
+        elif entry_reason == "unknown":
+            entry_reasoning.append("📊 **Legacy position** (entered before tracking was added)")
         else:
             entry_reasoning.append(f"📊 **Entry type:** {entry_reason}")
 
-        if score_breakdown:
+        # Check if score_breakdown has actual values
+        has_breakdown = score_breakdown and any(v > 0 for v in score_breakdown.values())
+        
+        if has_breakdown:
             entry_reasoning.append("")
             entry_reasoning.append("**Score Breakdown at Entry:**")
             tech = score_breakdown.get("technical", 0)
@@ -958,6 +1036,10 @@ def api_position_details(symbol: str):
             entry_reasoning.append(f"• Sentiment: {sent:.1f}/100")
             entry_reasoning.append(f"• Fundamental: {fund:.1f}/100")
             entry_reasoning.append(f"• **Composite: {entry_score:.1f}/100**")
+        elif entry_score > 0:
+            entry_reasoning.append("")
+            entry_reasoning.append(f"**Entry Score:** {entry_score:.1f}/100")
+            entry_reasoning.append("(Detailed breakdown not available for this position)")
 
         # News sentiment at entry
         news_sentiment = position_data.get("news_sentiment")
@@ -1416,26 +1498,124 @@ def api_premarket_stats():
 
 
 
+
+# ============ POSITION SIZING ENDPOINTS ============
+
+@app.route("/api/position-sizing/info")
+@login_required
+def api_position_sizing_info():
+    """Get current position sizing parameters and portfolio status."""
+    try:
+        from src.position_sizer import position_sizer
+        
+        portfolio_info = position_sizer.get_portfolio_info()
+        should_deploy, deploy_reason = position_sizer.should_deploy_cash(portfolio_info)
+        
+        # Get regime data for max positions
+        regime_data = market_regime_detector.get_market_regime()
+        base_max = regime_data.get("max_positions_override", 10)
+        
+        # Calculate adjusted max positions
+        adjusted_max, max_reason = position_sizer.get_max_positions_with_cash_deployment(
+            base_max=base_max,
+            portfolio_info=portfolio_info,
+            qualified_count=10,  # Estimate
+        )
+        
+        return jsonify({
+            "portfolio": {
+                "value": portfolio_info["portfolio_value"],
+                "cash": portfolio_info["cash"],
+                "cash_pct": round(portfolio_info["cash"] / portfolio_info["portfolio_value"] * 100, 1),
+                "invested": portfolio_info["invested_value"],
+                "position_count": portfolio_info["position_count"],
+            },
+            "sizing_params": {
+                "min_position_pct": position_sizer.MIN_POSITION_PCT * 100,
+                "max_position_pct": position_sizer.MAX_POSITION_PCT * 100,
+                "min_cash_reserve_pct": position_sizer.MIN_CASH_RESERVE_PCT * 100,
+                "cash_deploy_trigger_pct": position_sizer.CASH_DEPLOYMENT_TRIGGER_PCT * 100,
+                "max_new_positions_per_day": position_sizer.MAX_NEW_POSITIONS_PER_DAY,
+            },
+            "cash_deployment": {
+                "should_deploy": should_deploy,
+                "reason": deploy_reason,
+                "base_max_positions": base_max,
+                "adjusted_max_positions": adjusted_max,
+                "adjustment_reason": max_reason,
+            },
+            "conviction_tiers": [
+                {"min_score": tier[0], "multiplier": tier[1]}
+                for tier in position_sizer.CONVICTION_TIERS
+            ],
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route("/api/position-sizing/calculate/<symbol>")
+@login_required
+def api_calculate_position_size(symbol: str):
+    """Calculate position size for a specific symbol."""
+    try:
+        from src.position_sizer import position_sizer
+        from src.data_provider import alpaca_provider
+        from src.strategy import strategy
+        
+        # Get current price
+        latest = alpaca_provider.get_latest_trade(symbol.upper())
+        current_price = latest["price"]
+        
+        # Get score (or use provided score parameter)
+        score = request.args.get("score", type=float)
+        if score is None:
+            should_buy, score, reasoning = strategy.should_buy(symbol.upper())
+        
+        # Calculate position size
+        result = position_sizer.calculate_position_size(
+            symbol=symbol.upper(),
+            current_price=current_price,
+            composite_score=score,
+        )
+        
+        return jsonify({
+            "symbol": result.symbol,
+            "current_price": current_price,
+            "score": result.conviction_score,
+            "recommended_size": result.recommended_size,
+            "recommended_shares": result.recommended_shares,
+            "conviction_multiplier": result.conviction_multiplier,
+            "volatility_multiplier": result.volatility_multiplier,
+            "base_size": result.base_size,
+            "capped": result.capped,
+            "cap_reason": result.cap_reason,
+            "rationale": result.rationale,
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
 if __name__ == "__main__":
     print("=" * 60)
-    print("🚀 AI Trading Dashboard Starting")
+    print("AI Trading Dashboard Starting")
     print("=" * 60)
     print()
-    print("📊 Dashboard URL: http://localhost:8080")
-    print("🌐 Network URL:   http://0.0.0.0:8080")
+    print("Dashboard URL: http://localhost:8080")
+    print("Network URL:   http://0.0.0.0:8080")
     print()
-    print("✨ Features:")
-    print("   • Live market status")
-    print("   • Portfolio overview")
-    print("   • Real-time positions")
-    print("   • Order history")
-    print("   • Live trading logs")
-    print("   • One-click trading controls")
+    print("Features:")
+    print("   - Live market status")
+    print("   - Portfolio overview")
+    print("   - Real-time positions")
+    print("   - Order history")
+    print("   - Live trading logs")
+    print("   - One-click trading controls")
+    print("   - Position sizing calculator")
     print()
     print("Press Ctrl+C to stop")
     print("=" * 60)
     print()
 
     app.run(host="0.0.0.0", port=8082, debug=False)
-
-

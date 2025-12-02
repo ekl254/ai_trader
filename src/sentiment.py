@@ -48,9 +48,9 @@ def analyze_sentiment(text: str) -> float:
         score = result["score"]
 
         # Convert to -1 to 1 scale
-        if label == "POSITIVE":
+        if label.lower() == "positive":
             return score
-        elif label == "NEGATIVE":
+        elif label.lower() == "negative":
             return -score
         else:
             return 0.0  # Neutral

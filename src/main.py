@@ -19,6 +19,7 @@ from src.market_regime import market_regime_detector, MarketRegime
 from src.strategy import strategy
 from src.universe import get_sp500_symbols, filter_liquid_stocks
 from src.position_tracker import position_tracker  # type: ignore
+from src.position_sizer import position_sizer
 
 
 # File paths for premarket data persistence
@@ -437,21 +438,25 @@ class TradingEngine:
         current_positions = len(positions)
 
         # Use regime-adjusted max positions if available
-        max_positions = max_positions_override or config.trading.max_positions
-        available_slots = max(0, max_positions - current_positions)
-
+        base_max_positions = max_positions_override or config.trading.max_positions
+        
+        # Get portfolio info for dynamic position sizing
+        portfolio_info = position_sizer.get_portfolio_info()
+        
         logger.info(
-            "position_check",
-            current=current_positions,
-            max=max_positions,
-            available=available_slots,
-            regime_adjusted=max_positions_override is not None,
+            "portfolio_status",
+            portfolio_value=portfolio_info["portfolio_value"],
+            cash=portfolio_info["cash"],
+            cash_pct=f"{(portfolio_info['cash'] / portfolio_info['portfolio_value'] * 100):.1f}%",
+            positions=portfolio_info["position_count"],
         )
 
         # Rescore existing positions if rebalancing enabled and all slots full
         position_scores: Dict[str, Dict[str, Any]] = {}
         position_entry_times: Dict[str, datetime] = {}
 
+        available_slots = max(0, base_max_positions - current_positions)
+        
         if config.trading.enable_rebalancing and available_slots == 0:
             logger.info(
                 "rebalancing_enabled_rescoring_positions", count=current_positions
@@ -491,10 +496,15 @@ class TradingEngine:
                     hold_duration_min=round(hold_duration_min, 1),
                 )
 
-        # If no slots available and rebalancing disabled, exit early
+        # If no slots available and rebalancing disabled, check cash deployment
         if available_slots == 0 and not config.trading.enable_rebalancing:
-            logger.info("no_available_position_slots")
-            return
+            # Check if we should deploy excess cash
+            should_deploy, deploy_reason = position_sizer.should_deploy_cash(portfolio_info)
+            if not should_deploy:
+                logger.info("no_available_position_slots", cash_status=deploy_reason)
+                return
+            else:
+                logger.info("cash_deployment_triggered", reason=deploy_reason)
 
         buy_candidates = []
 
@@ -554,97 +564,161 @@ class TradingEngine:
                     else None,
                     cooldown_minutes=config.trading.rebalance_cooldown_minutes,
                 )
-                return
+                # Don't return - check cash deployment instead
+            else:
+                current_time = datetime.now(timezone.utc)
+                min_hold_seconds = config.trading.rebalance_min_hold_time * 60
 
-            current_time = datetime.now(timezone.utc)
-            min_hold_seconds = config.trading.rebalance_min_hold_time * 60
+                # Get locked positions
+                locked_positions = position_tracker.get_locked_positions()
+                if locked_positions:
+                    logger.info("locked_positions", symbols=locked_positions)
 
-            # Get locked positions
-            locked_positions = position_tracker.get_locked_positions()
-            if locked_positions:
-                logger.info("locked_positions", symbols=locked_positions)
+                # Find weakest position that can be rebalanced
+                weakest_symbol = None
+                weakest_score = float("inf")
 
-            # Find weakest position that can be rebalanced
-            weakest_symbol = None
-            weakest_score = float("inf")
+                for symbol, data in position_scores.items():
+                    # Skip locked positions
+                    if position_tracker.is_locked(symbol):
+                        logger.info("position_locked_skip_rebalancing", symbol=symbol)
+                        continue
 
-            for symbol, data in position_scores.items():
-                # Skip locked positions
-                if position_tracker.is_locked(symbol):
-                    logger.info("position_locked_skip_rebalancing", symbol=symbol)
-                    continue
-
-                score = data["score"]
-                entry_time = position_entry_times.get(
-                    symbol, datetime.min.replace(tzinfo=timezone.utc)
-                )
-                hold_duration = (current_time - entry_time).total_seconds()
-
-                # Check if position has been held long enough
-                if hold_duration >= min_hold_seconds and score < weakest_score:
-                    weakest_score = score
-                    weakest_symbol = symbol
-
-            # Check if best candidate is significantly better
-            if weakest_symbol and len(buy_candidates) > 0:
-                best_candidate = buy_candidates[0]
-                score_diff = best_candidate["score"] - weakest_score
-
-                if score_diff >= config.trading.rebalance_score_diff:
-                    logger.info(
-                        "rebalancing_opportunity_found",
-                        old_symbol=weakest_symbol,
-                        old_score=weakest_score,
-                        new_symbol=best_candidate["symbol"],
-                        new_score=best_candidate["score"],
-                        score_diff=score_diff,
+                    score = data["score"]
+                    entry_time = position_entry_times.get(
+                        symbol, datetime.min.replace(tzinfo=timezone.utc)
                     )
+                    hold_duration = (current_time - entry_time).total_seconds()
 
-                    # Determine if partial or full rebalancing
-                    partial_pct = config.trading.rebalance_partial_sell_pct
+                    # Check if position has been held long enough
+                    if hold_duration >= min_hold_seconds and score < weakest_score:
+                        weakest_score = score
+                        weakest_symbol = symbol
 
-                    # Execute the swap (partial or full)
-                    success = executor.swap_position(
-                        weakest_symbol,
-                        best_candidate["symbol"],
-                        weakest_score,
-                        best_candidate["score"],
-                        best_candidate["reasoning"],
-                        best_candidate["price"],
-                        partial_sell_pct=partial_pct if partial_pct > 0 else 1.0,
+                # Check if best candidate is significantly better
+                if weakest_symbol and len(buy_candidates) > 0:
+                    best_candidate = buy_candidates[0]
+                    score_diff = best_candidate["score"] - weakest_score
+
+                    if score_diff >= config.trading.rebalance_score_diff:
+                        logger.info(
+                            "rebalancing_opportunity_found",
+                            old_symbol=weakest_symbol,
+                            old_score=weakest_score,
+                            new_symbol=best_candidate["symbol"],
+                            new_score=best_candidate["score"],
+                            score_diff=score_diff,
+                        )
+
+                        # Determine if partial or full rebalancing
+                        partial_pct = config.trading.rebalance_partial_sell_pct
+
+                        # Execute the swap (partial or full)
+                        success = executor.swap_position(
+                            weakest_symbol,
+                            best_candidate["symbol"],
+                            weakest_score,
+                            best_candidate["score"],
+                            best_candidate["reasoning"],
+                            best_candidate["price"],
+                            partial_sell_pct=partial_pct if partial_pct > 0 else 1.0,
+                        )
+
+                        if success:
+                            logger.info("rebalancing_completed")
+                            return  # Exit after rebalancing
+                    else:
+                        logger.info(
+                            "no_rebalancing_needed",
+                            score_diff=score_diff,
+                            threshold=config.trading.rebalance_score_diff,
+                        )
+
+        # === DYNAMIC CASH DEPLOYMENT ===
+        # Check if we should deploy excess cash by adding positions beyond regime limit
+        adjusted_max_positions, max_reason = position_sizer.get_max_positions_with_cash_deployment(
+            base_max=base_max_positions,
+            portfolio_info=portfolio_info,
+            qualified_count=len(buy_candidates),
+        )
+        
+        logger.info(
+            "position_limit_check",
+            base_max=base_max_positions,
+            adjusted_max=adjusted_max_positions,
+            reason=max_reason,
+            current_positions=current_positions,
+        )
+        
+        # Recalculate available slots with adjusted max
+        available_slots = max(0, adjusted_max_positions - current_positions)
+
+        if available_slots == 0 and len(buy_candidates) > 0:
+            logger.info(
+                "no_slots_after_cash_deployment_check",
+                base_max=base_max_positions,
+                adjusted_max=adjusted_max_positions,
+                current=current_positions,
+            )
+            return
+
+        # === BATCH POSITION SIZING ===
+        # Use dynamic position sizer for batch sizing
+        if buy_candidates and available_slots > 0:
+            size_results = position_sizer.calculate_batch_sizes(
+                candidates=buy_candidates[:available_slots * 2],  # Consider 2x candidates for flexibility
+                portfolio_info=portfolio_info,
+                max_positions=adjusted_max_positions,
+            )
+            
+            logger.info(
+                "batch_sizing_completed",
+                candidates_considered=min(len(buy_candidates), available_slots * 2),
+                positions_sized=len(size_results),
+            )
+            
+            # Execute trades with dynamic sizes
+            trades_executed = 0
+            for size_result in size_results:
+                if trades_executed >= max_new_positions:
+                    break
+                    
+                # Find the candidate data for this symbol
+                candidate = next(
+                    (c for c in buy_candidates if c["symbol"] == size_result.symbol),
+                    None
+                )
+                if not candidate:
+                    continue
+                
+                try:
+                    logger.info(
+                        "executing_sized_trade",
+                        symbol=size_result.symbol,
+                        size=size_result.recommended_size,
+                        shares=size_result.recommended_shares,
+                        conviction_mult=size_result.conviction_multiplier,
+                        volatility_mult=size_result.volatility_multiplier,
+                    )
+                    
+                    success = executor.buy_stock_with_size(
+                        symbol=candidate["symbol"],
+                        score=candidate["score"],
+                        reasoning=candidate["reasoning"],
+                        current_price=candidate["price"],
+                        size_result=size_result,
                     )
 
                     if success:
-                        logger.info("rebalancing_completed")
-                        return  # Exit after rebalancing
-                else:
-                    logger.info(
-                        "no_rebalancing_needed",
-                        score_diff=score_diff,
-                        threshold=config.trading.rebalance_score_diff,
+                        trades_executed += 1
+                        time.sleep(1)  # Brief pause between orders
+
+                except Exception as e:
+                    logger.error(
+                        "trade_execution_failed", symbol=candidate["symbol"], error=str(e)
                     )
-
-            return  # No slots and no rebalancing done, exit
-
-        # Execute trades for available slots
-        trades_to_execute = min(available_slots, max_new_positions, len(buy_candidates))
-
-        for candidate in buy_candidates[:trades_to_execute]:
-            try:
-                success = executor.buy_stock(
-                    candidate["symbol"],
-                    candidate["score"],
-                    candidate["reasoning"],
-                    candidate["price"],
-                )
-
-                if success:
-                    time.sleep(1)  # Brief pause between orders
-
-            except Exception as e:
-                logger.error(
-                    "trade_execution_failed", symbol=candidate["symbol"], error=str(e)
-                )
+            
+            logger.info("trading_completed", trades_executed=trades_executed)
 
     def manage_positions(self) -> None:
         """Manage existing positions (stops, take profits)."""
