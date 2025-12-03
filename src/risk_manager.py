@@ -116,6 +116,15 @@ class RiskManager:
             logger.error("failed_to_get_buying_power", error=str(e))
             return 0.0
 
+    def get_cash(self) -> float:
+        """Get available cash (not margin/buying power)."""
+        try:
+            account = self.client.get_account()
+            return float(account.cash)
+        except Exception as e:
+            logger.error("failed_to_get_cash", error=str(e))
+            return 0.0
+
     def get_current_positions(self) -> Dict[str, float]:
         """Get current positions as {symbol: quantity}."""
         try:
@@ -378,7 +387,25 @@ class RiskManager:
                 capped_shares=shares,
             )
 
-        # Check buying power
+        # Check CASH available (maintain MIN_CASH_PCT buffer)
+        cash = self.get_cash()
+        min_cash_buffer = account_value * self.MIN_CASH_PCT
+        available_cash = max(0, cash - min_cash_buffer)
+        
+        if position_value > available_cash:
+            shares = int(available_cash / entry_price)
+            position_value = shares * entry_price
+            logger.warning(
+                "insufficient_cash_for_position",
+                symbol=symbol,
+                required=position_value,
+                available_cash=available_cash,
+                cash=cash,
+                min_buffer=min_cash_buffer,
+                adjusted_shares=shares,
+            )
+
+        # Also check buying power as absolute limit
         buying_power = self.get_buying_power()
         if position_value > buying_power:
             shares = int(buying_power / entry_price)
@@ -530,7 +557,19 @@ class RiskManager:
                 f"Position size {position_pct:.1%} exceeds max {self.config.max_position_size:.1%}",
             )
 
-        # Check buying power
+        # Check CASH (not buying power) to prevent margin usage
+        # We want to maintain at least MIN_CASH_PCT buffer after the trade
+        cash = self.get_cash()
+        min_cash_buffer = account_value * self.MIN_CASH_PCT
+        available_for_trade = cash - min_cash_buffer
+        
+        if position_value > available_for_trade:
+            return (
+                False,
+                f"Insufficient cash: ${cash:.2f} (need ${position_value:.2f} + ${min_cash_buffer:.0f} buffer)",
+            )
+        
+        # Also check against buying power as a safety net
         buying_power = self.get_buying_power()
         if position_value > buying_power:
             return (

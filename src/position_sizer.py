@@ -288,12 +288,34 @@ class DynamicPositionSizer:
             final_size = raw_size
             rationale.append(f"Final size: ${final_size:,.0f} (within limits)")
         
-        # 6. Ensure we don't exceed available cash
+        # 6. Ensure we don't exceed available cash (with minimum buffer)
         available_cash = portfolio_info["cash"]
-        if final_size > available_cash:
-            final_size = available_cash * 0.95  # Leave small buffer
+        min_cash_buffer = portfolio_info["portfolio_value"] * 0.05  # Keep 5% cash buffer
+        usable_cash = max(0, available_cash - min_cash_buffer)
+        
+        if usable_cash <= 0:
+            logger.warning(
+                "no_cash_available_for_position",
+                symbol=symbol,
+                cash=available_cash,
+                min_buffer=min_cash_buffer,
+            )
+            return PositionSizeResult(
+                symbol=symbol,
+                recommended_size=0,
+                recommended_shares=0,
+                conviction_multiplier=conviction_mult,
+                volatility_multiplier=volatility_mult,
+                regime_multiplier=regime_mult,
+                capped=True,
+                cap_reason="No cash available (negative or below buffer)",
+                rationale=rationale + ["BLOCKED: No usable cash available"],
+            )
+        
+        if final_size > usable_cash:
+            final_size = usable_cash * 0.95  # Leave small buffer
             capped = True
-            cap_reason = f"Limited by available cash (${available_cash:,.0f})"
+            cap_reason = f"Limited by available cash (${available_cash:,.0f} - ${min_cash_buffer:,.0f} buffer = ${usable_cash:,.0f})"
             rationale.append(f"Reduced to available cash: ${final_size:,.0f}")
         
         # 7. Calculate shares
