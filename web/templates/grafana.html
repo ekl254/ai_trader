@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafana Dashboard - AI Trading System</title>
+    <!-- Chart.js for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #111217; 
+            color: #d8d9da; 
+            min-height: 100vh;
+        }
+        
+        /* Grafana-style header */
+        .top-nav {
+            background: #1f1f1f;
+            border-bottom: 1px solid #343436;
+            padding: 0 16px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .top-nav .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ff9830;
+        }
+        .top-nav .logo svg { width: 32px; height: 32px; }
+        .nav-links {
+            display: flex;
+            gap: 4px;
+        }
+        .nav-links a {
+            padding: 8px 16px;
+            color: #d8d9da;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover { background: #2c2c2e; }
+        .nav-links a.active { background: #3871dc; color: white; }
+        .time-range {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #2c2c2e;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .time-range select {
+            background: transparent;
+            border: none;
+            color: #d8d9da;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        /* Dashboard container */
+        .dashboard {
+            padding: 16px;
+            display: grid;
+            gap: 8px;
+        }
+        
+        /* Panel styles */
+        .panel {
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .panel-header {
+            background: #262628;
+            padding: 8px 16px;
+            border-bottom: 1px solid #343436;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #d8d9da;
+        }
+        .panel-body {
+            padding: 16px;
+            min-height: 200px;
+            position: relative;
+        }
+        .panel-body.stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
+        }
+        
+        /* Row layouts */
+        .row {
+            display: grid;
+            gap: 8px;
+        }
+        .row-4 { grid-template-columns: repeat(4, 1fr); }
+        .row-3 { grid-template-columns: repeat(3, 1fr); }
+        .row-2 { grid-template-columns: repeat(2, 1fr); }
+        .row-1-2 { grid-template-columns: 1fr 2fr; }
+        .row-2-1 { grid-template-columns: 2fr 1fr; }
+        
+        @media (max-width: 1200px) {
+            .row-4 { grid-template-columns: repeat(2, 1fr); }
+            .row-3 { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .row-4, .row-3, .row-2, .row-1-2, .row-2-1 { grid-template-columns: 1fr; }
+        }
+        
+        /* Stat panel */
+        .stat-value {
+            font-size: 48px;
+            font-weight: 300;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #8e8e8e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-sparkline {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            opacity: 0.3;
+        }
+        
+        /* Colors */
+        .green { color: #73bf69; }
+        .red { color: #f2495c; }
+        .yellow { color: #ff9830; }
+        .blue { color: #5794f2; }
+        .purple { color: #b877d9; }
+        
+        /* Gauge styles */
+        .gauge-container {
+            position: relative;
+            width: 160px;
+            height: 80px;
+            margin: 0 auto;
+        }
+        .gauge-value {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 28px;
+            font-weight: 500;
+        }
+        
+        /* Table styles */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 8px 12px;
+            background: #262628;
+            color: #8e8e8e;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        .data-table td {
+            padding: 8px 12px;
+            border-top: 1px solid #343436;
+        }
+        .data-table tr:hover {
+            background: #262628;
+        }
+        
+        /* Chart container */
+        .chart-container {
+            position: relative;
+            height: 250px;
+        }
+        
+        /* Status indicators */
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-dot.online { background: #73bf69; }
+        .status-dot.offline { background: #f2495c; }
+        .status-dot.warning { background: #ff9830; }
+        
+        /* Progress bar */
+        .progress-bar {
+            height: 6px;
+            background: #343436;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .progress-fill.green { background: linear-gradient(90deg, #56a64b, #73bf69); }
+        .progress-fill.red { background: linear-gradient(90deg, #c4162a, #f2495c); }
+        .progress-fill.blue { background: linear-gradient(90deg, #3871dc, #5794f2); }
+        
+        /* Refresh indicator */
+        .refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #8e8e8e;
+        }
+        .refresh-indicator .dot {
+            width: 8px;
+            height: 8px;
+            background: #73bf69;
+            border-radius: 50%;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        /* Loading state */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #8e8e8e;
+        }
+        .loading::after {
+            content: '';
+            width: 24px;
+            height: 24px;
+            border: 2px solid #343436;
+            border-top-color: #5794f2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            AI Trading Grafana
+        </div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/analysis">Analysis</a>
+            <a href="/performance">Performance</a>
+            <a href="/metrics-view">Metrics</a>
+            <a href="/grafana" class="active">Grafana</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div class="refresh-indicator">
+                <div class="dot"></div>
+                <span>Live</span>
+            </div>
+            <div class="time-range">
+                <span>Last</span>
+                <select id="time-range" onchange="changeTimeRange(this.value)">
+                    <option value="5m">5 minutes</option>
+                    <option value="15m">15 minutes</option>
+                    <option value="1h" selected>1 hour</option>
+                    <option value="6h">6 hours</option>
+                    <option value="24h">24 hours</option>
+                </select>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard -->
+    <div class="dashboard">
+        <!-- Row 1: Key Stats -->
+        <div class="row row-4">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Portfolio Value</span>
+                </div>
+                <div class="panel-body stat">
+                    <div class="stat-value green" id="stat-portfolio">$0</div>
+                    <div class="stat-label">Total Equity</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Today's P&L</span>
+                </div>
+                <div class="panel-body stat">
+                    <div class="stat-value" id="stat-pnl">$0</div>
+                    <div class="stat-label" id="stat-pnl-pct">0.00%</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Win Rate</span>
+                </div>
+                <div class="panel-body stat">
+                    <div class="stat-value blue" id="stat-winrate">0%</div>
+                    <div class="stat-label">Profitable Trades</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Open Positions</span>
+                </div>
+                <div class="panel-body stat">
+                    <div class="stat-value purple" id="stat-positions">0</div>
+                    <div class="stat-label">Active Holdings</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Charts -->
+        <div class="row row-2">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Portfolio Value Over Time</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-container">
+                        <canvas id="portfolio-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Trade Activity</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-container">
+                        <canvas id="trades-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3: System Health & Orders -->
+        <div class="row row-3">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">System Status</span>
+                </div>
+                <div class="panel-body">
+                    <table class="data-table">
+                        <tr>
+                            <td><span class="status-dot" id="status-bot"></span>Trading Bot</td>
+                            <td id="bot-status-text">--</td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot" id="status-market"></span>Market</td>
+                            <td id="market-status-text">--</td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot" id="status-api"></span>Alpaca API</td>
+                            <td id="api-status-text">--</td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot" id="status-regime"></span>Regime</td>
+                            <td id="regime-status-text">--</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top: 16px;">
+                        <div style="font-size: 12px; color: #8e8e8e; margin-bottom: 4px;">Uptime</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill green" id="uptime-bar" style="width: 0%"></div>
+                        </div>
+                        <div style="font-size: 13px; margin-top: 4px;" id="uptime-text">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Order Statistics</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-container" style="height: 180px;">
+                        <canvas id="orders-pie-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Trading Metrics</span>
+                </div>
+                <div class="panel-body">
+                    <table class="data-table">
+                        <tr>
+                            <td>Total Trades</td>
+                            <td class="green" id="metric-trades">0</td>
+                        </tr>
+                        <tr>
+                            <td>Buy Orders</td>
+                            <td class="blue" id="metric-buys">0</td>
+                        </tr>
+                        <tr>
+                            <td>Sell Orders</td>
+                            <td class="red" id="metric-sells">0</td>
+                        </tr>
+                        <tr>
+                            <td>Market Scans</td>
+                            <td class="purple" id="metric-scans">0</td>
+                        </tr>
+                        <tr>
+                            <td>Avg Score</td>
+                            <td class="yellow" id="metric-avg-score">0</td>
+                        </tr>
+                        <tr>
+                            <td>Errors</td>
+                            <td class="red" id="metric-errors">0</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: Score Distribution & Position Heat Map -->
+        <div class="row row-2">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Score Distribution</span>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-container">
+                        <canvas id="score-histogram"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Position Performance</span>
+                </div>
+                <div class="panel-body" id="position-heatmap">
+                    <div class="loading">Loading positions</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 5: Recent Activity Table -->
+        <div class="row row-1">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Recent Orders</span>
+                </div>
+                <div class="panel-body" style="padding: 0; max-height: 300px; overflow-y: auto;">
+                    <table class="data-table" id="orders-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-tbody">
+                            <tr><td colspan="6" class="loading">Loading orders</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Chart instances
+        let portfolioChart, tradesChart, ordersPieChart, scoreHistogram;
+        
+        // Historical data storage
+        const historyData = {
+            portfolio: [],
+            trades: { buy: [], sell: [] },
+            maxPoints: 60
+        };
+
+        // Initialize charts
+        function initCharts() {
+            // Portfolio Value Chart
+            const portfolioCtx = document.getElementById('portfolio-chart').getContext('2d');
+            portfolioChart = new Chart(portfolioCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Portfolio Value',
+                        data: [],
+                        borderColor: '#73bf69',
+                        backgroundColor: 'rgba(115, 191, 105, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: { color: '#343436' },
+                            ticks: { color: '#8e8e8e', maxTicksLimit: 6 }
+                        },
+                        y: {
+                            display: true,
+                            grid: { color: '#343436' },
+                            ticks: { 
+                                color: '#8e8e8e',
+                                callback: (val) => '$' + val.toLocaleString()
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Trades Chart
+            const tradesCtx = document.getElementById('trades-chart').getContext('2d');
+            tradesChart = new Chart(tradesCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Buy',
+                            data: [],
+                            backgroundColor: '#5794f2'
+                        },
+                        {
+                            label: 'Sell',
+                            data: [],
+                            backgroundColor: '#f2495c'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            position: 'top',
+                            labels: { color: '#8e8e8e' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: { display: false },
+                            ticks: { color: '#8e8e8e' }
+                        },
+                        y: {
+                            display: true,
+                            grid: { color: '#343436' },
+                            ticks: { color: '#8e8e8e' }
+                        }
+                    }
+                }
+            });
+
+            // Orders Pie Chart
+            const ordersCtx = document.getElementById('orders-pie-chart').getContext('2d');
+            ordersPieChart = new Chart(ordersCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Filled', 'Rejected', 'Cancelled'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#73bf69', '#f2495c', '#ff9830'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#8e8e8e', boxWidth: 12 }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+
+            // Score Histogram
+            const scoreCtx = document.getElementById('score-histogram').getContext('2d');
+            scoreHistogram = new Chart(scoreCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['0-20', '20-40', '40-60', '60-80', '80-100'],
+                    datasets: [{
+                        label: 'Trade Scores',
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: ['#f2495c', '#ff9830', '#ffee52', '#73bf69', '#5794f2']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: { display: false },
+                            ticks: { color: '#8e8e8e' }
+                        },
+                        y: {
+                            display: true,
+                            grid: { color: '#343436' },
+                            ticks: { color: '#8e8e8e' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Format currency
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('en-US', { 
+                style: 'currency', 
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(val);
+        }
+
+        // Format time
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Update stat panels
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                if (data.account) {
+                    document.getElementById('stat-portfolio').textContent = formatCurrency(data.account.portfolio_value || 0);
+                    
+                    const pnl = data.account.profit_loss || 0;
+                    const pnlEl = document.getElementById('stat-pnl');
+                    pnlEl.textContent = formatCurrency(pnl);
+                    pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'green' : 'red');
+                    
+                    const pnlPct = data.account.profit_loss_pct || 0;
+                    document.getElementById('stat-pnl-pct').textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
+                    
+                    // Add to history
+                    const now = new Date();
+                    historyData.portfolio.push({
+                        time: formatTime(now),
+                        value: data.account.portfolio_value || 0
+                    });
+                    if (historyData.portfolio.length > historyData.maxPoints) {
+                        historyData.portfolio.shift();
+                    }
+                    
+                    // Update portfolio chart
+                    portfolioChart.data.labels = historyData.portfolio.map(d => d.time);
+                    portfolioChart.data.datasets[0].data = historyData.portfolio.map(d => d.value);
+                    portfolioChart.update('none');
+                }
+                
+                // Update system status
+                const botStatus = document.getElementById('status-bot');
+                const botText = document.getElementById('bot-status-text');
+                if (data.trading_running) {
+                    botStatus.className = 'status-dot online';
+                    botText.textContent = 'Running';
+                } else {
+                    botStatus.className = 'status-dot offline';
+                    botText.textContent = 'Stopped';
+                }
+                
+                const marketStatus = document.getElementById('status-market');
+                const marketText = document.getElementById('market-status-text');
+                if (data.market && data.market.is_open) {
+                    marketStatus.className = 'status-dot online';
+                    marketText.textContent = 'Open';
+                } else {
+                    marketStatus.className = 'status-dot offline';
+                    marketText.textContent = 'Closed';
+                }
+                
+                // API status (assume online if we got data)
+                document.getElementById('status-api').className = 'status-dot online';
+                document.getElementById('api-status-text').textContent = 'Connected';
+                
+                // Regime
+                if (data.regime) {
+                    const regimeEl = document.getElementById('status-regime');
+                    const regimeText = document.getElementById('regime-status-text');
+                    regimeText.textContent = (data.regime.regime || 'unknown').toUpperCase();
+                    
+                    if (data.regime.regime === 'bull' || data.regime.regime === 'strong_bull') {
+                        regimeEl.className = 'status-dot online';
+                    } else if (data.regime.regime === 'bear' || data.regime.regime === 'strong_bear') {
+                        regimeEl.className = 'status-dot offline';
+                    } else {
+                        regimeEl.className = 'status-dot warning';
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Failed to fetch stats:', error);
+            }
+        }
+
+        // Update metrics
+        async function updateMetrics() {
+            try {
+                const response = await fetch('/api/metrics');
+                const data = await response.json();
+                
+                // Trading metrics
+                const totalTrades = (data.trades_buy_total || 0) + (data.trades_sell_total || 0);
+                document.getElementById('metric-trades').textContent = totalTrades;
+                document.getElementById('metric-buys').textContent = data.trades_buy_total || 0;
+                document.getElementById('metric-sells').textContent = data.trades_sell_total || 0;
+                document.getElementById('metric-scans').textContent = data.scans_total || 0;
+                document.getElementById('metric-avg-score').textContent = (data.avg_trade_score || 0).toFixed(1);
+                document.getElementById('metric-errors').textContent = data.errors_total || 0;
+                
+                // Stats
+                document.getElementById('stat-winrate').textContent = (data.win_rate || 0).toFixed(1) + '%';
+                document.getElementById('stat-positions').textContent = data.positions_count || 0;
+                
+                // Orders pie chart
+                ordersPieChart.data.datasets[0].data = [
+                    data.orders_filled_total || 0,
+                    data.orders_rejected_total || 0,
+                    data.orders_cancelled_total || 0
+                ];
+                ordersPieChart.update('none');
+                
+                // Uptime
+                const uptime = data.uptime_seconds || 0;
+                const hours = Math.floor(uptime / 3600);
+                const mins = Math.floor((uptime % 3600) / 60);
+                document.getElementById('uptime-text').textContent = `${hours}h ${mins}m`;
+                document.getElementById('uptime-bar').style.width = Math.min(100, (uptime / 86400) * 100) + '%';
+                
+                // Update trades chart with cumulative data
+                const now = new Date();
+                const timeLabel = formatTime(now);
+                
+                if (tradesChart.data.labels.length === 0 || 
+                    tradesChart.data.labels[tradesChart.data.labels.length - 1] !== timeLabel) {
+                    tradesChart.data.labels.push(timeLabel);
+                    tradesChart.data.datasets[0].data.push(data.trades_buy_total || 0);
+                    tradesChart.data.datasets[1].data.push(data.trades_sell_total || 0);
+                    
+                    if (tradesChart.data.labels.length > 12) {
+                        tradesChart.data.labels.shift();
+                        tradesChart.data.datasets[0].data.shift();
+                        tradesChart.data.datasets[1].data.shift();
+                    }
+                    tradesChart.update('none');
+                }
+                
+            } catch (error) {
+                console.error('Failed to fetch metrics:', error);
+            }
+        }
+
+        // Update positions heatmap
+        async function updatePositions() {
+            try {
+                const response = await fetch('/api/positions');
+                const positions = await response.json();
+                
+                const container = document.getElementById('position-heatmap');
+                
+                if (!positions || positions.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #8e8e8e; padding: 40px;">No open positions</div>';
+                    return;
+                }
+                
+                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px;">';
+                
+                for (const pos of positions) {
+                    const pnlPct = pos.unrealized_plpc || 0;
+                    let bgColor;
+                    if (pnlPct >= 5) bgColor = '#1a472a';
+                    else if (pnlPct >= 2) bgColor = '#2d5a3d';
+                    else if (pnlPct >= 0) bgColor = '#3d6b4f';
+                    else if (pnlPct >= -2) bgColor = '#5a3d3d';
+                    else if (pnlPct >= -5) bgColor = '#6b3d3d';
+                    else bgColor = '#7a2d2d';
+                    
+                    const textColor = pnlPct >= 0 ? '#73bf69' : '#f2495c';
+                    
+                    html += `
+                        <div style="background: ${bgColor}; border-radius: 4px; padding: 12px; text-align: center;">
+                            <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${pos.symbol}</div>
+                            <div style="color: ${textColor}; font-size: 16px; font-weight: 500;">
+                                ${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%
+                            </div>
+                            <div style="color: #8e8e8e; font-size: 11px; margin-top: 4px;">
+                                ${formatCurrency(pos.market_value || 0)}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Failed to fetch positions:', error);
+            }
+        }
+
+        // Update orders table
+        async function updateOrders() {
+            try {
+                const response = await fetch('/api/orders');
+                const orders = await response.json();
+                
+                const tbody = document.getElementById('orders-tbody');
+                
+                if (!orders || orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #8e8e8e;">No recent orders</td></tr>';
+                    return;
+                }
+                
+                let html = '';
+                for (const order of orders.slice(0, 10)) {
+                    const sideClass = order.side === 'buy' ? 'blue' : 'red';
+                    const statusClass = order.status === 'filled' ? 'green' : 
+                                       order.status === 'rejected' ? 'red' : 'yellow';
+                    
+                    html += `
+                        <tr>
+                            <td>${new Date(order.created_at).toLocaleTimeString()}</td>
+                            <td><strong>${order.symbol}</strong></td>
+                            <td class="${sideClass}">${order.side.toUpperCase()}</td>
+                            <td>${order.qty}</td>
+                            <td>${order.filled_avg_price > 0 ? '$' + order.filled_avg_price.toFixed(2) : '-'}</td>
+                            <td class="${statusClass}">${order.status}</td>
+                        </tr>
+                    `;
+                }
+                
+                tbody.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Failed to fetch orders:', error);
+            }
+        }
+
+        // Update score analysis
+        async function updateScoreAnalysis() {
+            try {
+                const response = await fetch('/api/performance/score-analysis');
+                const data = await response.json();
+                
+                if (data && data.score_buckets) {
+                    const buckets = data.score_buckets;
+                    scoreHistogram.data.datasets[0].data = [
+                        buckets['0-20'] || 0,
+                        buckets['20-40'] || 0,
+                        buckets['40-60'] || 0,
+                        buckets['60-80'] || 0,
+                        buckets['80-100'] || 0
+                    ];
+                    scoreHistogram.update('none');
+                }
+                
+            } catch (error) {
+                // Score analysis might not be available
+                console.log('Score analysis not available');
+            }
+        }
+
+        // Change time range
+        function changeTimeRange(range) {
+            historyData.maxPoints = {
+                '5m': 10,
+                '15m': 30,
+                '1h': 60,
+                '6h': 72,
+                '24h': 144
+            }[range] || 60;
+            
+            // Clear history to start fresh with new range
+            historyData.portfolio = [];
+        }
+
+        // Refresh all data
+        async function refreshAll() {
+            await Promise.all([
+                updateStats(),
+                updateMetrics(),
+                updatePositions(),
+                updateOrders(),
+                updateScoreAnalysis()
+            ]);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            refreshAll();
+            
+            // Auto-refresh every 5 seconds
+            setInterval(refreshAll, 5000);
+        });
+    </script>
+</body>
+</html>

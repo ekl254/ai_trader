@@ -6,180 +6,340 @@
     <title>Performance Analytics - AI Trading</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); }
-        .header h1 { font-size: 32px; margin-bottom: 10px; }
-        .nav-links { display: flex; gap: 10px; margin-top: 15px; }
-        .nav-links a { padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; border-radius: 6px; transition: all 0.3s; font-weight: 600; }
-        .nav-links a:hover { background: rgba(255,255,255,0.3); }
-        .nav-links a.active { background: rgba(255,255,255,0.35); }
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
-        .nyse-time { background: rgba(0,0,0,0.2); padding: 12px 20px; border-radius: 8px; text-align: center; }
-        .nyse-time .time-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; display: block; margin-bottom: 4px; }
-        .nyse-time .time-value { font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace; display: block; }
-        .nyse-time .time-date { font-size: 12px; opacity: 0.8; display: block; margin-top: 2px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .card { background: #1e293b; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; }
-        .card .value { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-        .card .label { font-size: 14px; color: #64748b; }
-        .profit { color: #10b981; }
-        .loss { color: #ef4444; }
-        .section { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-        .section h2 { font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 12px; }
+        body { 
+            font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #111217; 
+            color: #d8d9da; 
+            padding: 20px; 
+            min-height: 100vh;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        
+        /* Navigation */
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .nav-brand { font-size: 18px; font-weight: 600; color: #ff9830; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-links a {
+            padding: 8px 16px;
+            color: #d8d9da;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            background: transparent;
+        }
+        .nav-links a:hover { background: #343436; color: #fff; }
+        .nav-links a.active { background: #5794f2; color: #fff; }
+        .nav-links a.logout { background: rgba(242, 73, 92, 0.2); color: #f2495c; }
+        .nav-links a.logout:hover { background: rgba(242, 73, 92, 0.3); }
+        
+        /* Header Info Bar */
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .page-title { font-size: 24px; font-weight: 600; color: #fff; }
+        .regime-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #262628;
+            border-radius: 4px;
+        }
+        .regime-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8e8e8e; }
+        .regime-value { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 4px; }
+        .regime-params { font-size: 11px; color: #8e8e8e; }
+        .regime-strong_bull { background: #73bf69; color: #111217; }
+        .regime-bull { background: rgba(115, 191, 105, 0.7); color: #111217; }
+        .regime-neutral { background: #8e8e8e; color: #111217; }
+        .regime-bear { background: #ff9830; color: #111217; }
+        .regime-strong_bear { background: #f2495c; color: #fff; }
+        .regime-high_volatility { background: #b877d9; color: #fff; }
+        .regime-unknown { background: #343436; color: #d8d9da; }
+        .nyse-time { text-align: right; }
+        .nyse-time .time-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8e8e8e; display: block; }
+        .nyse-time .time-value { font-size: 20px; font-weight: 600; font-family: 'Roboto Mono', monospace; color: #fff; display: block; }
+        .nyse-time .time-date { font-size: 12px; color: #8e8e8e; display: block; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: #1f1f1f;
+            padding: 4px;
+            border-radius: 4px;
+            border: 1px solid #343436;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+            color: #8e8e8e;
+        }
+        .tab:hover { background: #262628; color: #d8d9da; }
+        .tab.active { background: #5794f2; color: #fff; }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            border-radius: 4px;
+            padding: 16px;
+        }
+        .stat-card .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8e8e8e;
+            margin-bottom: 8px;
+        }
+        .stat-card .stat-value {
+            font-size: 26px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .stat-card .stat-sub {
+            font-size: 12px;
+            color: #8e8e8e;
+            margin-top: 4px;
+        }
+        .stat-value.green, .profit { color: #73bf69; }
+        .stat-value.red, .loss { color: #f2495c; }
+
+        /* Panel */
+        .panel {
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .panel-header {
+            padding: 12px 16px;
+            background: #262628;
+            border-bottom: 1px solid #343436;
+        }
+        .panel-title { font-size: 14px; font-weight: 600; color: #d8d9da; }
+        .panel-body { padding: 16px; }
+
+        /* Table */
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 12px; background: #0f172a; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; color: #94a3b8; }
-        td { padding: 12px; border-top: 1px solid #334155; }
-        .empty { text-align: center; padding: 40px; color: #64748b; }
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-        .badge-green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-        .badge-red { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-        .badge-yellow { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-        .recommendation { background: #1e293b; padding: 15px; border-left: 4px solid #667eea; margin: 10px 0; border-radius: 4px; }
-        .recommendation.success { border-left-color: #10b981; }
-        .recommendation.warning { border-left-color: #fbbf24; }
-        .recommendation.error { border-left-color: #ef4444; }
-        .score-bar { height: 20px; background: #334155; border-radius: 10px; overflow: hidden; margin: 8px 0; }
-        .score-fill { height: 100%; background: linear-gradient(90deg, #10b981, #667eea); transition: width 0.3s; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab { padding: 10px 20px; background: #334155; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
-        .tab.active { background: #667eea; }
-        /* Regime Indicator Styles */
-        .regime-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; background: rgba(0,0,0,0.2); }
-        .regime-indicator .regime-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
-        .regime-indicator .regime-value { font-size: 14px; font-weight: 700; padding: 4px 10px; border-radius: 12px; }
-        .regime-indicator .regime-params { font-size: 11px; opacity: 0.9; margin-left: 8px; }
-        .regime-strong_bull { background: #10b981; color: white; }
-        .regime-bull { background: #34d399; color: #0f172a; }
-        .regime-neutral { background: #94a3b8; color: #0f172a; }
-        .regime-bear { background: #f97316; color: white; }
-        .regime-strong_bear { background: #ef4444; color: white; }
-        .regime-high_volatility { background: #a855f7; color: white; }
-        .regime-unknown { background: #64748b; color: white; }
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            background: #262628;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            color: #8e8e8e;
+            border-bottom: 1px solid #343436;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #343436;
+            font-size: 13px;
+        }
+        tbody tr:hover { background: rgba(87, 148, 242, 0.08); }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-green { background: rgba(115, 191, 105, 0.2); color: #73bf69; }
+        .badge-red { background: rgba(242, 73, 92, 0.2); color: #f2495c; }
+        .badge-yellow { background: rgba(255, 152, 48, 0.2); color: #ff9830; }
+
+        /* Recommendation */
+        .recommendation {
+            background: #262628;
+            padding: 14px;
+            border-left: 3px solid #5794f2;
+            margin: 10px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .recommendation.success { border-left-color: #73bf69; }
+        .recommendation.warning { border-left-color: #ff9830; }
+        .recommendation.error { border-left-color: #f2495c; }
+
+        .empty { text-align: center; padding: 40px; color: #6e6e6e; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <div class="header-top">
-                <h1>📊 Performance Analytics</h1>
-                <div class="regime-indicator" id="regime-indicator" title="Current market regime and adaptive trading parameters">
-                    <span class="regime-label">Regime</span>
-                    <span class="regime-value regime-unknown" id="regime-value">Loading...</span>
-                    <span class="regime-params" id="regime-params">SL: --% | TP: --% | Min: --</span>
-                </div>
-                <div class="nyse-time">
-                    <span class="time-label">NYSE Time (ET)</span>
-                    <span class="time-value" id="nyse-time">--:--:--</span>
-                    <span class="time-date" id="nyse-date">Loading...</span>
-                </div>
-            </div>
+        <!-- Navigation -->
+        <nav class="top-nav">
+            <div class="nav-brand">AI Trader</div>
             <div class="nav-links">
                 <a href="/">Dashboard</a>
                 <a href="/analysis">Analysis</a>
                 <a href="/performance" class="active">Performance</a>
                 <a href="/optimizer">Optimizer</a>
-                <a href="/logout" style="background: rgba(239,68,68,0.3); margin-left: auto;">Logout</a>
+                <a href="/metrics-view">Metrics</a>
+                <a href="/grafana">Grafana</a>
+                <a href="/logout" class="logout">Logout</a>
+            </div>
+        </nav>
+
+        <!-- Info Bar -->
+        <div class="info-bar">
+            <div class="page-title">Performance Analytics</div>
+            <div class="regime-indicator" id="regime-indicator" title="Current market regime and adaptive trading parameters">
+                <span class="regime-label">Regime</span>
+                <span class="regime-value regime-unknown" id="regime-value">Loading...</span>
+                <span class="regime-params" id="regime-params">SL: --% | TP: --% | Min: --</span>
+            </div>
+            <div class="nyse-time">
+                <span class="time-label">NYSE Time (ET)</span>
+                <span class="time-value" id="nyse-time">--:--:--</span>
+                <span class="time-date" id="nyse-date">Loading...</span>
             </div>
         </div>
 
+        <!-- Tabs -->
         <div class="tabs">
-            <div class="tab active" onclick="showTab('overview')">Overview</div>
-            <div class="tab" onclick="showTab('trades')">Recent Trades</div>
-            <div class="tab" onclick="showTab('scores')">Score Analysis</div>
-            <div class="tab" onclick="showTab('exits')">Exit Analysis</div>
+            <button class="tab active" onclick="showTab('overview')">Overview</button>
+            <button class="tab" onclick="showTab('trades')">Recent Trades</button>
+            <button class="tab" onclick="showTab('scores')">Score Analysis</button>
+            <button class="tab" onclick="showTab('exits')">Exit Analysis</button>
         </div>
 
+        <!-- Overview Tab -->
         <div id="tab-overview">
-            <div class="grid">
-                <div class="card">
-                    <h2>Total Trades</h2>
-                    <div class="value" id="total-trades">0</div>
-                    <div class="label" id="trade-period">All time</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Trades</div>
+                    <div class="stat-value" id="total-trades">0</div>
+                    <div class="stat-sub" id="trade-period">All time</div>
                 </div>
-                <div class="card">
-                    <h2>Win Rate</h2>
-                    <div class="value" id="win-rate">0%</div>
-                    <div class="label"><span id="winning-trades">0</span> wins / <span id="losing-trades">0</span> losses</div>
+                <div class="stat-card">
+                    <div class="stat-label">Win Rate</div>
+                    <div class="stat-value" id="win-rate">0%</div>
+                    <div class="stat-sub"><span id="winning-trades">0</span> wins / <span id="losing-trades">0</span> losses</div>
                 </div>
-                <div class="card">
-                    <h2>Net Profit</h2>
-                    <div class="value" id="net-profit">$0.00</div>
-                    <div class="label">Profit Factor: <span id="profit-factor">0.00</span></div>
+                <div class="stat-card">
+                    <div class="stat-label">Net Profit</div>
+                    <div class="stat-value" id="net-profit">$0.00</div>
+                    <div class="stat-sub">Profit Factor: <span id="profit-factor">0.00</span></div>
                 </div>
-                <div class="card">
-                    <h2>Sharpe Ratio</h2>
-                    <div class="value" id="sharpe-ratio">0.00</div>
-                    <div class="label">Risk-adjusted returns</div>
+                <div class="stat-card">
+                    <div class="stat-label">Sharpe Ratio</div>
+                    <div class="stat-value" id="sharpe-ratio">0.00</div>
+                    <div class="stat-sub">Risk-adjusted returns</div>
                 </div>
-                <div class="card">
-                    <h2>Avg Profit/Trade</h2>
-                    <div class="value profit" id="avg-profit-winning">$0.00</div>
-                    <div class="label">Winners</div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Profit/Trade</div>
+                    <div class="stat-value green" id="avg-profit-winning">$0.00</div>
+                    <div class="stat-sub">Winners</div>
                 </div>
-                <div class="card">
-                    <h2>Avg Loss/Trade</h2>
-                    <div class="value loss" id="avg-loss-losing">$0.00</div>
-                    <div class="label">Losers</div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Loss/Trade</div>
+                    <div class="stat-value red" id="avg-loss-losing">$0.00</div>
+                    <div class="stat-sub">Losers</div>
                 </div>
-                <div class="card">
-                    <h2>Avg Hold Time</h2>
-                    <div class="value" id="avg-hold-time">0h</div>
-                    <div class="label">Per trade</div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Hold Time</div>
+                    <div class="stat-value" id="avg-hold-time">0h</div>
+                    <div class="stat-sub">Per trade</div>
                 </div>
-                <div class="card">
-                    <h2>Max Drawdown</h2>
-                    <div class="value loss" id="max-drawdown">$0.00</div>
-                    <div class="label">Largest loss streak</div>
+                <div class="stat-card">
+                    <div class="stat-label">Max Drawdown</div>
+                    <div class="stat-value red" id="max-drawdown">$0.00</div>
+                    <div class="stat-sub">Largest loss streak</div>
                 </div>
             </div>
 
-            <div class="section">
-                <h2>Best & Worst Trades</h2>
-                <div id="best-worst-trades"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Best & Worst Trades</div>
+                </div>
+                <div class="panel-body" id="best-worst-trades"></div>
             </div>
         </div>
 
+        <!-- Trades Tab -->
         <div id="tab-trades" style="display:none;">
-            <div class="section">
-                <h2>Recent Trades (Last 20)</h2>
-                <div id="recent-trades-table"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Recent Trades (Last 20)</div>
+                </div>
+                <div class="panel-body" id="recent-trades-table"></div>
             </div>
         </div>
 
+        <!-- Scores Tab -->
         <div id="tab-scores" style="display:none;">
-            <div class="section">
-                <h2>Score Correlation Analysis</h2>
-                <div id="score-correlation"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Score Correlation Analysis</div>
+                </div>
+                <div class="panel-body" id="score-correlation"></div>
             </div>
 
-            <div class="section">
-                <h2>Performance by Score Range</h2>
-                <div id="score-ranges"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Performance by Score Range</div>
+                </div>
+                <div class="panel-body" id="score-ranges"></div>
             </div>
 
-            <div class="section">
-                <h2>Recommendations</h2>
-                <div id="recommendations"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Recommendations</div>
+                </div>
+                <div class="panel-body" id="recommendations"></div>
             </div>
         </div>
 
+        <!-- Exit Analysis Tab -->
         <div id="tab-exits" style="display:none;">
-            <div class="section">
-                <h2>Performance by Exit Reason</h2>
-                <div id="exit-analysis"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Performance by Exit Reason</div>
+                </div>
+                <div class="panel-body" id="exit-analysis"></div>
             </div>
         </div>
     </div>
 
     <script>
         function showTab(tabName) {
-            // Hide all tabs
             document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
-            // Show selected tab
             document.getElementById('tab-' + tabName).style.display = 'block';
-            // Update tab styling
             document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
             event.target.classList.add('active');
         }
@@ -202,14 +362,29 @@
             return `${hours}h ${mins}m`;
         }
 
+        async function fetchWithAuth(url, options = {}) {
+            const response = await fetch(url, options);
+            if (response.status === 401) {
+                window.location.href = '/login';
+                throw new Error('Authentication required');
+            }
+            return response;
+        }
+
         async function loadMetrics() {
             try {
-                const response = await fetch('/api/performance/metrics');
+                const response = await fetchWithAuth('/api/performance/metrics');
                 const data = await response.json();
                 
-                if (data.total_trades === 0) {
+                // Handle error responses
+                if (data.error) {
+                    console.error('API error:', data.error);
+                    return;
+                }
+                
+                if (data.total_trades === 0 || data.total_trades === undefined) {
                     document.getElementById('total-trades').textContent = '0';
-                    document.getElementById('trade-period').textContent = 'No trades yet - start trading to see performance!';
+                    document.getElementById('trade-period').textContent = data.message || 'No trades yet - start trading to see performance!';
                     return;
                 }
 
@@ -220,7 +395,7 @@
                 
                 const netProfit = document.getElementById('net-profit');
                 netProfit.textContent = formatCurrency(data.net_profit);
-                netProfit.className = data.net_profit >= 0 ? 'value profit' : 'value loss';
+                netProfit.className = data.net_profit >= 0 ? 'stat-value green' : 'stat-value red';
                 
                 document.getElementById('profit-factor').textContent = data.profit_factor === Infinity ? '∞' : data.profit_factor.toFixed(2);
                 document.getElementById('sharpe-ratio').textContent = data.sharpe_ratio.toFixed(2);
@@ -229,7 +404,6 @@
                 document.getElementById('avg-hold-time').textContent = formatDuration(data.avg_hold_time_min);
                 document.getElementById('max-drawdown').textContent = formatCurrency(data.max_drawdown);
 
-                // Best/Worst trades
                 const bestWorst = document.getElementById('best-worst-trades');
                 bestWorst.innerHTML = `
                     <table>
@@ -270,12 +444,18 @@
 
         async function loadRecentTrades() {
             try {
-                const response = await fetch('/api/performance/recent-trades');
+                const response = await fetchWithAuth('/api/performance/recent-trades');
                 const trades = await response.json();
                 
                 const container = document.getElementById('recent-trades-table');
                 
-                if (trades.length === 0) {
+                // Handle error responses
+                if (trades.error) {
+                    container.innerHTML = '<div class="empty">Error loading trades</div>';
+                    return;
+                }
+                
+                if (!Array.isArray(trades) || trades.length === 0) {
                     container.innerHTML = '<div class="empty">No trades recorded yet</div>';
                     return;
                 }
@@ -306,7 +486,7 @@
 
         async function loadScoreAnalysis() {
             try {
-                const response = await fetch('/api/performance/score-analysis');
+                const response = await fetchWithAuth('/api/performance/score-analysis');
                 const data = await response.json();
                 
                 if (data.status === 'insufficient_data') {
@@ -316,25 +496,23 @@
                     return;
                 }
 
-                // Correlation
                 document.getElementById('score-correlation').innerHTML = `
                     <div style="margin-bottom: 20px;">
-                        <div style="font-size: 48px; font-weight: bold; color: ${Math.abs(data.overall_correlation) > 0.5 ? '#10b981' : '#fbbf24'};">
+                        <div style="font-size: 42px; font-weight: 700; color: ${Math.abs(data.overall_correlation) > 0.5 ? '#73bf69' : '#ff9830'};">
                             ${data.overall_correlation.toFixed(3)}
                         </div>
-                        <div style="font-size: 18px; color: #94a3b8; margin-top: 10px;">
+                        <div style="font-size: 16px; color: #8e8e8e; margin-top: 10px;">
                             ${data.interpretation} correlation between entry scores and profitability
                         </div>
-                        <div style="margin-top: 20px;">
+                        <div style="margin-top: 20px; color: #d8d9da;">
                             <strong>Component Correlations:</strong><br>
-                            Technical: ${data.component_correlations.technical.toFixed(3)}<br>
-                            Sentiment: ${data.component_correlations.sentiment.toFixed(3)}<br>
-                            Fundamental: ${data.component_correlations.fundamental.toFixed(3)}
+                            <span style="color: #8e8e8e;">Technical:</span> ${data.component_correlations.technical.toFixed(3)}<br>
+                            <span style="color: #8e8e8e;">Sentiment:</span> ${data.component_correlations.sentiment.toFixed(3)}<br>
+                            <span style="color: #8e8e8e;">Fundamental:</span> ${data.component_correlations.fundamental.toFixed(3)}
                         </div>
                     </div>
                 `;
 
-                // Score ranges
                 let rangesHtml = '<table><thead><tr><th>Score Range</th><th>Trades</th><th>Win Rate</th><th>Avg Profit %</th><th>Total Profit</th></tr></thead><tbody>';
                 for (const [range, stats] of Object.entries(data.score_ranges)) {
                     rangesHtml += `<tr>
@@ -348,7 +526,6 @@
                 rangesHtml += '</tbody></table>';
                 document.getElementById('score-ranges').innerHTML = rangesHtml;
 
-                // Recommendations
                 let recHtml = '';
                 for (const rec of data.recommendation) {
                     const type = rec.includes('✅') ? 'success' : rec.includes('⚠️') ? 'warning' : 'error';
@@ -363,7 +540,7 @@
 
         async function loadExitAnalysis() {
             try {
-                const response = await fetch('/api/performance/exit-analysis');
+                const response = await fetchWithAuth('/api/performance/exit-analysis');
                 const data = await response.json();
                 
                 if (data.message) {
@@ -398,7 +575,7 @@
         loadScoreAnalysis();
         loadExitAnalysis();
 
-        // Auto-refresh every 5 seconds for near real-time updates
+        // Auto-refresh
         setInterval(() => {
             loadMetrics();
             loadRecentTrades();
@@ -406,22 +583,16 @@
             loadExitAnalysis();
         }, 5000);
 
-        // NYSE Time - Update every second using client-side calculation
+        // NYSE Time
         function updateNYSETimeLocal() {
             const now = new Date();
             const options = { 
                 timeZone: 'America/New_York',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
             };
             const dateOptions = {
                 timeZone: 'America/New_York',
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
+                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
             };
             document.getElementById('nyse-time').textContent = now.toLocaleTimeString('en-US', options);
             document.getElementById('nyse-date').textContent = now.toLocaleDateString('en-US', dateOptions);
@@ -429,7 +600,7 @@
         updateNYSETimeLocal();
         setInterval(updateNYSETimeLocal, 1000);
 
-        // Fetch and update regime indicator
+        // Regime indicator
         async function updateRegime() {
             try {
                 const response = await fetch('/api/status');

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Metrics - AI Trading Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #111217; 
+            color: #d8d9da; 
+            min-height: 100vh;
+        }
+        
+        /* Grafana-style header */
+        .top-nav {
+            background: #1f1f1f;
+            border-bottom: 1px solid #343436;
+            padding: 0 16px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .top-nav .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ff9830;
+        }
+        .nav-links {
+            display: flex;
+            gap: 4px;
+        }
+        .nav-links a {
+            padding: 8px 16px;
+            color: #d8d9da;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover { background: #2c2c2e; }
+        .nav-links a.active { background: #3871dc; color: white; }
+        .nav-links a.logout { background: rgba(239,68,68,0.3); }
+        .nav-links a.logout:hover { background: rgba(239,68,68,0.5); }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        
+        .panel {
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .panel-header {
+            background: #262628;
+            padding: 8px 16px;
+            border-bottom: 1px solid #343436;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #d8d9da;
+        }
+        .panel-body {
+            padding: 16px;
+        }
+        .panel-body.stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100px;
+        }
+        
+        .stat-value {
+            font-size: 42px;
+            font-weight: 300;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #8e8e8e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .green { color: #73bf69; }
+        .red { color: #f2495c; }
+        .yellow { color: #ff9830; }
+        .blue { color: #5794f2; }
+        .purple { color: #b877d9; }
+        
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .metric-item { background: #181b1f; border-radius: 4px; padding: 14px; border: 1px solid #343436; }
+        .metric-item .metric-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8e8e8e; margin-bottom: 6px; }
+        .metric-item .metric-value { font-size: 22px; font-weight: 500; }
+        .metric-item .metric-desc { font-size: 11px; color: #6e6e6e; margin-top: 4px; }
+        
+        .status-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 20px; font-weight: 600; }
+        .status-indicator.healthy { background: rgba(115, 191, 105, 0.2); color: #73bf69; }
+        .status-indicator.unhealthy { background: rgba(242, 73, 92, 0.2); color: #f2495c; }
+        
+        .section { margin-bottom: 20px; }
+        .section-title { font-size: 16px; font-weight: 500; margin-bottom: 12px; color: #d8d9da; display: flex; align-items: center; gap: 8px; }
+        
+        .progress-bar { height: 6px; background: #343436; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .progress-fill.green { background: linear-gradient(90deg, #56a64b, #73bf69); }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: #3871dc; color: white; }
+        .btn-primary:hover { background: #4a8af4; }
+        
+        .raw-metrics { background: #181b1f; border: 1px solid #343436; border-radius: 4px; padding: 16px; font-family: 'Monaco', 'Menlo', monospace; font-size: 11px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; color: #73bf69; }
+        
+        .endpoint-badge { display: inline-block; padding: 4px 10px; background: #3871dc; color: white; border-radius: 4px; font-size: 12px; font-family: monospace; }
+        
+        .last-updated { font-size: 12px; color: #6e6e6e; text-align: right; margin-top: 16px; }
+        
+        .refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #8e8e8e;
+        }
+        .refresh-indicator .dot {
+            width: 8px;
+            height: 8px;
+            background: #73bf69;
+            border-radius: 50%;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            AI Trading System
+        </div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/analysis">Analysis</a>
+            <a href="/performance">Performance</a>
+            <a href="/optimizer">Optimizer</a>
+            <a href="/metrics-view" class="active">Metrics</a>
+            <a href="/grafana">Grafana</a>
+            <a href="/logout" class="logout">Logout</a>
+        </div>
+        <div class="refresh-indicator">
+            <div class="dot"></div>
+            <span>Live</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- System Status Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 style="font-size: 24px; font-weight: 500;">System Metrics</h1>
+            <div class="status-indicator healthy" id="system-status">
+                <span>●</span>
+                <span id="status-text">Healthy</span>
+            </div>
+        </div>
+
+        <!-- System Overview -->
+        <div class="grid">
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Uptime</span></div>
+                <div class="panel-body stat">
+                    <div class="stat-value blue" id="uptime">--</div>
+                    <div class="stat-label">Since Dashboard Started</div>
+                    <div class="progress-bar" style="width: 100%; margin-top: 12px;">
+                        <div class="progress-fill green" id="uptime-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Bot Status</span></div>
+                <div class="panel-body stat">
+                    <div class="stat-value" id="bot-status">--</div>
+                    <div class="stat-label">Trading Engine</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Market Regime</span></div>
+                <div class="panel-body stat">
+                    <div class="stat-value yellow" id="market-regime">--</div>
+                    <div class="stat-label">Adaptive Mode</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Market Status</span></div>
+                <div class="panel-body stat">
+                    <div class="stat-value" id="market-status">--</div>
+                    <div class="stat-label">NYSE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio Metrics -->
+        <div class="section">
+            <div class="section-title">💰 Portfolio Metrics</div>
+            <div class="panel">
+                <div class="panel-body">
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-name">Portfolio Value</div>
+                            <div class="metric-value green" id="portfolio-value">$0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Buying Power</div>
+                            <div class="metric-value blue" id="buying-power">$0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Cash Balance</div>
+                            <div class="metric-value" id="cash-balance">$0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Open Positions</div>
+                            <div class="metric-value purple" id="positions-count">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Unrealized P&L</div>
+                            <div class="metric-value" id="unrealized-pnl">$0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Today's P&L</div>
+                            <div class="metric-value" id="daily-pnl">$0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Today's P&L %</div>
+                            <div class="metric-value" id="daily-pnl-pct">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trading Metrics -->
+        <div class="section">
+            <div class="section-title">📊 Trading Activity</div>
+            <div class="panel">
+                <div class="panel-body">
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-name">Total Orders</div>
+                            <div class="metric-value" id="total-orders">0</div>
+                            <div class="metric-desc">All time</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Filled Orders</div>
+                            <div class="metric-value green" id="filled-orders">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Pending Orders</div>
+                            <div class="metric-value yellow" id="pending-orders">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Cancelled</div>
+                            <div class="metric-value red" id="cancelled-orders">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Regime Parameters -->
+        <div class="section">
+            <div class="section-title">⚙️ Regime Parameters</div>
+            <div class="panel">
+                <div class="panel-body">
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-name">Stop Loss</div>
+                            <div class="metric-value red" id="stop-loss">--%</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Take Profit</div>
+                            <div class="metric-value green" id="take-profit">--%</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Min Score</div>
+                            <div class="metric-value blue" id="min-score">--</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-name">Max Positions</div>
+                            <div class="metric-value purple" id="max-positions">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prometheus Endpoint Info -->
+        <div class="section">
+            <div class="section-title">🔗 Prometheus Integration</div>
+            <div class="panel">
+                <div class="panel-body">
+                    <p style="margin-bottom: 16px; color: #8e8e8e;">
+                        Raw metrics available at <span class="endpoint-badge">/metrics</span> for Prometheus scraping.
+                    </p>
+                    <div style="margin-bottom: 16px; display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="toggleRawMetrics()">Toggle Raw Metrics</button>
+                        <button class="btn btn-primary" onclick="refreshAll()">Refresh Now</button>
+                    </div>
+                    <div id="raw-metrics-container" style="display: none;">
+                        <div class="raw-metrics" id="raw-metrics">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="last-updated">
+            Last updated: <span id="last-updated">--</span>
+        </div>
+    </div>
+
+    <script>
+        let startTime = Date.now();
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
+        }
+
+        function formatUptime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) return `${days}d ${hours}h`;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            return `${minutes}m`;
+        }
+
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                // Update uptime (client-side since dashboard started)
+                const uptime = Date.now() - startTime;
+                document.getElementById('uptime').textContent = formatUptime(uptime);
+                document.getElementById('uptime-bar').style.width = Math.min(100, (uptime / 86400000) * 100) + '%';
+                
+                // Bot status
+                const botEl = document.getElementById('bot-status');
+                if (data.trading_running) {
+                    botEl.textContent = 'RUNNING';
+                    botEl.className = 'stat-value green';
+                } else {
+                    botEl.textContent = 'STOPPED';
+                    botEl.className = 'stat-value red';
+                }
+                
+                // Market status
+                const marketEl = document.getElementById('market-status');
+                if (data.market && data.market.is_open) {
+                    marketEl.textContent = 'OPEN';
+                    marketEl.className = 'stat-value green';
+                } else {
+                    marketEl.textContent = 'CLOSED';
+                    marketEl.className = 'stat-value red';
+                }
+                
+                // Regime
+                if (data.regime) {
+                    document.getElementById('market-regime').textContent = (data.regime.regime || 'unknown').toUpperCase();
+                    document.getElementById('stop-loss').textContent = ((data.regime.stop_loss_pct || 0.03) * 100).toFixed(0) + '%';
+                    document.getElementById('take-profit').textContent = ((data.regime.take_profit_pct || 0.08) * 100).toFixed(0) + '%';
+                    document.getElementById('min-score').textContent = data.regime.min_score || 70;
+                    document.getElementById('max-positions').textContent = data.regime.max_positions || 10;
+                }
+                
+                // Account
+                if (data.account) {
+                    document.getElementById('portfolio-value').textContent = formatCurrency(data.account.portfolio_value || 0);
+                    document.getElementById('buying-power').textContent = formatCurrency(data.account.buying_power || 0);
+                    document.getElementById('cash-balance').textContent = formatCurrency(data.account.cash || 0);
+                    
+                    const pnl = data.account.profit_loss || 0;
+                    const pnlEl = document.getElementById('daily-pnl');
+                    pnlEl.textContent = formatCurrency(pnl);
+                    pnlEl.className = 'metric-value ' + (pnl >= 0 ? 'green' : 'red');
+                    
+                    const pnlPct = data.account.profit_loss_pct || 0;
+                    const pnlPctEl = document.getElementById('daily-pnl-pct');
+                    pnlPctEl.textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
+                    pnlPctEl.className = 'metric-value ' + (pnlPct >= 0 ? 'green' : 'red');
+                }
+                
+                // System status
+                document.getElementById('system-status').className = 'status-indicator healthy';
+                document.getElementById('status-text').textContent = 'Healthy';
+                
+            } catch (error) {
+                document.getElementById('system-status').className = 'status-indicator unhealthy';
+                document.getElementById('status-text').textContent = 'Error';
+            }
+        }
+
+        async function updatePositions() {
+            try {
+                const response = await fetch('/api/positions');
+                const positions = await response.json();
+                
+                document.getElementById('positions-count').textContent = positions.length || 0;
+                
+                // Calculate unrealized P&L
+                let totalUnrealized = 0;
+                for (const pos of positions) {
+                    totalUnrealized += pos.unrealized_pl || 0;
+                }
+                const unrealizedEl = document.getElementById('unrealized-pnl');
+                unrealizedEl.textContent = formatCurrency(totalUnrealized);
+                unrealizedEl.className = 'metric-value ' + (totalUnrealized >= 0 ? 'green' : 'red');
+                
+            } catch (error) {
+                console.error('Failed to fetch positions:', error);
+            }
+        }
+
+        async function updateOrders() {
+            try {
+                const response = await fetch('/api/orders');
+                const orders = await response.json();
+                
+                let filled = 0, pending = 0, cancelled = 0;
+                for (const order of orders) {
+                    if (order.status === 'filled') filled++;
+                    else if (order.status === 'new' || order.status === 'pending_new' || order.status === 'partially_filled') pending++;
+                    else if (order.status === 'canceled' || order.status === 'cancelled') cancelled++;
+                }
+                
+                document.getElementById('total-orders').textContent = orders.length;
+                document.getElementById('filled-orders').textContent = filled;
+                document.getElementById('pending-orders').textContent = pending;
+                document.getElementById('cancelled-orders').textContent = cancelled;
+                
+            } catch (error) {
+                console.error('Failed to fetch orders:', error);
+            }
+        }
+
+        async function fetchRawMetrics() {
+            try {
+                const response = await fetch('/metrics');
+                return await response.text();
+            } catch (error) {
+                return 'Error fetching raw metrics';
+            }
+        }
+
+        async function toggleRawMetrics() {
+            const container = document.getElementById('raw-metrics-container');
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                const raw = await fetchRawMetrics();
+                document.getElementById('raw-metrics').textContent = raw;
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        async function refreshAll() {
+            await Promise.all([
+                updateStatus(),
+                updatePositions(),
+                updateOrders()
+            ]);
+            document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Initial load
+        refreshAll();
+
+        // Auto-refresh every 5 seconds
+        setInterval(refreshAll, 5000);
+    </script>
+</body>
+</html>

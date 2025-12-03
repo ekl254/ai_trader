@@ -118,9 +118,20 @@ Only swaps if new candidate is **significantly** better (default: 10+ points hig
 - Avoids marginal swaps
 - Reduces unnecessary trading
 
-### 3. Atomic Swaps
+### 3. Atomic Swaps (Sell-First Logic)
 
-Rebalancing is atomic - either both sell and buy succeed, or neither happens.
+Rebalancing uses a **sell-first** approach to ensure proper execution:
+
+**How it works:**
+1. Sell the old position first (frees cash and slot)
+2. Wait for settlement (2 seconds)
+3. Buy the replacement position with freed capital
+4. Skip the normal `can_open_position()` check since we just freed a slot
+
+**Why sell-first?**
+- Prevents deadlock when at position limit
+- Ensures cash is available for the new buy
+- Avoids checking account health BEFORE freeing resources
 
 **Error Handling**:
 - If sell fails → Log error, keep existing position
@@ -134,9 +145,10 @@ Rebalancing is atomic - either both sell and buy succeed, or neither happens.
    - Added `rescore_positions()` method
    - Evaluates existing holdings using same scoring logic
 
-2. **`src/executor.py`** (lines 246-295)
-   - Added `swap_position()` method
+2. **`src/executor.py`** (lines 414-516)
+   - `swap_position()` method with sell-first logic
    - Handles atomic sell/buy operations
+   - Skips health check for replacement buy (uses `skip_health_check=True`)
 
 3. **`src/main.py`** (lines 72-180)
    - Added rebalancing logic to `scan_and_trade()`

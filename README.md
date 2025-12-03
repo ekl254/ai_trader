@@ -141,7 +141,9 @@ ai_trader/
 ├── src/
 │   ├── main.py                    # Trading engine (auto-restart mode)
 │   ├── strategy.py                # Multi-factor scoring (technical + sentiment)
-│   ├── executor.py                # Order execution
+│   ├── executor.py                # Order execution with swap logic
+│   ├── risk_manager.py            # Account health, position sizing, trade validation
+│   ├── position_sizer.py          # Dynamic position sizing with conviction adjustments
 │   ├── performance_tracker.py     # Trade history & analytics
 │   ├── strategy_optimizer.py      # Automated optimization
 │   ├── llm_reason_generator.py    # Smart decision explanations
@@ -149,7 +151,9 @@ ai_trader/
 │   ├── market_regime.py           # SPY-based market regime detection
 │   ├── newsapi_client.py          # News fetching with company name mapping
 │   ├── universe.py                # S&P 500 with liquidity filtering
-│   └── position_tracker.py        # Position management
+│   ├── position_tracker.py        # Position management
+│   ├── metrics.py                 # Prometheus metrics for monitoring
+│   └── secrets_manager.py         # Secure credential management
 │
 ├── web/
 │   ├── dashboard.py               # Flask web server
@@ -178,12 +182,31 @@ ai_trader/
 
 ## 🛡️ Risk Management
 
+### Position Sizing
 - **2% Risk Rule**: Never risk more than 2% of portfolio on single trade
 - **10% Position Limit**: No position exceeds 10% of portfolio
+- **Dynamic Sizing**: Position size adjusts based on conviction score and volatility
+
+### Stop Loss & Take Profit
 - **Stop Loss**: Automatic 2% stop loss on all positions
 - **Take Profit**: 6% profit target (3:1 reward/risk)
-- **Max Positions**: Limit to 10 concurrent positions
+- **Trailing Stops**: Available for profitable positions
+
+### Account Health Protection
+- **Cash-Based Validation**: Trades validated against actual cash, not margin/buying power
+- **5% Cash Buffer**: Maintains minimum 5% cash reserve to prevent margin usage
+- **Margin Prevention**: System blocks new trades if cash would go negative
+- **Forced Position Reduction**: Automatically sells weakest positions if account becomes unhealthy
+
+### Position Limits
+- **Max Positions**: 7-10 based on market regime (neutral=7, bull=10)
 - **Optimized Threshold**: 72.5 minimum composite score
+- **Overload Protection**: Blocks new buys when at/over position limit
+
+### Smart Rebalancing
+- **Sell-First Logic**: Swaps sell the old position before buying replacement
+- **Score-Based Selection**: Weakest positions (lowest scores) sold first during forced reduction
+- **Health Recovery**: Continues selling until cash balance is restored
 
 ## 📈 Data Sources
 

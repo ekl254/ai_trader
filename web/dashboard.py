@@ -1646,6 +1646,137 @@ def api_calculate_position_size(symbol: str):
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
+# ============ MONITORING AND METRICS ENDPOINTS ============
+
+@app.route("/metrics")
+def metrics_endpoint():
+    """Prometheus metrics endpoint (no auth required for monitoring)."""
+    from src.metrics import trading_metrics
+    return trading_metrics.get_metrics(), 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
+@app.route("/health")
+def health_check():
+    """Health check endpoint for load balancers."""
+    try:
+        # Check if we can connect to Alpaca
+        client = TradingClient(
+            config.alpaca.api_key, config.alpaca.secret_key, paper=True
+        )
+        client.get_account()
+        status = "healthy"
+        code = 200
+    except Exception:
+        status = "unhealthy"
+        code = 503
+    
+    return jsonify({
+        "status": status,
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+    }), code
+
+
+@app.route("/ready")
+def readiness_check():
+    """Readiness check for Kubernetes."""
+    # Check if all required services are available
+    checks = {
+        "alpaca": False,
+        "market_data": False,
+    }
+    
+    try:
+        client = TradingClient(
+            config.alpaca.api_key, config.alpaca.secret_key, paper=True
+        )
+        client.get_account()
+        checks["alpaca"] = True
+    except Exception:
+        pass
+    
+    try:
+        from src.data_provider import alpaca_provider
+        alpaca_provider.get_latest_trade("SPY")
+        checks["market_data"] = True
+    except Exception:
+        pass
+    
+    all_ready = all(checks.values())
+    
+    return jsonify({
+        "ready": all_ready,
+        "checks": checks,
+        "timestamp": datetime.now().isoformat(),
+    }), 200 if all_ready else 503
+
+
+@app.route("/metrics-view")
+@login_required
+def metrics_view():
+    """Metrics dashboard page."""
+    return render_template("metrics.html")
+
+
+@app.route("/grafana")
+@login_required
+def grafana_view():
+    """Grafana-style metrics dashboard."""
+    return render_template("grafana.html")
+
+
+@app.route("/api/metrics")
+@login_required
+def api_metrics():
+    """JSON API endpoint for metrics data."""
+    import time
+    from src.metrics import trading_metrics
+    
+    # Get all metrics as a dictionary
+    with trading_metrics._lock:
+        metrics = trading_metrics._metrics.copy()
+        uptime = time.time() - trading_metrics._start_time
+    
+    return jsonify({
+        # System
+        "uptime_seconds": uptime,
+        "bot_status": metrics.get("bot_status", "unknown"),
+        "market_regime": metrics.get("market_regime", "unknown"),
+        
+        # Counters
+        "trades_total": metrics.get("trades_total", 0),
+        "trades_buy_total": metrics.get("trades_buy_total", 0),
+        "trades_sell_total": metrics.get("trades_sell_total", 0),
+        "orders_submitted_total": metrics.get("orders_submitted_total", 0),
+        "orders_filled_total": metrics.get("orders_filled_total", 0),
+        "orders_rejected_total": metrics.get("orders_rejected_total", 0),
+        "orders_cancelled_total": metrics.get("orders_cancelled_total", 0),
+        "errors_total": metrics.get("errors_total", 0),
+        "api_calls_total": metrics.get("api_calls_total", 0),
+        "scans_total": metrics.get("scans_total", 0),
+        
+        # Gauges
+        "portfolio_value": metrics.get("portfolio_value", 0),
+        "buying_power": metrics.get("buying_power", 0),
+        "cash_balance": metrics.get("cash_balance", 0),
+        "positions_count": metrics.get("positions_count", 0),
+        "unrealized_pnl": metrics.get("unrealized_pnl", 0),
+        "realized_pnl_today": metrics.get("realized_pnl_today", 0),
+        "daily_pnl_percent": metrics.get("daily_pnl_percent", 0),
+        "win_rate": metrics.get("win_rate", 0),
+        "active_orders_count": metrics.get("active_orders_count", 0),
+        
+        # Trading specific
+        "last_scan_duration_seconds": metrics.get("last_scan_duration_seconds", 0),
+        "last_trade_timestamp": metrics.get("last_trade_timestamp", 0),
+        "avg_trade_score": metrics.get("avg_trade_score", 0),
+        "avg_position_hold_minutes": metrics.get("avg_position_hold_minutes", 0),
+        "avg_trade_pnl_percent": metrics.get("avg_trade_pnl_percent", 0),
+    })
+
+
+# ============ MAIN ENTRY POINT ============
+
 if __name__ == "__main__":
     print("=" * 60)
     print("AI Trading Dashboard Starting")
@@ -1668,62 +1799,4 @@ if __name__ == "__main__":
     print()
 
     app.run(host="0.0.0.0", port=8082, debug=False)
-
-# ============ MONITORING AND METRICS ENDPOINTS ============
-
-@app.route("/metrics")
-def metrics_endpoint():
-    """Prometheus metrics endpoint (no auth required for monitoring)."""
-    from src.metrics import trading_metrics
-    return trading_metrics.get_metrics(), 200, {"Content-Type": "text/plain; charset=utf-8"}
-
-
-@app.route("/health")
-def health_check():
-    """Health check endpoint for load balancers."""
-    try:
-        # Check if we can connect to Alpaca
-        trading_client.get_account()
-        status = "healthy"
-        code = 200
-    except Exception as e:
-        status = "unhealthy"
-        code = 503
-    
-    return jsonify({
-        "status": status,
-        "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0",
-    }), code
-
-
-@app.route("/ready")
-def readiness_check():
-    """Readiness check for Kubernetes."""
-    # Check if all required services are available
-    checks = {
-        "alpaca": False,
-        "market_data": False,
-    }
-    
-    try:
-        trading_client.get_account()
-        checks["alpaca"] = True
-    except:
-        pass
-    
-    try:
-        from src.data_provider import data_provider
-        data_provider.get_latest_price("SPY")
-        checks["market_data"] = True
-    except:
-        pass
-    
-    all_ready = all(checks.values())
-    
-    return jsonify({
-        "ready": all_ready,
-        "checks": checks,
-        "timestamp": datetime.now().isoformat(),
-    }), 200 if all_ready else 503
 

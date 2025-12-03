@@ -1,5 +1,134 @@
 # Changelog
 
+## 2025-12-03 - Account Health & Margin Prevention
+
+### 🛡️ Critical Fixes
+
+#### 1. Margin Usage Prevention
+**Problem:** System was using `buying_power` (2x with margin) instead of `cash` to validate trades, allowing positions that pushed account into negative cash.
+
+**Solution:**
+- Added `get_cash()` method to risk_manager
+- `validate_trade()` now checks actual cash with 5% buffer
+- `calculate_position_size()` uses cash constraints
+- `position_sizer` blocks trades when cash is negative/low
+
+**Files Changed:**
+- `src/risk_manager.py:110-126` - Added get_cash() method
+- `src/risk_manager.py:519-561` - Updated validate_trade() with cash checks
+- `src/risk_manager.py:376-417` - Updated calculate_position_size()
+- `src/position_sizer.py:291-320` - Added cash buffer protection
+
+#### 2. Account Health Recovery System
+**Problem:** When account got into unhealthy state (negative cash, too many positions), system couldn't recover automatically.
+
+**Solution:**
+- Added `check_account_health()` for real-time monitoring
+- Added `get_positions_to_reduce()` to identify weakest positions
+- Added `should_block_new_buys()` to prevent trades when unhealthy
+- Added `_check_and_handle_account_health()` in main.py for forced recovery
+
+**Files Changed:**
+- `src/risk_manager.py:128-220` - Account health check system
+- `src/risk_manager.py:221-286` - Position reduction logic
+- `src/risk_manager.py:288-308` - New buy blocking
+- `src/main.py:762-830` - Forced position reduction
+
+#### 3. Swap Position Sell-First Logic
+**Problem:** Rebalancing swaps were blocked because `can_open_position()` checked account health BEFORE selling the old position.
+
+**Solution:**
+- Changed from "check-then-swap" to "SELL-FIRST" logic
+- Now sells old position first to free cash/slots
+- Then buys replacement with freed resources
+
+**Files Changed:**
+- `src/executor.py:414-516` - Rewritten swap_position() method
+
+### 🔧 New Features
+
+#### Account Health Monitoring
+```python
+health = risk_manager.check_account_health()
+# Returns:
+# - healthy: bool
+# - cash: float
+# - cash_pct: float  
+# - position_count: int
+# - max_positions: int
+# - warnings: List[str]
+# - actions_needed: List[str]
+```
+
+#### Forced Position Reduction
+When account is unhealthy, system automatically:
+1. Calculates how many positions need to be sold
+2. Identifies weakest positions by score
+3. Sells them until health is restored
+4. Logs all actions for audit trail
+
+#### Trade Validation with Cash Check
+```python
+# Now validates against actual cash, not buying power
+is_valid, reason = risk_manager.validate_trade(symbol, shares, price)
+# Checks:
+# 1. Position size limits (max 10% of portfolio)
+# 2. Cash availability with 5% buffer
+# 3. Buying power as safety net
+```
+
+### 📊 Configuration Constants
+
+Added to `risk_manager.py`:
+```python
+MIN_CASH_PCT = 0.05           # Minimum 5% cash reserve
+MARGIN_WARNING_THRESHOLD = 0.10  # Warn below 10% cash
+POSITION_OVERLOAD_THRESHOLD = 1.2  # Critical at 120% of max
+```
+
+### 🐛 Bug Fixes
+
+- Fixed swap rebalancing deadlock when at position limit
+- Fixed position reduction returning empty when not over max
+- Fixed cash deficit calculation for forced reduction
+- Added pending buy clearing on startup
+
+---
+
+## 2025-12-02 - Production Improvements
+
+### 🚀 New Features
+
+#### CI/CD Pipeline
+- GitHub Actions workflow for automated testing
+- Runs on push to main and pull requests
+- Tests, linting, type checking, and formatting validation
+
+#### Prometheus Metrics
+- Added `src/metrics.py` for observability
+- Trade counters, position gauges, latency histograms
+- Compatible with Grafana dashboards
+
+#### Security Enhancements
+- Added `src/secrets_manager.py` for secure credential handling
+- Environment variable validation
+- Sensitive data protection
+
+#### Integration Tests
+- Added `tests/test_integration.py`
+- End-to-end workflow testing
+- Mock external API interactions
+
+**Files Created:**
+- `.github/workflows/ci.yml`
+- `src/metrics.py`
+- `src/secrets_manager.py`
+- `tests/test_integration.py`
+- `web/templates/grafana.html`
+- `web/templates/metrics.html`
+
+---
+
 ## 2025-11-26 - Major Feature Release
 
 ### 🚀 New Features

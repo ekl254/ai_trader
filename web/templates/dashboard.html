@@ -6,276 +6,509 @@
     <title>AI Trading Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); }
-        .header h1 { font-size: 32px; margin-bottom: 10px; }
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
-        .nav-links { display: flex; gap: 10px; margin-top: 15px; }
-        .nav-links a { padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; border-radius: 6px; transition: all 0.3s; font-weight: 600; }
-        .nav-links a:hover { background: rgba(255,255,255,0.3); }
-        .nav-links a.active { background: rgba(255,255,255,0.35); }
-        .nyse-time { background: rgba(0,0,0,0.2); padding: 12px 20px; border-radius: 8px; text-align: center; }
-        .nyse-time .time-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; display: block; margin-bottom: 4px; }
-        .nyse-time .time-value { font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace; display: block; }
-        .nyse-time .time-date { font-size: 12px; opacity: 0.8; display: block; margin-top: 2px; }
-        .header .status { display: flex; align-items: center; gap: 15px; font-size: 18px; flex-wrap: wrap; }
-        .status-badge { padding: 6px 16px; border-radius: 20px; font-weight: 600; }
-        .status-badge.open { background: #10b981; }
-        .status-badge.closed { background: #ef4444; }
-        .controls { display: flex; gap: 12px; margin-top: 15px; flex-wrap: wrap; }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .btn-primary { background: #10b981; color: white; }
-        .btn-primary:hover { background: #059669; }
-        .btn-secondary { background: #3b82f6; color: white; }
-        .btn-secondary:hover { background: #2563eb; }
-        .btn-danger { background: #ef4444; color: white; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-refresh { background: #8b5cf6; color: white; }
-        .btn-refresh:hover { background: #7c3aed; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .card { background: #1e293b; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; }
-        .card .value { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-        .card .label { font-size: 14px; color: #64748b; }
-        .profit { color: #10b981; }
-        .loss { color: #ef4444; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #111217; 
+            color: #d8d9da; 
+            min-height: 100vh;
+        }
+        
+        /* Navigation */
+        .top-nav {
+            background: #1f1f1f;
+            border-bottom: 1px solid #343436;
+            padding: 0 16px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .top-nav .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ff9830;
+        }
+        .nav-links { display: flex; gap: 4px; }
+        .nav-links a {
+            padding: 8px 16px;
+            color: #d8d9da;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover { background: #2c2c2e; }
+        .nav-links a.active { background: #3871dc; color: white; }
+        .nav-links a.logout { background: rgba(239,68,68,0.3); }
+        .nav-links a.logout:hover { background: rgba(239,68,68,0.5); }
+        
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .nyse-time {
+            text-align: right;
+            padding: 4px 12px;
+            background: #262628;
+            border-radius: 4px;
+        }
+        .nyse-time .time-value { font-size: 16px; font-weight: 600; font-family: monospace; }
+        .nyse-time .time-date { font-size: 11px; color: #8e8e8e; }
+        
+        .refresh-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8e8e8e; }
+        .refresh-indicator .dot { width: 8px; height: 8px; background: #73bf69; border-radius: 50%; animation: blink 2s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        /* Dashboard Layout */
+        .dashboard { padding: 16px; }
+        .row { display: grid; gap: 8px; margin-bottom: 8px; }
+        .row-4 { grid-template-columns: repeat(4, 1fr); }
+        .row-3 { grid-template-columns: repeat(3, 1fr); }
+        .row-2 { grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 1200px) { .row-4 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { .row-4, .row-3, .row-2 { grid-template-columns: 1fr; } }
+        
+        /* Panels */
+        .panel {
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .panel-header {
+            background: #262628;
+            padding: 8px 16px;
+            border-bottom: 1px solid #343436;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-title { font-size: 14px; font-weight: 500; }
+        .panel-body { padding: 16px; }
+        .panel-body.stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100px;
+        }
+        
+        .stat-value { font-size: 36px; font-weight: 300; line-height: 1; margin-bottom: 6px; }
+        .stat-label { font-size: 12px; color: #8e8e8e; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Colors */
+        .green { color: #73bf69; }
+        .red { color: #f2495c; }
+        .yellow { color: #ff9830; }
+        .blue { color: #5794f2; }
+        .purple { color: #b877d9; }
+        
+        /* Status indicators */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.open { background: rgba(115, 191, 105, 0.2); color: #73bf69; }
+        .status-badge.closed { background: rgba(242, 73, 92, 0.2); color: #f2495c; }
+        .status-badge.running { background: rgba(115, 191, 105, 0.2); color: #73bf69; }
+        .status-badge.stopped { background: rgba(142, 142, 142, 0.2); color: #8e8e8e; }
+        
+        /* Regime badge */
+        .regime-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .regime-bull, .regime-strong_bull { background: rgba(115, 191, 105, 0.2); color: #73bf69; }
+        .regime-bear, .regime-strong_bear { background: rgba(242, 73, 92, 0.2); color: #f2495c; }
+        .regime-neutral { background: rgba(142, 142, 142, 0.2); color: #8e8e8e; }
+        .regime-high_volatility { background: rgba(184, 119, 217, 0.2); color: #b877d9; }
+        
+        /* Tables */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: #262628;
+            color: #8e8e8e;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        .data-table td { padding: 10px 12px; border-top: 1px solid #343436; }
+        .data-table tr:hover { background: #262628; }
+        
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #3871dc; color: white; }
+        .btn-primary:hover { background: #4a8af4; }
+        .btn-success { background: #56a64b; color: white; }
+        .btn-success:hover { background: #73bf69; }
+        .btn-danger { background: #c4162a; color: white; }
+        .btn-danger:hover { background: #f2495c; }
+        .btn-secondary { background: #3d3d3d; color: #d8d9da; }
+        .btn-secondary:hover { background: #4d4d4d; }
+        
+        /* Log container */
+        .log-container {
+            max-height: 350px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            background: #181b1f;
+            border-radius: 4px;
+            padding: 12px;
+        }
+        .log-entry {
+            padding: 6px 10px;
+            margin-bottom: 4px;
+            border-left: 3px solid #343436;
+            background: #1f1f1f;
+            border-radius: 0 4px 4px 0;
+        }
+        .log-entry.info { border-left-color: #5794f2; }
+        .log-entry.error { border-left-color: #f2495c; background: rgba(242, 73, 92, 0.1); }
+        .log-entry .timestamp { color: #6e6e6e; font-size: 11px; }
+        
+        /* Ticker link */
+        .ticker-link { color: #5794f2; text-decoration: none; cursor: pointer; font-weight: 600; }
+        .ticker-link:hover { text-decoration: underline; }
+        
+        /* Empty state */
+        .empty { text-align: center; padding: 40px; color: #6e6e6e; }
+        
+        /* Flash animations */
         .flash-green { animation: flashGreen 0.5s ease; }
         .flash-red { animation: flashRed 0.5s ease; }
-        @keyframes flashGreen { 0% { background: rgba(16, 185, 129, 0.4); } 100% { background: transparent; } }
-        @keyframes flashRed { 0% { background: rgba(239, 68, 68, 0.4); } 100% { background: transparent; } }
-        .section { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-        .section h2 { font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 12px; }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 12px; background: #0f172a; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; color: #94a3b8; }
-        td { padding: 12px; border-top: 1px solid #334155; }
-        .log-container { max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; background: #0f172a; padding: 16px; border-radius: 8px; }
-        .log-entry { padding: 8px; margin-bottom: 4px; border-left: 3px solid #334155; padding-left: 12px; }
-        .log-entry.info { border-left-color: #3b82f6; }
-        .log-entry.error { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
-        .log-entry .timestamp { color: #64748b; font-size: 11px; }
-        .empty { text-align: center; padding: 40px; color: #64748b; }
-        .trading-status { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 20px; background: rgba(255, 255, 255, 0.1); }
-        .trading-status.running { background: rgba(16, 185, 129, 0.2); }
-        .pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .notification { position: fixed; top: 20px; right: 20px; padding: 16px 24px; border-radius: 8px; background: #1e293b; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); z-index: 1000; display: none; }
-        .notification.show { display: block; animation: slideIn 0.3s; }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-        /* Position Detail Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
+        @keyframes flashGreen { 0% { background: rgba(115, 191, 105, 0.3); } 100% { background: transparent; } }
+        @keyframes flashRed { 0% { background: rgba(242, 73, 92, 0.3); } 100% { background: transparent; } }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
         .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .modal-content { background: #1e293b; border-radius: 16px; padding: 0; max-width: 900px; width: 100%; max-height: 90vh; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
-        .modal-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; }
-        .modal-header h2 { font-size: 24px; margin: 0; display: flex; align-items: center; gap: 12px; }
-        .modal-header .close-btn { background: rgba(255,255,255,0.2); border: none; color: white; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .modal-header .close-btn:hover { background: rgba(255,255,255,0.3); transform: rotate(90deg); }
-        .modal-body { padding: 24px; overflow-y: auto; max-height: calc(90vh - 80px); }
-        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .detail-card { background: #0f172a; border-radius: 12px; padding: 16px; }
-        .detail-card .label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 6px; }
-        .detail-card .value { font-size: 24px; font-weight: 700; }
-        .detail-card .sub { font-size: 13px; color: #64748b; margin-top: 4px; }
-        .chart-container { background: #0f172a; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
-        .chart-container h3 { font-size: 16px; margin-bottom: 12px; color: #94a3b8; }
-        .section-box { background: #0f172a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-        .section-box h3 { font-size: 16px; margin-bottom: 12px; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 8px; }
-        .section-box .content { font-size: 14px; line-height: 1.8; white-space: pre-wrap; }
-        .section-box .content strong { color: #e2e8f0; }
-        /* News Card Styles */
-        .news-container { max-height: 300px; overflow-y: auto; }
-        .news-card { background: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: 3px solid #3b82f6; transition: all 0.2s; }
-        .news-card:hover { background: #273548; transform: translateX(4px); }
-        .news-card .news-title { font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; }
-        .news-card .news-title a { color: #3b82f6; text-decoration: none; }
+        .modal-content {
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            border-radius: 8px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #262628;
+            padding: 16px 20px;
+            border-bottom: 1px solid #343436;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 { font-size: 18px; font-weight: 500; }
+        .modal-header .close-btn {
+            background: #3d3d3d;
+            border: none;
+            color: #d8d9da;
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-header .close-btn:hover { background: #4d4d4d; }
+        .modal-body { padding: 20px; overflow-y: auto; max-height: calc(90vh - 70px); }
+        
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .detail-card { background: #181b1f; border: 1px solid #343436; border-radius: 4px; padding: 14px; }
+        .detail-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8e8e8e; margin-bottom: 4px; }
+        .detail-card .value { font-size: 20px; font-weight: 500; }
+        .detail-card .sub { font-size: 12px; color: #6e6e6e; margin-top: 2px; }
+        
+        .section-box { background: #181b1f; border: 1px solid #343436; border-radius: 4px; padding: 16px; margin-bottom: 12px; }
+        .section-box h3 { font-size: 14px; margin-bottom: 10px; color: #8e8e8e; border-bottom: 1px solid #343436; padding-bottom: 8px; }
+        .section-box .content { font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+        
+        .chart-container { background: #181b1f; border: 1px solid #343436; border-radius: 4px; padding: 12px; margin-bottom: 12px; }
+        .chart-container h3 { font-size: 14px; margin-bottom: 10px; color: #8e8e8e; }
+        
+        /* News cards */
+        .news-container { max-height: 280px; overflow-y: auto; }
+        .news-card { background: #262628; border-radius: 4px; padding: 12px; margin-bottom: 8px; border-left: 3px solid #5794f2; }
+        .news-card:hover { background: #2c2c2e; }
+        .news-card .news-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+        .news-card .news-title a { color: #5794f2; text-decoration: none; }
         .news-card .news-title a:hover { text-decoration: underline; }
-        .news-card .news-desc { font-size: 12px; color: #94a3b8; margin-bottom: 8px; line-height: 1.5; }
-        .news-card .news-meta { font-size: 11px; color: #64748b; display: flex; gap: 12px; }
-        .news-loading { text-align: center; padding: 20px; color: #64748b; }
-        .ticker-link { cursor: pointer; color: #3b82f6; text-decoration: none; transition: all 0.2s; }
-        .ticker-link:hover { color: #60a5fa; text-decoration: underline; }
-        .price-levels { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-        .price-bar { flex: 1; height: 8px; background: #334155; border-radius: 4px; position: relative; overflow: hidden; }
-        .price-marker { position: absolute; width: 4px; height: 100%; background: #3b82f6; border-radius: 2px; }
-        .stop-marker { background: #ef4444; }
-        .target-marker { background: #10b981; }
-        /* Regime Indicator Styles */
-        .regime-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; background: rgba(0,0,0,0.2); margin-left: auto; }
-        .regime-indicator .regime-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
-        .regime-indicator .regime-value { font-size: 14px; font-weight: 700; padding: 4px 10px; border-radius: 12px; }
-        .regime-indicator .regime-params { font-size: 11px; opacity: 0.9; margin-left: 8px; }
-        .regime-strong_bull { background: #10b981; color: white; }
-        .regime-bull { background: #34d399; color: #0f172a; }
-        .regime-neutral { background: #94a3b8; color: #0f172a; }
-        .regime-bear { background: #f97316; color: white; }
-        .regime-strong_bear { background: #ef4444; color: white; }
-        .regime-high_volatility { background: #a855f7; color: white; }
-        .regime-unknown { background: #64748b; color: white; }
+        .news-card .news-desc { font-size: 12px; color: #8e8e8e; margin-bottom: 6px; line-height: 1.4; }
+        .news-card .news-meta { font-size: 11px; color: #6e6e6e; display: flex; gap: 12px; }
+        
+        /* Price bar */
+        .price-bar { flex: 1; height: 8px; background: #343436; border-radius: 4px; position: relative; overflow: hidden; }
+        .price-marker { position: absolute; width: 4px; height: 100%; border-radius: 2px; }
+        .price-marker.stop { background: #f2495c; }
+        .price-marker.current { background: #5794f2; }
+        .price-marker.target { background: #73bf69; }
+        
+        /* Controls section */
+        .controls-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #181b1f;
+            border-bottom: 1px solid #343436;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            background: #1f1f1f;
+            border: 1px solid #343436;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+            font-size: 13px;
+        }
+        .notification.show { display: block; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .notification.success { border-left: 3px solid #73bf69; }
+        .notification.error { border-left: 3px solid #f2495c; }
+        .notification.info { border-left: 3px solid #5794f2; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Position Detail Modal -->
-        <div class="modal-overlay" id="position-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2><span id="modal-symbol">AAPL</span> Position Details</h2>
-                    <button class="close-btn" onclick="closePositionModal()">&times;</button>
+    <!-- Position Detail Modal -->
+    <div class="modal-overlay" id="position-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><span id="modal-symbol">AAPL</span> Position Details</h2>
+                <button class="close-btn" onclick="closePositionModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <div class="empty">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            AI Trading System
+        </div>
+        <div class="nav-links">
+            <a href="/" class="active">Dashboard</a>
+            <a href="/analysis">Analysis</a>
+            <a href="/performance">Performance</a>
+            <a href="/optimizer">Optimizer</a>
+            <a href="/metrics-view">Metrics</a>
+            <a href="/grafana">Grafana</a>
+            <a href="/logout" class="logout">Logout</a>
+        </div>
+        <div class="nav-right">
+            <div class="nyse-time">
+                <div class="time-value" id="nyse-time">--:--:-- --</div>
+                <div class="time-date" id="nyse-date">---</div>
+            </div>
+            <div class="refresh-indicator">
+                <div class="dot"></div>
+                <span>Live</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+        <span style="color: #8e8e8e; margin-right: 8px;">Market:</span>
+        <span class="status-badge" id="market-status">Loading...</span>
+        <span style="color: #6e6e6e; margin: 0 12px;">|</span>
+        <span style="color: #8e8e8e; margin-right: 8px;">Bot:</span>
+        <span class="status-badge" id="trading-status">Checking...</span>
+        <span style="color: #6e6e6e; margin: 0 12px;">|</span>
+        <span style="color: #8e8e8e; margin-right: 8px;">Regime:</span>
+        <span class="regime-badge" id="regime-badge">--</span>
+        <span id="regime-params" style="color: #6e6e6e; font-size: 12px; margin-left: 8px;">SL: --% | TP: --% | Min: --</span>
+    </div>
+
+    <div class="dashboard">
+        <!-- Row 1: Key Stats -->
+        <div class="row row-4">
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Portfolio Value</span></div>
+                <div class="panel-body stat">
+                    <div class="stat-value green" id="portfolio-value">$0</div>
+                    <div class="stat-label">Total Equity</div>
                 </div>
-                <div class="modal-body" id="modal-body">
-                    <div style="text-align: center; padding: 40px; color: #64748b;">Loading...</div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Buying Power</span></div>
+                <div class="panel-body stat">
+                    <div class="stat-value blue" id="buying-power">$0</div>
+                    <div class="stat-label">Available</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Cash</span></div>
+                <div class="panel-body stat">
+                    <div class="stat-value" id="cash">$0</div>
+                    <div class="stat-label">Uninvested</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Today's P&L</span></div>
+                <div class="panel-body stat">
+                    <div class="stat-value" id="profit-loss">$0</div>
+                    <div class="stat-label" id="profit-loss-pct">0.00%</div>
                 </div>
             </div>
         </div>
 
-        <div class="header">
-            <div class="header-top">
-                <h1>AI Trading Dashboard</h1>
-                <div class="regime-indicator" id="regime-indicator" title="Current market regime and adaptive trading parameters">
-                    <span class="regime-label">Regime</span>
-                    <span class="regime-value regime-unknown" id="regime-value">Loading...</span>
-                    <span class="regime-params" id="regime-params">SL: --% | TP: --% | Min: --</span>
+        <!-- Row 2: Rebalancing & Premarket -->
+        <div class="row row-2">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">🔄 Rebalancing Stats</span>
+                    <button class="btn btn-secondary" onclick="showRebalancingHistory()" style="padding: 4px 10px; font-size: 11px;">View History</button>
                 </div>
-                <div class="nyse-time" id="nyse-time-display">
-                    <span class="time-label">NYSE Time</span>
-                    <span class="time-value" id="nyse-time">--:--:-- --</span>
-                    <span class="time-date" id="nyse-date">---</span>
-                </div>
-            </div>
-            <div class="nav-links">
-                <a href="/" class="active">Dashboard</a>
-                <a href="/analysis">Analysis</a>
-                <a href="/performance">Performance</a>
-                <a href="/optimizer">Optimizer</a>
-                <a href="/logout" style="background: rgba(239,68,68,0.3); margin-left: auto;">Logout</a>
-            </div>
-            <div class="status">
-                <span>Market:</span>
-                <span class="status-badge" id="market-status">Loading...</span>
-                <span id="market-time"></span>
-                <span class="trading-status" id="trading-status">
-                    <span id="trading-indicator">●</span>
-                    <span id="trading-text">Checking...</span>
-                </span>
-            </div>
-        </div>
-
-        <div id="notification" class="notification"></div>
-
-        <div class="grid">
-            <div class="card">
-                <h2>Portfolio Value</h2>
-                <div class="value" id="portfolio-value">$0.00</div>
-                <div class="label">Total equity</div>
-            </div>
-            <div class="card">
-                <h2>Buying Power</h2>
-                <div class="value" id="buying-power">$0.00</div>
-                <div class="label">Available to trade</div>
-            </div>
-            <div class="card">
-                <h2>Cash</h2>
-                <div class="value" id="cash">$0.00</div>
-                <div class="label">Uninvested</div>
-            </div>
-            <div class="card">
-                <h2>Today's P&L</h2>
-                <div class="value" id="profit-loss">$0.00</div>
-                <div class="label" id="profit-loss-pct">0.00%</div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>🔄 Rebalancing Stats</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Total Rebalances</div>
-                    <div style="font-size: 28px; font-weight: 700;" id="rebal-total">0</div>
-                </div>
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Avg Score Improvement</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #10b981;" id="rebal-avg">+0.0</div>
-                </div>
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Can Rebalance</div>
-                    <div style="font-size: 28px; font-weight: 700;" id="rebal-can">
-                        <span id="rebal-status-icon">⏳</span>
+                <div class="panel-body">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; text-align: center;">
+                        <div>
+                            <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">TOTAL</div>
+                            <div style="font-size: 24px; font-weight: 500;" id="rebal-total">0</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">AVG IMPROVEMENT</div>
+                            <div style="font-size: 24px; font-weight: 500; color: #73bf69;" id="rebal-avg">+0.0</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">CAN REBALANCE</div>
+                            <div style="font-size: 24px; font-weight: 500;" id="rebal-status-icon">⏳</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">COOLDOWN</div>
+                            <div style="font-size: 24px; font-weight: 500;" id="rebal-cooldown">60m</div>
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Cooldown Period</div>
-                    <div style="font-size: 28px; font-weight: 700;" id="rebal-cooldown">60 min</div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">🌅 Premarket Candidates</span>
+                    <span id="premarket-scan-time" style="font-size: 11px; color: #6e6e6e;"></span>
                 </div>
-            </div>
-            <div style="margin-top: 20px;">
-                <button class="btn btn-secondary" onclick="showRebalancingHistory()" style="font-size: 13px; padding: 8px 16px;">📊 View History</button>
-            </div>
-        </div>
-
-        <!-- Premarket Candidates Section -->
-        <div class="section" id="premarket-section">
-            <h2 style="display: flex; justify-content: space-between; align-items: center;">
-                <span>🌅 Premarket Candidates</span>
-                <span id="premarket-scan-time" style="font-size: 12px; font-weight: normal; color: #64748b;"></span>
-            </h2>
-            <div id="premarket-candidates">
-                <div class="empty">No premarket candidates available</div>
+                <div class="panel-body" id="premarket-candidates" style="max-height: 150px; overflow-y: auto;">
+                    <div class="empty">No premarket candidates</div>
+                </div>
             </div>
         </div>
 
-        <!-- Premarket Performance History Section -->
-        <div class="section">
-            <h2>📊 Premarket Performance History</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Total Days</div>
-                    <div style="font-size: 28px; font-weight: 700;" id="pm-total-days">0</div>
-                </div>
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Trades Executed</div>
-                    <div style="font-size: 28px; font-weight: 700;" id="pm-total-executed">0</div>
-                </div>
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Win Rate</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #10b981;" id="pm-win-rate">0%</div>
-                </div>
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Avg P/L</div>
-                    <div style="font-size: 28px; font-weight: 700;" id="pm-avg-pl">0%</div>
-                </div>
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Best Trade</div>
-                    <div style="font-size: 20px; font-weight: 700; color: #10b981;" id="pm-best-trade">-</div>
-                </div>
-                <div>
-                    <div style="font-size: 14px; color: #94a3b8; margin-bottom: 8px;">Worst Trade</div>
-                    <div style="font-size: 20px; font-weight: 700; color: #ef4444;" id="pm-worst-trade">-</div>
+        <!-- Row 3: Premarket Stats -->
+        <div class="panel" style="margin-bottom: 8px;">
+            <div class="panel-header">
+                <span class="panel-title">📊 Premarket Performance</span>
+                <button class="btn btn-secondary" onclick="showPremarketHistory()" style="padding: 4px 10px; font-size: 11px;">View History</button>
+            </div>
+            <div class="panel-body">
+                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; text-align: center;">
+                    <div>
+                        <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">DAYS</div>
+                        <div style="font-size: 24px; font-weight: 500;" id="pm-total-days">0</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">EXECUTED</div>
+                        <div style="font-size: 24px; font-weight: 500;" id="pm-total-executed">0</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">WIN RATE</div>
+                        <div style="font-size: 24px; font-weight: 500; color: #73bf69;" id="pm-win-rate">0%</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">AVG P/L</div>
+                        <div style="font-size: 24px; font-weight: 500;" id="pm-avg-pl">0%</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">BEST</div>
+                        <div style="font-size: 18px; font-weight: 500; color: #73bf69;" id="pm-best-trade">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">WORST</div>
+                        <div style="font-size: 18px; font-weight: 500; color: #f2495c;" id="pm-worst-trade">-</div>
+                    </div>
                 </div>
             </div>
-            <div style="margin-top: 20px;">
-                <button class="btn btn-secondary" onclick="showPremarketHistory()" style="font-size: 13px; padding: 8px 16px;">📋 View History</button>
+        </div>
+
+        <!-- Row 4: Positions -->
+        <div class="panel" style="margin-bottom: 8px;">
+            <div class="panel-header">
+                <span class="panel-title">📊 Open Positions</span>
+                <span id="positions-updated" style="font-size: 11px; color: #6e6e6e;"></span>
+            </div>
+            <div class="panel-body" style="padding: 0;">
+                <div id="positions-table"></div>
             </div>
         </div>
 
-        <div class="section">
-            <h2 style="display: flex; justify-content: space-between; align-items: center;">
-                <span>📊 Open Positions</span>
-                <span id="positions-updated" style="font-size: 12px; font-weight: normal; color: #64748b;"></span>
-            </h2>
-            <div id="positions-table"></div>
+        <!-- Row 5: Orders -->
+        <div class="panel" style="margin-bottom: 8px;">
+            <div class="panel-header">
+                <span class="panel-title">📝 Recent Orders</span>
+            </div>
+            <div class="panel-body" style="padding: 0; max-height: 300px; overflow-y: auto;">
+                <div id="orders-table"></div>
+            </div>
         </div>
 
-        <div class="section">
-            <h2>📝 Recent Orders</h2>
-            <div id="orders-table"></div>
-        </div>
-
-        <div class="section">
-            <h2>📋 Live Activity Log</h2>
-            <div class="log-container" id="log-container"></div>
+        <!-- Row 6: Logs -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📋 Activity Log</span>
+            </div>
+            <div class="panel-body" style="padding: 12px;">
+                <div class="log-container" id="log-container"></div>
+            </div>
         </div>
     </div>
 
@@ -293,120 +526,83 @@
         function showNotification(message, type = 'info') {
             const notification = document.getElementById('notification');
             notification.textContent = message;
-            notification.style.background = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#3b82f6';
-            notification.classList.add('show');
+            notification.className = 'notification show ' + type;
             setTimeout(() => notification.classList.remove('show'), 3000);
         }
 
         function formatCurrency(value) {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
         }
 
         function formatPercent(value) {
-            return value.toFixed(2) + '%';
+            return (value >= 0 ? '+' : '') + value.toFixed(2) + '%';
         }
 
-        // Store previous account values for change detection
         let previousAccount = {};
 
         async function updateStatus() {
             const data = await fetchData('/api/status');
             if (!data) return;
 
-            // Update NYSE time
-            if (false && data.nyse_time) { // Disabled - using client-side time
-                document.getElementById('nyse-time').textContent = data.nyse_time.time;
-                document.getElementById('nyse-date').textContent = data.nyse_time.date;
-            }
-
-            const market = data.market;
-            const marketStatusEl = document.getElementById('market-status');
-            marketStatusEl.textContent = market.is_open ? '🟢 OPEN' : '🔴 CLOSED';
-            marketStatusEl.className = market.is_open ? 'status-badge open' : 'status-badge closed';
-            
-            const nextTime = market.is_open ? market.next_close : market.next_open;
-            document.getElementById('market-time').textContent = market.is_open ? `Closes: ${nextTime}` : `Opens: ${nextTime}`;
-
-            // Update trading status based on market and bot service
-            const tradingStatus = document.getElementById('trading-status');
-            const tradingIndicator = document.getElementById('trading-indicator');
-            const tradingText = document.getElementById('trading-text');
-            
-            if (data.trading_running) {
-                tradingStatus.classList.add('running');
-                tradingIndicator.classList.add('pulse');
-                tradingText.textContent = market.is_open ? 'Bot Active - Trading' : 'Bot Active - Market Closed';
+            // Market status
+            const marketEl = document.getElementById('market-status');
+            if (data.market && data.market.is_open) {
+                marketEl.textContent = '● OPEN';
+                marketEl.className = 'status-badge open';
             } else {
-                tradingStatus.classList.remove('running');
-                tradingIndicator.classList.remove('pulse');
-                tradingText.textContent = 'Bot Inactive';
+                marketEl.textContent = '● CLOSED';
+                marketEl.className = 'status-badge closed';
             }
 
-            const account = data.account;
-            
-            // Flash portfolio value if changed
-            const portfolioEl = document.getElementById('portfolio-value');
-            if (previousAccount.portfolio_value !== undefined && previousAccount.portfolio_value !== account.portfolio_value) {
-                portfolioEl.classList.remove('flash-green', 'flash-red');
-                void portfolioEl.offsetWidth; // Force reflow to restart animation
-                portfolioEl.classList.add(account.portfolio_value > previousAccount.portfolio_value ? 'flash-green' : 'flash-red');
+            // Bot status
+            const botEl = document.getElementById('trading-status');
+            if (data.trading_running) {
+                botEl.textContent = '● RUNNING';
+                botEl.className = 'status-badge running';
+            } else {
+                botEl.textContent = '● STOPPED';
+                botEl.className = 'status-badge stopped';
             }
-            portfolioEl.textContent = formatCurrency(account.portfolio_value);
-            
-            document.getElementById('buying-power').textContent = formatCurrency(account.buying_power);
-            document.getElementById('cash').textContent = formatCurrency(account.cash);
-            
-            const plEl = document.getElementById('profit-loss');
-            // Flash P&L if changed
-            if (previousAccount.profit_loss !== undefined && previousAccount.profit_loss !== account.profit_loss) {
-                plEl.classList.remove('flash-green', 'flash-red');
-                void plEl.offsetWidth; // Force reflow
-                plEl.classList.add(account.profit_loss > previousAccount.profit_loss ? 'flash-green' : 'flash-red');
-            }
-            plEl.textContent = formatCurrency(account.profit_loss);
-            plEl.className = account.profit_loss >= 0 ? 'value profit' : 'value loss';
-            
-            const plPctEl = document.getElementById('profit-loss-pct');
-            plPctEl.textContent = formatPercent(account.profit_loss_pct);
-            plPctEl.className = account.profit_loss >= 0 ? 'label profit' : 'label loss';
-            
-            // Store for next comparison
-            previousAccount = {
-                portfolio_value: account.portfolio_value,
-                profit_loss: account.profit_loss
-            };
 
-            // Update regime indicator
+            // Regime
             if (data.regime) {
-                const regime = data.regime;
-                const regimeValue = document.getElementById('regime-value');
-                const regimeParams = document.getElementById('regime-params');
+                const regimeBadge = document.getElementById('regime-badge');
+                const regimeName = (data.regime.regime || 'unknown').toUpperCase().replace('_', ' ');
+                regimeBadge.textContent = regimeName;
+                regimeBadge.className = 'regime-badge regime-' + (data.regime.regime || 'neutral');
                 
-                // Format regime name for display
-                const regimeDisplay = {
-                    'strong_bull': 'STRONG BULL',
-                    'bull': 'BULL',
-                    'neutral': 'NEUTRAL',
-                    'bear': 'BEAR',
-                    'strong_bear': 'STRONG BEAR',
-                    'high_volatility': 'HIGH VOL',
-                    'unknown': 'UNKNOWN',
-                    'error': 'ERROR'
-                };
+                const slPct = ((data.regime.stop_loss_pct || 0.03) * 100).toFixed(0);
+                const tpPct = ((data.regime.take_profit_pct || 0.08) * 100).toFixed(0);
+                const minScore = data.regime.min_score || 70;
+                document.getElementById('regime-params').textContent = `SL: ${slPct}% | TP: ${tpPct}% | Min: ${minScore}`;
+            }
+
+            // Account
+            const account = data.account;
+            if (account) {
+                const portfolioEl = document.getElementById('portfolio-value');
+                if (previousAccount.portfolio_value !== undefined && previousAccount.portfolio_value !== account.portfolio_value) {
+                    portfolioEl.classList.remove('flash-green', 'flash-red');
+                    void portfolioEl.offsetWidth;
+                    portfolioEl.classList.add(account.portfolio_value > previousAccount.portfolio_value ? 'flash-green' : 'flash-red');
+                }
+                portfolioEl.textContent = formatCurrency(account.portfolio_value);
                 
-                const regimeName = regime.regime || 'unknown';
-                regimeValue.textContent = regimeDisplay[regimeName] || regimeName.toUpperCase();
-                regimeValue.className = `regime-value regime-${regimeName}`;
+                document.getElementById('buying-power').textContent = formatCurrency(account.buying_power);
+                document.getElementById('cash').textContent = formatCurrency(account.cash);
                 
-                // Format parameters
-                const slPct = ((regime.stop_loss_pct || 0.03) * 100).toFixed(0);
-                const tpPct = ((regime.take_profit_pct || 0.08) * 100).toFixed(0);
-                const minScore = regime.min_score || 70;
-                regimeParams.textContent = `SL: ${slPct}% | TP: ${tpPct}% | Min: ${minScore}`;
+                const plEl = document.getElementById('profit-loss');
+                plEl.textContent = formatCurrency(account.profit_loss);
+                plEl.className = 'stat-value ' + (account.profit_loss >= 0 ? 'green' : 'red');
+                
+                const plPctEl = document.getElementById('profit-loss-pct');
+                plPctEl.textContent = formatPercent(account.profit_loss_pct);
+                plPctEl.className = 'stat-label ' + (account.profit_loss >= 0 ? 'green' : 'red');
+                
+                previousAccount = { portfolio_value: account.portfolio_value, profit_loss: account.profit_loss };
             }
         }
 
-        // Store previous position data for change detection
         let previousPositions = {};
 
         async function updatePositions() {
@@ -417,66 +613,33 @@
             
             if (positions.length === 0) {
                 container.innerHTML = '<div class="empty">No open positions</div>';
-                previousPositions = {};
                 return;
             }
 
-            let html = '<table><thead><tr><th>Symbol</th><th>Qty</th><th>Avg Price</th><th>Current Price</th><th>Market Value</th><th>P&L</th><th>P&L %</th><th>Hold Time</th><th>Lock</th></tr></thead><tbody>';
+            let html = '<table class="data-table"><thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Hold</th><th>Lock</th></tr></thead><tbody>';
             
             for (const pos of positions) {
-                const plClass = pos.unrealized_pl >= 0 ? 'profit' : 'loss';
+                const plClass = pos.unrealized_pl >= 0 ? 'green' : 'red';
                 const lockIcon = pos.is_locked ? '🔒' : '🔓';
-                const lockAction = pos.is_locked ? 'unlock' : 'lock';
-                const lockColor = pos.is_locked ? '#ef4444' : '#10b981';
+                const lockClass = pos.is_locked ? 'btn-danger' : 'btn-success';
                 const holdTime = pos.hold_duration_min ? `${Math.floor(pos.hold_duration_min / 60)}h ${pos.hold_duration_min % 60}m` : '-';
                 
-                // Detect changes for highlighting
-                const prev = previousPositions[pos.symbol] || {};
-                const priceChanged = prev.current_price !== undefined && prev.current_price !== pos.current_price;
-                const plChanged = prev.unrealized_pl !== undefined && prev.unrealized_pl !== pos.unrealized_pl;
-                
-                // Determine flash class
-                let priceFlash = '';
-                let plFlash = '';
-                if (priceChanged) {
-                    priceFlash = pos.current_price > prev.current_price ? 'flash-green' : 'flash-red';
-                }
-                if (plChanged) {
-                    plFlash = pos.unrealized_pl > prev.unrealized_pl ? 'flash-green' : 'flash-red';
-                }
-                
-                html += `<tr id="pos-row-${pos.symbol}">
-                    <td><strong><a class="ticker-link" onclick="showPositionDetails('${pos.symbol}')">${pos.symbol}</a></strong></td>
+                html += `<tr>
+                    <td><a class="ticker-link" onclick="showPositionDetails('${pos.symbol}')">${pos.symbol}</a></td>
                     <td>${pos.qty}</td>
                     <td>${formatCurrency(pos.avg_entry_price)}</td>
-                    <td class="${priceFlash}" id="price-${pos.symbol}">${formatCurrency(pos.current_price)}</td>
-                    <td id="value-${pos.symbol}">${formatCurrency(pos.market_value)}</td>
-                    <td class="${plClass} ${plFlash}" id="pl-${pos.symbol}">${formatCurrency(pos.unrealized_pl)}</td>
-                    <td class="${plClass}" id="plpct-${pos.symbol}">${formatPercent(pos.unrealized_plpc)}</td>
+                    <td>${formatCurrency(pos.current_price)}</td>
+                    <td>${formatCurrency(pos.market_value)}</td>
+                    <td class="${plClass}">${formatCurrency(pos.unrealized_pl)}</td>
+                    <td class="${plClass}">${formatPercent(pos.unrealized_plpc)}</td>
                     <td>${holdTime}</td>
-                    <td>
-                        <button onclick="toggleLock('${pos.symbol}')" 
-                                style="background: ${lockColor}; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                            ${lockIcon} ${lockAction}
-                        </button>
-                    </td>
+                    <td><button class="btn ${lockClass}" onclick="toggleLock('${pos.symbol}')" style="padding: 4px 8px; font-size: 11px;">${lockIcon}</button></td>
                 </tr>`;
-                
-                // Store current values for next comparison
-                previousPositions[pos.symbol] = {
-                    current_price: pos.current_price,
-                    unrealized_pl: pos.unrealized_pl,
-                    market_value: pos.market_value
-                };
             }
             
             html += '</tbody></table>';
             container.innerHTML = html;
-            
-            // Update last refresh timestamp
-            const now = new Date();
-            document.getElementById('positions-updated').textContent = 
-                `Last updated: ${now.toLocaleTimeString()}`;
+            document.getElementById('positions-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
         }
 
         async function updateOrders() {
@@ -490,40 +653,21 @@
                 return;
             }
 
-            // Get side colors
-            const getSideClass = (side) => {
-                return side === 'buy' ? 'profit' : 'loss';
-            };
-            
-            // Get status badge style
-            const getStatusStyle = (status) => {
-                const styles = {
-                    'filled': 'background: #10b981; color: white;',
-                    'partially_filled': 'background: #f59e0b; color: white;',
-                    'new': 'background: #3b82f6; color: white;',
-                    'pending_new': 'background: #3b82f6; color: white;',
-                    'canceled': 'background: #6b7280; color: white;',
-                    'expired': 'background: #6b7280; color: white;',
-                    'rejected': 'background: #ef4444; color: white;',
-                };
-                return styles[status] || 'background: #64748b; color: white;';
-            };
-
-            let html = '<table><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Type</th><th>Status</th><th>Filled</th><th>Avg Price</th><th>Time</th></tr></thead><tbody>';
+            let html = '<table class="data-table"><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Type</th><th>Status</th><th>Filled</th><th>Price</th><th>Time</th></tr></thead><tbody>';
             
             for (const order of orders.slice(0, 10)) {
-                const sideClass = getSideClass(order.side);
-                const statusStyle = getStatusStyle(order.status);
+                const sideClass = order.side === 'buy' ? 'green' : 'red';
+                const statusClass = order.status === 'filled' ? 'green' : order.status === 'rejected' ? 'red' : 'yellow';
                 
                 html += `<tr>
-                    <td><strong><a class="ticker-link" onclick="showSymbolDetails('${order.symbol}')">${order.symbol}</a></strong></td>
+                    <td><a class="ticker-link" onclick="showSymbolDetails('${order.symbol}')">${order.symbol}</a></td>
                     <td class="${sideClass}" style="text-transform: uppercase; font-weight: 600;">${order.side}</td>
                     <td>${order.qty}</td>
                     <td>${order.type}</td>
-                    <td><span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; ${statusStyle}">${order.status.toUpperCase()}</span></td>
+                    <td class="${statusClass}">${order.status}</td>
                     <td>${order.filled_qty}</td>
-                    <td>${order.filled_avg_price > 0 ? formatCurrency(order.filled_avg_price) : '-'}</td>
-                    <td>${new Date(order.created_at).toLocaleString()}</td>
+                    <td>${order.filled_avg_price > 0 ? '$' + order.filled_avg_price.toFixed(2) : '-'}</td>
+                    <td style="color: #6e6e6e;">${new Date(order.created_at).toLocaleTimeString()}</td>
                 </tr>`;
             }
             
@@ -538,14 +682,14 @@
             const container = document.getElementById('log-container');
             let html = '';
             
-            for (const log of logs.slice(-50)) {
+            for (const log of logs.slice(-30)) {
                 const level = log.level || 'info';
                 const event = log.event || 'unknown';
                 const timestamp = log.timestamp || new Date().toISOString();
                 
                 html = `<div class="log-entry ${level}">
-                    <div class="timestamp">${new Date(timestamp).toLocaleString()}</div>
-                    <div>${event}: ${JSON.stringify(log).substring(0, 200)}</div>
+                    <div class="timestamp">${new Date(timestamp).toLocaleTimeString()}</div>
+                    <div>${event}: ${JSON.stringify(log).substring(0, 150)}${JSON.stringify(log).length > 150 ? '...' : ''}</div>
                 </div>` + html;
             }
             
@@ -557,33 +701,69 @@
             if (!data || data.error) return;
 
             document.getElementById('rebal-total').textContent = data.total_rebalances;
-            document.getElementById('rebal-avg').textContent = data.avg_score_improvement 
-                ? `+${data.avg_score_improvement.toFixed(1)}` 
-                : '+0.0';
-            document.getElementById('rebal-cooldown').textContent = `${data.cooldown_minutes} min`;
+            document.getElementById('rebal-avg').textContent = data.avg_score_improvement ? `+${data.avg_score_improvement.toFixed(1)}` : '+0.0';
+            document.getElementById('rebal-cooldown').textContent = `${data.cooldown_minutes}m`;
+            document.getElementById('rebal-status-icon').textContent = data.can_rebalance_now ? '✅' : '⏳';
+            document.getElementById('rebal-status-icon').style.color = data.can_rebalance_now ? '#73bf69' : '#ff9830';
+        }
+
+        async function updatePremarketCandidates() {
+            const data = await fetchData('/api/premarket/candidates');
+            if (!data) return;
+
+            const container = document.getElementById('premarket-candidates');
+            const scanTimeEl = document.getElementById('premarket-scan-time');
             
-            const statusIcon = document.getElementById('rebal-status-icon');
-            if (data.can_rebalance_now) {
-                statusIcon.textContent = '✅';
-                statusIcon.style.color = '#10b981';
-            } else {
-                statusIcon.textContent = '⏳';
-                statusIcon.style.color = '#ef4444';
+            if (data.scan_time) {
+                const scanDate = new Date(data.scan_time);
+                scanTimeEl.textContent = data.is_today ? `Scanned ${scanDate.toLocaleTimeString()}` : `Stale: ${scanDate.toLocaleDateString()}`;
+                scanTimeEl.style.color = data.is_today ? '#73bf69' : '#ff9830';
+            }
+
+            if (!data.candidates || data.candidates.length === 0) {
+                container.innerHTML = '<div class="empty" style="padding: 20px;">No premarket candidates</div>';
+                return;
+            }
+
+            let html = '<table class="data-table"><thead><tr><th>#</th><th>Symbol</th><th>Score</th><th>Price</th></tr></thead><tbody>';
+            data.candidates.slice(0, 5).forEach((c, i) => {
+                const scoreClass = c.score >= 75 ? 'green' : c.score >= 70 ? 'yellow' : 'red';
+                html += `<tr><td>${i + 1}</td><td><strong>${c.symbol}</strong></td><td class="${scoreClass}">${c.score.toFixed(1)}</td><td>${c.price ? '$' + c.price.toFixed(2) : '-'}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function updatePremarketStats() {
+            const stats = await fetchData('/api/premarket/stats');
+            if (!stats || stats.error) return;
+
+            document.getElementById('pm-total-days').textContent = stats.total_days;
+            document.getElementById('pm-total-executed').textContent = stats.total_executed;
+            document.getElementById('pm-win-rate').textContent = `${stats.win_rate}%`;
+            document.getElementById('pm-win-rate').className = stats.win_rate >= 50 ? 'green' : 'red';
+            
+            const avgPl = stats.avg_profit_pct;
+            document.getElementById('pm-avg-pl').textContent = `${avgPl >= 0 ? '+' : ''}${avgPl}%`;
+            document.getElementById('pm-avg-pl').style.color = avgPl >= 0 ? '#73bf69' : '#f2495c';
+            
+            if (stats.best_trade) {
+                document.getElementById('pm-best-trade').textContent = `${stats.best_trade.symbol} +${stats.best_trade.profit_pct.toFixed(1)}%`;
+            }
+            if (stats.worst_trade) {
+                document.getElementById('pm-worst-trade').textContent = `${stats.worst_trade.symbol} ${stats.worst_trade.profit_pct.toFixed(1)}%`;
             }
         }
 
         async function toggleLock(symbol) {
-            // Get current lock status
             const positions = await fetchData('/api/positions');
             const position = positions.find(p => p.symbol === symbol);
             const isLocked = position ? position.is_locked : false;
             
             const action = isLocked ? 'unlock' : 'lock';
-            const url = `/api/positions/${action}/${symbol}`;
-            
             showNotification(`${isLocked ? 'Unlocking' : 'Locking'} ${symbol}...`, 'info');
             
-            const result = await fetchData(url, { method: 'POST' });
+            const result = await fetchData(`/api/positions/${action}/${symbol}`, { method: 'POST' });
             
             if (result && result.status === 'success') {
                 showNotification(result.message, 'success');
@@ -595,160 +775,119 @@
 
         async function showRebalancingHistory() {
             const history = await fetchData('/api/rebalancing/history?limit=20');
-            
             if (!history || history.length === 0) {
                 showNotification('No rebalancing history available', 'info');
                 return;
             }
             
-            let html = '<div style="background: #0f172a; padding: 20px; border-radius: 8px; max-height: 500px; overflow-y: auto;">';
-            html += '<h3 style="margin-bottom: 15px;">Recent Rebalancing Events</h3>';
-            html += '<table><thead><tr><th>Time</th><th>Old Symbol</th><th>Old Score</th><th>New Symbol</th><th>New Score</th><th>Improvement</th></tr></thead><tbody>';
-            
+            let html = '<table class="data-table"><thead><tr><th>Time</th><th>Old</th><th>Score</th><th>New</th><th>Score</th><th>Gain</th></tr></thead><tbody>';
             for (const event of history) {
                 const improvement = event.new_score - event.old_score;
-                const improvementClass = improvement >= 0 ? 'profit' : 'loss';
-                const time = new Date(event.timestamp).toLocaleString();
-                
-                html += `<tr>
-                    <td>${time}</td>
-                    <td><strong>${event.old_symbol}</strong></td>
-                    <td>${event.old_score.toFixed(1)}</td>
-                    <td><strong>${event.new_symbol}</strong></td>
-                    <td>${event.new_score.toFixed(1)}</td>
-                    <td class="${improvementClass}">+${improvement.toFixed(1)}</td>
-                </tr>`;
+                html += `<tr><td>${new Date(event.timestamp).toLocaleString()}</td><td>${event.old_symbol}</td><td>${event.old_score.toFixed(1)}</td><td>${event.new_symbol}</td><td>${event.new_score.toFixed(1)}</td><td class="green">+${improvement.toFixed(1)}</td></tr>`;
             }
-            
-            html += '</tbody></table></div>';
-            
-            // Create modal overlay
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
-            modal.innerHTML = `
-                <div style="background: #1e293b; border-radius: 12px; padding: 30px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto;">
-                    ${html}
-                    <button onclick="this.closest('div[style*=fixed]').remove()" class="btn btn-secondary" style="margin-top: 20px;">Close</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        // ========== PREMARKET FUNCTIONS ==========
-        async function updatePremarketCandidates() {
-            const data = await fetchData('/api/premarket/candidates');
-            if (!data) return;
-
-            const container = document.getElementById('premarket-candidates');
-            const scanTimeEl = document.getElementById('premarket-scan-time');
-            
-            // Update scan time
-            if (data.scan_time) {
-                const scanDate = new Date(data.scan_time);
-                const isToday = data.is_today;
-                scanTimeEl.textContent = isToday 
-                    ? `Scanned today at ${scanDate.toLocaleTimeString()}`
-                    : `Last scan: ${scanDate.toLocaleString()} (stale)`;
-                scanTimeEl.style.color = isToday ? '#10b981' : '#f97316';
-            } else {
-                scanTimeEl.textContent = 'No scan yet';
-            }
-
-            if (!data.candidates || data.candidates.length === 0) {
-                container.innerHTML = '<div class="empty">No premarket candidates queued. Scan runs ~90 min before market open.</div>';
-                return;
-            }
-
-            let html = '<table><thead><tr><th>Rank</th><th>Symbol</th><th>Score</th><th>Price</th><th>Scanned At</th></tr></thead><tbody>';
-            
-            data.candidates.slice(0, 10).forEach((c, i) => {
-                const scoreClass = c.score >= 75 ? 'profit' : c.score >= 70 ? '' : 'loss';
-                const scannedAt = c.scanned_at ? new Date(c.scanned_at).toLocaleTimeString() : '-';
-                html += `<tr>
-                    <td><strong>#${i + 1}</strong></td>
-                    <td><strong>${c.symbol}</strong></td>
-                    <td class="${scoreClass}">${c.score.toFixed(1)}</td>
-                    <td>${c.price ? formatCurrency(c.price) : '-'}</td>
-                    <td>${scannedAt}</td>
-                </tr>`;
-            });
-            
             html += '</tbody></table>';
-            if (data.count > 10) {
-                html += `<div style="text-align: center; margin-top: 10px; color: #64748b; font-size: 13px;">Showing top 10 of ${data.count} candidates</div>`;
-            }
-            container.innerHTML = html;
-        }
-
-        async function updatePremarketStats() {
-            const stats = await fetchData('/api/premarket/stats');
-            if (!stats || stats.error) return;
-
-            document.getElementById('pm-total-days').textContent = stats.total_days;
-            document.getElementById('pm-total-executed').textContent = stats.total_executed;
-            document.getElementById('pm-win-rate').textContent = `${stats.win_rate}%`;
-            document.getElementById('pm-win-rate').className = stats.win_rate >= 50 ? 'profit' : 'loss';
             
-            const avgPl = stats.avg_profit_pct;
-            document.getElementById('pm-avg-pl').textContent = `${avgPl >= 0 ? '+' : ''}${avgPl}%`;
-            document.getElementById('pm-avg-pl').className = avgPl >= 0 ? 'profit' : 'loss';
-            
-            if (stats.best_trade) {
-                document.getElementById('pm-best-trade').textContent = 
-                    `${stats.best_trade.symbol} +${stats.best_trade.profit_pct.toFixed(1)}%`;
-            }
-            if (stats.worst_trade) {
-                document.getElementById('pm-worst-trade').textContent = 
-                    `${stats.worst_trade.symbol} ${stats.worst_trade.profit_pct.toFixed(1)}%`;
-            }
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h2>Rebalancing History</h2><button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button></div><div class="modal-body">${html}</div></div>`;
+            document.body.appendChild(modal);
         }
 
         async function showPremarketHistory() {
             const history = await fetchData('/api/premarket/history?limit=30');
-            
             if (!history || history.length === 0) {
-                showNotification('No premarket history available yet', 'info');
+                showNotification('No premarket history available', 'info');
                 return;
             }
             
-            let html = '<div style="background: #0f172a; padding: 20px; border-radius: 8px; max-height: 500px; overflow-y: auto;">';
-            html += '<h3 style="margin-bottom: 15px;">Premarket Trading History</h3>';
-            html += '<table><thead><tr><th>Date</th><th>Regime</th><th>Candidates</th><th>Executed</th><th>Trades</th></tr></thead><tbody>';
-            
+            let html = '<table class="data-table"><thead><tr><th>Date</th><th>Regime</th><th>Candidates</th><th>Executed</th><th>Trades</th></tr></thead><tbody>';
             for (const record of history) {
-                const regimeClass = record.regime === 'bull' || record.regime === 'strong_bull' 
-                    ? 'profit' : record.regime === 'bear' || record.regime === 'strong_bear' ? 'loss' : '';
-                
-                // Build trades summary
-                let tradesHtml = '';
-                for (const trade of record.executed || []) {
-                    const hasPL = 'profit_loss_pct' in trade;
-                    const plClass = hasPL ? (trade.profit_loss_pct >= 0 ? 'profit' : 'loss') : '';
-                    const plText = hasPL ? `${trade.profit_loss_pct >= 0 ? '+' : ''}${trade.profit_loss_pct.toFixed(1)}%` : 'Open';
-                    tradesHtml += `<span style="margin-right: 8px;">${trade.symbol}: <span class="${plClass}">${plText}</span></span>`;
+                let tradesHtml = (record.executed || []).map(t => {
+                    const hasPL = 'profit_loss_pct' in t;
+                    const plClass = hasPL ? (t.profit_loss_pct >= 0 ? 'green' : 'red') : '';
+                    return `<span class="${plClass}">${t.symbol}: ${hasPL ? (t.profit_loss_pct >= 0 ? '+' : '') + t.profit_loss_pct.toFixed(1) + '%' : 'Open'}</span>`;
+                }).join(' ');
+                html += `<tr><td>${record.date}</td><td>${(record.regime || 'unknown').toUpperCase()}</td><td>${record.total_candidates}</td><td>${record.execution_count}</td><td style="font-size: 11px;">${tradesHtml || '-'}</td></tr>`;
+            }
+            html += '</tbody></table>';
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.innerHTML = `<div class="modal-content" style="max-width: 1000px;"><div class="modal-header"><h2>Premarket History</h2><button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button></div><div class="modal-body">${html}</div></div>`;
+            document.body.appendChild(modal);
+        }
+
+        async function showPositionDetails(symbol) {
+            const modal = document.getElementById('position-modal');
+            const modalBody = document.getElementById('modal-body');
+            document.getElementById('modal-symbol').textContent = symbol;
+            modalBody.innerHTML = '<div class="empty">Loading...</div>';
+            modal.classList.add('active');
+            
+            try {
+                const data = await fetchData(`/api/positions/${symbol}/details`);
+                if (!data || data.error) {
+                    modalBody.innerHTML = `<div class="empty" style="color: #f2495c;">Error: ${data?.error || 'Failed to load'}</div>`;
+                    return;
                 }
                 
-                html += `<tr>
-                    <td><strong>${record.date}</strong></td>
-                    <td class="${regimeClass}">${(record.regime || 'unknown').toUpperCase()}</td>
-                    <td>${record.total_candidates}</td>
-                    <td>${record.execution_count}</td>
-                    <td style="font-size: 12px;">${tradesHtml || '-'}</td>
-                </tr>`;
+                const plClass = data.unrealized_pl >= 0 ? 'green' : 'red';
+                const priceRange = data.take_profit_price - data.stop_loss_price;
+                const pricePosition = Math.max(0, Math.min(100, ((data.current_price - data.stop_loss_price) / priceRange) * 100));
+                
+                modalBody.innerHTML = `
+                    <div class="detail-grid">
+                        <div class="detail-card"><div class="label">Entry Price</div><div class="value">${formatCurrency(data.entry_price)}</div><div class="sub">${data.entry_time_formatted}</div></div>
+                        <div class="detail-card"><div class="label">Current Price</div><div class="value">${formatCurrency(data.current_price)}</div><div class="sub">Qty: ${data.qty}</div></div>
+                        <div class="detail-card"><div class="label">Unrealized P&L</div><div class="value ${plClass}">${formatCurrency(data.unrealized_pl)}</div><div class="sub ${plClass}">${formatPercent(data.unrealized_plpc)}</div></div>
+                        <div class="detail-card"><div class="label">Hold Duration</div><div class="value">${data.hold_duration}</div><div class="sub">${data.is_locked ? '🔒 Locked' : '🔓 Unlocked'}</div></div>
+                    </div>
+                    <div class="chart-container"><h3>📈 Price Chart</h3><iframe src="https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&theme=dark&style=1&timezone=exchange" style="width: 100%; height: 350px; border: none; border-radius: 4px;"></iframe></div>
+                    <div class="section-box"><h3>📊 Price Levels</h3>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;"><span class="red">Stop: ${formatCurrency(data.stop_loss_price)}</span><span class="blue">Current: ${formatCurrency(data.current_price)}</span><span class="green">Target: ${formatCurrency(data.take_profit_price)}</span></div>
+                        <div class="price-bar"><div class="price-marker stop" style="left: 0%;"></div><div class="price-marker current" style="left: ${pricePosition}%;"></div><div class="price-marker target" style="left: 100%;"></div></div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: #6e6e6e;"><span>${data.pct_to_stop.toFixed(1)}% above stop</span><span>${data.pct_to_target.toFixed(1)}% to target</span></div>
+                    </div>
+                    <div class="section-box"><h3>📝 Entry Reasoning</h3><div class="content">${data.entry_reasoning.join('\n')}</div></div>
+                    <div class="section-box"><h3>🎯 Exit Plan</h3><div class="content">${data.exit_plan.join('\n')}</div></div>
+                    <div class="section-box"><h3>📰 Latest News</h3><div id="position-news" class="news-container"><div class="empty">Loading news...</div></div></div>
+                    <div style="margin-top: 16px;"><button class="btn btn-secondary" onclick="toggleLock('${symbol}'); closePositionModal();">${data.is_locked ? '🔓 Unlock' : '🔒 Lock'}</button></div>
+                `;
+                
+                // Load news
+                const news = await fetchData(`/api/news/${symbol}?limit=5`);
+                const newsContainer = document.getElementById('position-news');
+                if (news && news.articles && news.articles.length > 0) {
+                    newsContainer.innerHTML = news.articles.map(a => `<div class="news-card"><div class="news-title"><a href="${a.url}" target="_blank">${a.title}</a></div><div class="news-desc">${a.description || ''}</div><div class="news-meta"><span>${a.source}</span><span>${a.publishedAt}</span></div></div>`).join('');
+                } else {
+                    newsContainer.innerHTML = '<div class="empty">No recent news</div>';
+                }
+            } catch (error) {
+                modalBody.innerHTML = `<div class="empty" style="color: #f2495c;">Error: ${error.message}</div>`;
             }
-            
-            html += '</tbody></table></div>';
-            
-            // Create modal overlay
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
-            modal.innerHTML = `
-                <div style="background: #1e293b; border-radius: 12px; padding: 30px; max-width: 1000px; width: 100%; max-height: 90vh; overflow-y: auto;">
-                    ${html}
-                    <button onclick="this.closest('div[style*=fixed]').remove()" class="btn btn-secondary" style="margin-top: 20px;">Close</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
+        }
+
+        async function showSymbolDetails(symbol) {
+            const positions = await fetchData('/api/positions');
+            if (positions.find(p => p.symbol === symbol)) {
+                return showPositionDetails(symbol);
+            }
+            // For non-position symbols, show basic modal with chart
+            const modal = document.getElementById('position-modal');
+            document.getElementById('modal-symbol').textContent = symbol;
+            document.getElementById('modal-body').innerHTML = `<div class="chart-container"><h3>📈 ${symbol} Chart</h3><iframe src="https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&theme=dark&style=1&timezone=exchange" style="width: 100%; height: 400px; border: none; border-radius: 4px;"></iframe></div>`;
+            modal.classList.add('active');
+        }
+
+        function closePositionModal() {
+            document.getElementById('position-modal').classList.remove('active');
+        }
+
+        // NYSE Clock
+        function updateNYSEClock() {
+            const now = new Date();
+            document.getElementById('nyse-time').textContent = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('nyse-date').textContent = now.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' });
         }
 
         async function refreshAll() {
@@ -763,399 +902,15 @@
             ]);
         }
 
-        // Initial load
+        // Initialize
         refreshAll();
-
-        // Auto-refresh every 2 seconds for real-time feel
+        updateNYSEClock();
         setInterval(refreshAll, 2000);
+        setInterval(updateNYSEClock, 1000);
 
-        // NYSE Time - Update every second using client-side calculation
-        function updateNYSETimeLocal() {
-            const now = new Date();
-            const options = { 
-                timeZone: 'America/New_York',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
-            };
-            const dateOptions = {
-                timeZone: 'America/New_York',
-                weekday: 'short',
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric'
-            };
-            document.getElementById('nyse-time').textContent = now.toLocaleTimeString('en-US', options);
-            document.getElementById('nyse-date').textContent = now.toLocaleDateString('en-US', dateOptions);
-        }
-        
-        // Use precise timing to sync with system clock
-        function startNYSEClock() {
-            updateNYSETimeLocal();
-            const now = new Date();
-            const msUntilNextSecond = 1000 - now.getMilliseconds();
-            setTimeout(() => {
-                updateNYSETimeLocal();
-                setInterval(updateNYSETimeLocal, 1000);
-            }, msUntilNextSecond);
-        }
-        startNYSEClock();
-
-        // Position Detail Modal Functions
-        async function showPositionDetails(symbol) {
-            const modal = document.getElementById('position-modal');
-            const modalBody = document.getElementById('modal-body');
-            const modalSymbol = document.getElementById('modal-symbol');
-            
-            modalSymbol.textContent = symbol;
-            modalBody.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading position details...</div>';
-            modal.classList.add('active');
-            
-            try {
-                const data = await fetchData(`/api/positions/${symbol}/details`);
-                
-                if (!data || data.error) {
-                    modalBody.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error: ${data?.error || 'Failed to load position details'}</div>`;
-                    return;
-                }
-                
-                const plClass = data.unrealized_pl >= 0 ? 'profit' : 'loss';
-                const plSign = data.unrealized_pl >= 0 ? '+' : '';
-                
-                // Calculate price position for visual bar (0-100%)
-                const priceRange = data.take_profit_price - data.stop_loss_price;
-                const pricePosition = ((data.current_price - data.stop_loss_price) / priceRange) * 100;
-                const clampedPosition = Math.max(0, Math.min(100, pricePosition));
-                
-                let html = `
-                    <!-- Price Overview Cards -->
-                    <div class="detail-grid">
-                        <div class="detail-card">
-                            <div class="label">Entry Price</div>
-                            <div class="value">${formatCurrency(data.entry_price)}</div>
-                            <div class="sub">${data.entry_time_formatted}</div>
-                        </div>
-                        <div class="detail-card">
-                            <div class="label">Current Price</div>
-                            <div class="value">${formatCurrency(data.current_price)}</div>
-                            <div class="sub">Qty: ${data.qty} shares</div>
-                        </div>
-                        <div class="detail-card">
-                            <div class="label">Unrealized P&L</div>
-                            <div class="value ${plClass}">${plSign}${formatCurrency(data.unrealized_pl)}</div>
-                            <div class="sub ${plClass}">${plSign}${data.unrealized_plpc.toFixed(2)}%</div>
-                        </div>
-                        <div class="detail-card">
-                            <div class="label">Hold Duration</div>
-                            <div class="value">${data.hold_duration}</div>
-                            <div class="sub">${data.is_locked ? '🔒 Locked' : '🔓 Unlocked'}</div>
-                        </div>
-                    </div>
-                    
-                    <!-- TradingView Chart -->
-                    <div class="chart-container">
-                        <h3>📈 Price Chart</h3>
-                        <div id="tradingview-widget" style="height: 400px;">
-                            <iframe 
-                                src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&locale=en&utm_source=localhost&utm_medium=widget_new&utm_campaign=chart&utm_term=${symbol}"
-                                style="width: 100%; height: 100%; border: none; border-radius: 8px;"
-                                allowtransparency="true"
-                                scrolling="no"
-                                allowfullscreen>
-                            </iframe>
-                        </div>
-                    </div>
-                    
-                    <!-- Price Level Visualization -->
-                    <div class="section-box">
-                        <h3>📊 Price Levels</h3>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
-                            <span style="color: #ef4444;">Stop Loss: ${formatCurrency(data.stop_loss_price)}</span>
-                            <span style="color: #3b82f6;">Current: ${formatCurrency(data.current_price)}</span>
-                            <span style="color: #10b981;">Target: ${formatCurrency(data.take_profit_price)}</span>
-                        </div>
-                        <div class="price-bar">
-                            <div class="price-marker stop-marker" style="left: 0%;"></div>
-                            <div class="price-marker" style="left: ${clampedPosition}%;"></div>
-                            <div class="price-marker target-marker" style="left: 100%;"></div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #64748b;">
-                            <span>${data.pct_to_stop.toFixed(1)}% above stop</span>
-                            <span>${data.pct_to_target.toFixed(1)}% to target</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Entry Reasoning -->
-                    <div class="section-box">
-                        <h3>📝 Entry Reasoning</h3>
-                        <div class="content">${data.entry_reasoning.join('\n').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
-                    </div>
-                    
-                    <!-- Exit Plan -->
-                    <div class="section-box">
-                        <h3>🎯 Exit Plan</h3>
-                        <div class="content">${data.exit_plan.join('\n').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
-                    </div>
-                    
-                    
-                    <!-- Latest News -->
-                    <div class="section-box">
-                        <h3>📰 Latest News</h3>
-                        <div id="position-news-container" class="news-container">
-                            <div class="news-loading">Loading news...</div>
-                        </div>
-                    </div>
-                    <!-- Actions -->
-                    <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button class="btn btn-secondary" onclick="toggleLock('${symbol}'); closePositionModal();">
-                            ${data.is_locked ? '🔓 Unlock Position' : '🔒 Lock Position'}
-                        </button>
-                        <button class="btn btn-refresh" onclick="closePositionModal();">Close</button>
-                    </div>
-                `;
-                
-                modalBody.innerHTML = html;
-                
-                // Fetch and display news
-                fetchPositionNews(symbol);
-                
-            } catch (error) {
-                modalBody.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading position details: ${error.message}</div>`;
-            }
-        }
-        
-        function closePositionModal() {
-            document.getElementById('position-modal').classList.remove('active');
-        }
-        
-        async function fetchPositionNews(symbol) {
-            const container = document.getElementById('position-news-container');
-            if (!container) return;
-            
-            try {
-                const data = await fetchData(`/api/news/${symbol}?limit=5`);
-                
-                if (!data || data.error) {
-                    container.innerHTML = '<div class="news-loading">Unable to load news</div>';
-                    return;
-                }
-                
-                if (data.articles.length === 0) {
-                    container.innerHTML = '<div class="news-loading">No recent news found</div>';
-                    return;
-                }
-                
-                let html = '';
-                for (const article of data.articles) {
-                    html += `
-                        <div class="news-card">
-                            <div class="news-title">
-                                <a href="${article.url}" target="_blank" rel="noopener">${article.title}</a>
-                            </div>
-                            <div class="news-desc">${article.description || ''}</div>
-                            <div class="news-meta">
-                                <span>${article.source}</span>
-                                <span>${article.publishedAt}</span>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                container.innerHTML = html;
-            } catch (error) {
-                container.innerHTML = '<div class="news-loading">Error loading news</div>';
-            }
-        }
-        
-        // Generic Symbol Details Modal (for orders and non-position symbols)
-        async function showSymbolDetails(symbol) {
-            const modal = document.getElementById('position-modal');
-            const modalBody = document.getElementById('modal-body');
-            const modalSymbol = document.getElementById('modal-symbol');
-            
-            modalSymbol.textContent = symbol;
-            modalBody.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading symbol details...</div>';
-            modal.classList.add('active');
-            
-            try {
-                // First, check if this is an open position
-                const positions = await fetchData('/api/positions');
-                const position = positions.find(p => p.symbol === symbol);
-                
-                if (position) {
-                    // Use the position details endpoint for open positions
-                    return showPositionDetails(symbol);
-                }
-                
-                // For non-position symbols, fetch from the generic endpoint
-                const data = await fetchData(`/api/symbol/${symbol}/details`);
-                
-                if (!data || data.error) {
-                    modalBody.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error: ${data?.error || 'Failed to load symbol details'}</div>`;
-                    return;
-                }
-                
-                let html = `
-                    <!-- Symbol Overview Cards -->
-                    <div class="detail-grid">
-                        <div class="detail-card">
-                            <div class="label">Current Price</div>
-                            <div class="value">${formatCurrency(data.current_price)}</div>
-                            <div class="sub">Last trade</div>
-                        </div>
-                        <div class="detail-card">
-                            <div class="label">Day Change</div>
-                            <div class="value ${data.day_change >= 0 ? 'profit' : 'loss'}">${data.day_change >= 0 ? '+' : ''}${formatCurrency(data.day_change)}</div>
-                            <div class="sub ${data.day_change_pct >= 0 ? 'profit' : 'loss'}">${data.day_change_pct >= 0 ? '+' : ''}${data.day_change_pct.toFixed(2)}%</div>
-                        </div>
-                        <div class="detail-card">
-                            <div class="label">Open</div>
-                            <div class="value">${formatCurrency(data.open_price)}</div>
-                            <div class="sub">Today's open</div>
-                        </div>
-                        <div class="detail-card">
-                            <div class="label">Previous Close</div>
-                            <div class="value">${formatCurrency(data.prev_close)}</div>
-                            <div class="sub">Yesterday</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Day Range -->
-                    <div class="section-box">
-                        <h3>📊 Day Range</h3>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
-                            <span style="color: #ef4444;">Low: ${formatCurrency(data.day_low)}</span>
-                            <span style="color: #3b82f6;">Current: ${formatCurrency(data.current_price)}</span>
-                            <span style="color: #10b981;">High: ${formatCurrency(data.day_high)}</span>
-                        </div>
-                        <div class="price-bar">
-                            <div class="price-marker stop-marker" style="left: 0%;"></div>
-                            <div class="price-marker" style="left: ${data.day_range_position}%;"></div>
-                            <div class="price-marker target-marker" style="left: 100%;"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- TradingView Chart -->
-                    <div class="chart-container">
-                        <h3>📈 Price Chart</h3>
-                        <div id="tradingview-widget" style="height: 400px;">
-                            <iframe 
-                                src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&locale=en&utm_source=localhost&utm_medium=widget_new&utm_campaign=chart&utm_term=${symbol}"
-                                style="width: 100%; height: 100%; border: none; border-radius: 8px;"
-                                allowtransparency="true"
-                                scrolling="no"
-                                allowfullscreen>
-                            </iframe>
-                        </div>
-                    </div>
-                    
-                    <!-- Recent Orders for this Symbol -->
-                    <div class="section-box">
-                        <h3>📝 Recent Orders</h3>
-                        <div class="content" id="symbol-orders-list">Loading...</div>
-                    </div>
-                    
-                    <!-- Position Sizing -->
-                    <div class="section-box">
-                        <h3>📐 Position Sizing (if buying)</h3>
-                        <div class="content" id="symbol-sizing-info">Loading...</div>
-                    </div>
-                    
-                    <!-- Actions -->
-                    <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button class="btn btn-refresh" onclick="closePositionModal();">Close</button>
-                    </div>
-                `;
-                
-                modalBody.innerHTML = html;
-                
-                // Load recent orders for this symbol
-                loadSymbolOrders(symbol);
-                
-                // Load position sizing info
-                loadSymbolSizing(symbol);
-                
-            } catch (error) {
-                modalBody.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading symbol details: ${error.message}</div>`;
-            }
-        }
-        
-        async function loadSymbolOrders(symbol) {
-            const orders = await fetchData('/api/orders');
-            const symbolOrders = orders.filter(o => o.symbol === symbol).slice(0, 5);
-            
-            const container = document.getElementById('symbol-orders-list');
-            
-            if (symbolOrders.length === 0) {
-                container.innerHTML = 'No recent orders for this symbol';
-                return;
-            }
-            
-            let html = '<table style="width: 100%; font-size: 13px;"><thead><tr><th>Side</th><th>Qty</th><th>Status</th><th>Price</th><th>Time</th></tr></thead><tbody>';
-            
-            for (const order of symbolOrders) {
-                const sideClass = order.side === 'buy' ? 'profit' : 'loss';
-                html += `<tr>
-                    <td class="${sideClass}" style="text-transform: uppercase; font-weight: 600;">${order.side}</td>
-                    <td>${order.qty}</td>
-                    <td>${order.status}</td>
-                    <td>${order.filled_avg_price > 0 ? formatCurrency(order.filled_avg_price) : '-'}</td>
-                    <td>${new Date(order.created_at).toLocaleString()}</td>
-                </tr>`;
-            }
-            
-            html += '</tbody></table>';
-            container.innerHTML = html;
-        }
-        
-        async function loadSymbolSizing(symbol) {
-            const container = document.getElementById('symbol-sizing-info');
-            
-            try {
-                const sizing = await fetchData(`/api/position-sizing/calculate/${symbol}?score=75`);
-                
-                if (sizing && !sizing.error) {
-                    container.innerHTML = `
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
-                            <div>
-                                <strong>Recommended Size:</strong><br/>
-                                ${formatCurrency(sizing.recommended_size)}
-                            </div>
-                            <div>
-                                <strong>Shares:</strong><br/>
-                                ${sizing.recommended_shares}
-                            </div>
-                            <div>
-                                <strong>Conviction (75 score):</strong><br/>
-                                ${sizing.conviction_multiplier.toFixed(2)}x
-                            </div>
-                            <div>
-                                <strong>Volatility Adj:</strong><br/>
-                                ${sizing.volatility_multiplier.toFixed(2)}x
-                            </div>
-                        </div>
-                        <div style="margin-top: 10px; font-size: 12px; color: #64748b;">
-                            ${sizing.rationale}
-                        </div>
-                    `;
-                } else {
-                    container.innerHTML = sizing?.error || 'Unable to calculate position size';
-                }
-            } catch (e) {
-                container.innerHTML = 'Position sizing unavailable';
-            }
-        }
-        
-        // Close modal on escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closePositionModal();
-        });
-        
-        // Close modal on overlay click
-        document.getElementById('position-modal').addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal-overlay')) closePositionModal();
-        });
+        // Modal close handlers
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePositionModal(); });
+        document.getElementById('position-modal').addEventListener('click', (e) => { if (e.target.classList.contains('modal-overlay')) closePositionModal(); });
     </script>
 </body>
 </html>
