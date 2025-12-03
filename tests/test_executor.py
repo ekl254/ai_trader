@@ -137,10 +137,16 @@ def test_buy_stock_success(
 ) -> None:
     """Test successful stock purchase."""
     from src.executor import TradeExecutor
+    from alpaca.trading.enums import OrderStatus
 
     mock_order = Mock()
     mock_order.id = "order123"
+    mock_order.symbol = "AAPL"
+    mock_order.filled_avg_price = "150.0"
+    mock_order.filled_qty = "10"
+    mock_order.status = OrderStatus.FILLED
     mock_trading_client.submit_order.return_value = mock_order
+    mock_trading_client.get_order_by_id.return_value = mock_order
 
     executor = TradeExecutor()
     result = executor.buy_stock(

@@ -234,19 +234,36 @@ class TradeExecutor:
         order_id = self.place_market_order(symbol, shares, OrderSide.BUY)
 
         if order_id:
-            # Clear pending marker since order was placed successfully
-            # (position will now show up in Alpaca after fill)
+            # Wait for order fill before proceeding
+            filled_order = self.wait_for_order_fill(order_id, timeout_seconds=30)
+            
+            if filled_order is None:
+                logger.error(
+                    "buy_order_not_filled",
+                    order_id=order_id,
+                    symbol=symbol,
+                    shares=shares,
+                )
+                # Order wasn't filled - clear pending marker and fail
+                risk_manager.clear_pending_buy(symbol)
+                return False
+            
+            # Order filled - now safe to clear pending and track
             risk_manager.clear_pending_buy(symbol)
             
             # Record entry for daily limit tracking
             position_sizer.record_entry(symbol)
+            
+            # Use actual fill price if available
+            actual_price = float(filled_order.filled_avg_price or current_price)
+            actual_shares = int(filled_order.filled_qty or shares)
             
             # Track position entry with detailed score breakdown and sizing info
             # Skip if called from swap_position (which handles its own tracking)
             if not skip_tracking:
                 position_tracker.track_entry(
                 symbol=symbol,
-                entry_price=current_price,
+                entry_price=actual_price,
                 score=score,
                 reason="new_position",
                 score_breakdown={
@@ -261,9 +278,9 @@ class TradeExecutor:
             logger.info(
                 "buy_executed",
                 symbol=symbol,
-                shares=shares,
-                price=current_price,
-                position_value=size_result.recommended_size,
+                shares=actual_shares,
+                price=actual_price,
+                position_value=actual_shares * actual_price,
                 conviction_multiplier=size_result.conviction_multiplier,
                 volatility_multiplier=size_result.volatility_multiplier,
                 order_id=order_id,
