@@ -34,6 +34,9 @@
             font-weight: 600;
             color: #ff9830;
         }
+        @media (max-width: 768px) {
+            .top-nav .logo span { display: none; }
+        }
         .nav-links { display: flex; gap: 4px; }
         .nav-links a {
             padding: 8px 16px;
@@ -48,16 +51,70 @@
         .nav-links a.logout { background: rgba(239,68,68,0.3); }
         .nav-links a.logout:hover { background: rgba(239,68,68,0.5); }
         
+        /* Hamburger menu for mobile */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+        }
+        .hamburger:hover { background: #2c2c2e; }
+        .hamburger span {
+            display: block;
+            width: 24px;
+            height: 3px;
+            background: #d8d9da;
+            margin: 3px 0;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+        .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(6px, 6px); }
+        .hamburger.active span:nth-child(2) { opacity: 0; }
+        .hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
+        
+        @media (max-width: 768px) {
+            .hamburger { display: flex; }
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 52px;
+                left: 0;
+                right: 0;
+                background: #1f1f1f;
+                flex-direction: column;
+                padding: 8px;
+                border-bottom: 1px solid #343436;
+                gap: 4px;
+            }
+            .nav-links.show { display: flex; }
+            .nav-links a {
+                padding: 14px 16px;
+                font-size: 16px;
+            }
+        }
+        
         .nav-right {
             display: flex;
             align-items: center;
             gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .nav-right { gap: 8px; }
         }
         .nyse-time {
             text-align: right;
             padding: 4px 12px;
             background: #262628;
             border-radius: 4px;
+        }
+        @media (max-width: 480px) {
+            .nyse-time { display: none; }
         }
         .nyse-time .time-value { font-size: 16px; font-weight: 600; font-family: monospace; }
         .nyse-time .time-date { font-size: 11px; color: #8e8e8e; }
@@ -68,12 +125,17 @@
         
         /* Dashboard Layout */
         .dashboard { padding: 16px; }
+        @media (max-width: 768px) { .dashboard { padding: 8px; } }
         .row { display: grid; gap: 8px; margin-bottom: 8px; }
         .row-4 { grid-template-columns: repeat(4, 1fr); }
         .row-3 { grid-template-columns: repeat(3, 1fr); }
         .row-2 { grid-template-columns: repeat(2, 1fr); }
         @media (max-width: 1200px) { .row-4 { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 768px) { .row-4, .row-3, .row-2 { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { 
+            .row-4 { grid-template-columns: repeat(2, 1fr); }
+            .row-3, .row-2 { grid-template-columns: 1fr; } 
+        }
+        @media (max-width: 480px) { .row-4 { grid-template-columns: 1fr; } }
         
         /* Panels */
         .panel {
@@ -101,6 +163,8 @@
         }
         
         .stat-value { font-size: 36px; font-weight: 300; line-height: 1; margin-bottom: 6px; }
+        @media (max-width: 768px) { .stat-value { font-size: 28px; } }
+        @media (max-width: 480px) { .stat-value { font-size: 24px; } }
         .stat-label { font-size: 12px; color: #8e8e8e; text-transform: uppercase; letter-spacing: 0.5px; }
         
         /* Colors */
@@ -151,6 +215,71 @@
         }
         .data-table td { padding: 10px 12px; border-top: 1px solid #343436; }
         .data-table tr:hover { background: #262628; }
+        @media (max-width: 768px) {
+            .data-table { font-size: 12px; }
+            .data-table th, .data-table td { padding: 8px 6px; }
+            .data-table th { font-size: 10px; }
+        }
+        
+        /* Mobile card layout for positions */
+        .position-cards { display: none; }
+        @media (max-width: 768px) {
+            .positions-table-wrapper { display: none; }
+            .position-cards { display: block; }
+            .position-card {
+                background: #262628;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 8px;
+                border: 1px solid #343436;
+            }
+            .position-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+            }
+            .position-card-symbol {
+                font-size: 18px;
+                font-weight: 600;
+                color: #5794f2;
+            }
+            .position-card-pl {
+                font-size: 16px;
+                font-weight: 600;
+            }
+            .position-card-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .position-card-item {
+                display: flex;
+                flex-direction: column;
+            }
+            .position-card-item .label {
+                font-size: 10px;
+                color: #8e8e8e;
+                text-transform: uppercase;
+                margin-bottom: 2px;
+            }
+            .position-card-item .value {
+                font-size: 14px;
+                font-weight: 500;
+            }
+            .position-card-actions {
+                display: flex;
+                gap: 8px;
+            }
+            .position-card-actions .btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+        @media (min-width: 769px) {
+            .positions-table-wrapper { display: block; }
+        }
         
         /* Buttons */
         .btn {
@@ -161,6 +290,11 @@
             font-size: 13px;
             font-weight: 500;
             transition: all 0.2s;
+            min-height: 44px;
+            min-width: 44px;
+        }
+        @media (max-width: 768px) {
+            .btn { padding: 12px 16px; font-size: 14px; }
         }
         .btn-primary { background: #3871dc; color: white; }
         .btn-primary:hover { background: #4a8af4; }
@@ -227,6 +361,16 @@
             max-height: 90vh;
             overflow: hidden;
         }
+        @media (max-width: 768px) {
+            .modal-overlay { padding: 0; align-items: stretch; }
+            .modal-content {
+                max-width: 100%;
+                max-height: 100vh;
+                height: 100vh;
+                border-radius: 0;
+                border: none;
+            }
+        }
         .modal-header {
             background: #262628;
             padding: 16px 20px;
@@ -240,22 +384,38 @@
             background: #3d3d3d;
             border: none;
             color: #d8d9da;
-            width: 32px;
-            height: 32px;
+            width: 44px;
+            height: 44px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .modal-header .close-btn:hover { background: #4d4d4d; }
         .modal-body { padding: 20px; overflow-y: auto; max-height: calc(90vh - 70px); }
+        @media (max-width: 768px) {
+            .modal-body { 
+                padding: 16px; 
+                max-height: calc(100vh - 70px);
+                -webkit-overflow-scrolling: touch;
+            }
+        }
         
         .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        @media (max-width: 768px) {
+            .detail-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        }
         .detail-card { background: #181b1f; border: 1px solid #343436; border-radius: 4px; padding: 14px; }
+        @media (max-width: 768px) {
+            .detail-card { padding: 12px; }
+        }
         .detail-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8e8e8e; margin-bottom: 4px; }
         .detail-card .value { font-size: 20px; font-weight: 500; }
+        @media (max-width: 768px) {
+            .detail-card .value { font-size: 16px; }
+        }
         .detail-card .sub { font-size: 12px; color: #6e6e6e; margin-top: 2px; }
         
         .section-box { background: #181b1f; border: 1px solid #343436; border-radius: 4px; padding: 16px; margin-bottom: 12px; }
@@ -292,12 +452,51 @@
             flex-wrap: wrap;
             align-items: center;
         }
+        @media (max-width: 768px) {
+            .controls-bar {
+                padding: 10px 12px;
+                gap: 6px;
+                justify-content: center;
+            }
+            .controls-bar > span:not(.status-badge):not(.regime-badge) {
+                font-size: 11px !important;
+            }
+            .controls-bar > span[style*="margin: 0 12px"] {
+                display: none;
+            }
+        }
+        @media (max-width: 480px) {
+            .controls-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .controls-bar > div {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        
+        /* Mobile controls row layout */
+        .controls-row {
+            display: contents;
+        }
+        @media (max-width: 480px) {
+            .controls-row {
+                display: flex;
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+                padding: 4px 0;
+            }
+        }
         
         /* Notification */
         .notification {
             position: fixed;
             top: 60px;
             right: 20px;
+            left: 20px;
             padding: 12px 20px;
             border-radius: 4px;
             background: #1f1f1f;
@@ -307,11 +506,51 @@
             display: none;
             font-size: 13px;
         }
+        @media (min-width: 769px) {
+            .notification {
+                left: auto;
+                max-width: 400px;
+            }
+        }
         .notification.show { display: block; animation: slideIn 0.3s; }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .notification.success { border-left: 3px solid #73bf69; }
         .notification.error { border-left: 3px solid #f2495c; }
         .notification.info { border-left: 3px solid #5794f2; }
+        
+        /* Premarket stats mobile grid */
+        .premarket-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .premarket-stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+            }
+        }
+        @media (max-width: 480px) {
+            .premarket-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+        }
+        
+        /* Rebalancing stats mobile grid */
+        .rebalancing-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .rebalancing-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -336,9 +575,14 @@
             <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
-            AI Trading System
+            <span>AI Trading System</span>
         </div>
-        <div class="nav-links">
+        <button class="hamburger" id="hamburger-btn" onclick="toggleMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <div class="nav-links" id="nav-menu">
             <a href="/" class="active">Dashboard</a>
             <a href="/analysis">Analysis</a>
             <a href="/performance">Performance</a>
@@ -409,11 +653,11 @@
         <div class="row row-2">
             <div class="panel">
                 <div class="panel-header">
-                    <span class="panel-title">🔄 Rebalancing Stats</span>
+                    <span class="panel-title">Rebalancing Stats</span>
                     <button class="btn btn-secondary" onclick="showRebalancingHistory()" style="padding: 4px 10px; font-size: 11px;">View History</button>
                 </div>
                 <div class="panel-body">
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; text-align: center;">
+                    <div class="rebalancing-stats-grid">
                         <div>
                             <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">TOTAL</div>
                             <div style="font-size: 24px; font-weight: 500;" id="rebal-total">0</div>
@@ -424,7 +668,7 @@
                         </div>
                         <div>
                             <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">CAN REBALANCE</div>
-                            <div style="font-size: 24px; font-weight: 500;" id="rebal-status-icon">⏳</div>
+                            <div style="font-size: 24px; font-weight: 500;" id="rebal-status-icon">&#8987;</div>
                         </div>
                         <div>
                             <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">COOLDOWN</div>
@@ -435,7 +679,7 @@
             </div>
             <div class="panel">
                 <div class="panel-header">
-                    <span class="panel-title">🌅 Premarket Candidates</span>
+                    <span class="panel-title">Premarket Candidates</span>
                     <span id="premarket-scan-time" style="font-size: 11px; color: #6e6e6e;"></span>
                 </div>
                 <div class="panel-body" id="premarket-candidates" style="max-height: 150px; overflow-y: auto;">
@@ -447,11 +691,11 @@
         <!-- Row 3: Premarket Stats -->
         <div class="panel" style="margin-bottom: 8px;">
             <div class="panel-header">
-                <span class="panel-title">📊 Premarket Performance</span>
+                <span class="panel-title">Premarket Performance</span>
                 <button class="btn btn-secondary" onclick="showPremarketHistory()" style="padding: 4px 10px; font-size: 11px;">View History</button>
             </div>
             <div class="panel-body">
-                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; text-align: center;">
+                <div class="premarket-stats-grid">
                     <div>
                         <div style="font-size: 11px; color: #8e8e8e; margin-bottom: 4px;">DAYS</div>
                         <div style="font-size: 24px; font-weight: 500;" id="pm-total-days">0</div>
@@ -483,18 +727,19 @@
         <!-- Row 4: Positions -->
         <div class="panel" style="margin-bottom: 8px;">
             <div class="panel-header">
-                <span class="panel-title">📊 Open Positions</span>
+                <span class="panel-title">Open Positions</span>
                 <span id="positions-updated" style="font-size: 11px; color: #6e6e6e;"></span>
             </div>
             <div class="panel-body" style="padding: 0;">
-                <div id="positions-table"></div>
+                <div class="positions-table-wrapper" id="positions-table"></div>
+                <div class="position-cards" id="positions-cards"></div>
             </div>
         </div>
 
         <!-- Row 5: Orders -->
         <div class="panel" style="margin-bottom: 8px;">
             <div class="panel-header">
-                <span class="panel-title">📝 Recent Orders</span>
+                <span class="panel-title">Recent Orders</span>
             </div>
             <div class="panel-body" style="padding: 0; max-height: 300px; overflow-y: auto;">
                 <div id="orders-table"></div>
@@ -504,7 +749,7 @@
         <!-- Row 6: Logs -->
         <div class="panel">
             <div class="panel-header">
-                <span class="panel-title">📋 Activity Log</span>
+                <span class="panel-title">Activity Log</span>
             </div>
             <div class="panel-body" style="padding: 12px;">
                 <div class="log-container" id="log-container"></div>
@@ -513,6 +758,22 @@
     </div>
 
     <script>
+        // Mobile menu toggle
+        function toggleMenu() {
+            const menu = document.getElementById('nav-menu');
+            const hamburger = document.getElementById('hamburger-btn');
+            menu.classList.toggle('show');
+            hamburger.classList.toggle('active');
+        }
+        
+        // Close menu when clicking a link
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('nav-menu').classList.remove('show');
+                document.getElementById('hamburger-btn').classList.remove('active');
+            });
+        });
+
         async function fetchData(url, options = {}) {
             try {
                 const response = await fetch(url, options);
@@ -609,22 +870,30 @@
             const positions = await fetchData('/api/positions');
             if (!positions) return;
 
-            const container = document.getElementById('positions-table');
+            const tableContainer = document.getElementById('positions-table');
+            const cardsContainer = document.getElementById('positions-cards');
             
             if (positions.length === 0) {
-                container.innerHTML = '<div class="empty">No open positions</div>';
+                tableContainer.innerHTML = '<div class="empty">No open positions</div>';
+                cardsContainer.innerHTML = '<div class="empty" style="padding: 20px;">No open positions</div>';
                 return;
             }
 
-            let html = '<table class="data-table"><thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Hold</th><th>Lock</th></tr></thead><tbody>';
+            // Table view (desktop)
+            let tableHtml = '<table class="data-table"><thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Current</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Hold</th><th>Lock</th></tr></thead><tbody>';
+            
+            // Cards view (mobile)
+            let cardsHtml = '';
             
             for (const pos of positions) {
                 const plClass = pos.unrealized_pl >= 0 ? 'green' : 'red';
-                const lockIcon = pos.is_locked ? '🔒' : '🔓';
+                const lockIcon = pos.is_locked ? '&#128274;' : '&#128275;';
+                const lockText = pos.is_locked ? 'Locked' : 'Unlocked';
                 const lockClass = pos.is_locked ? 'btn-danger' : 'btn-success';
                 const holdTime = pos.hold_duration_min ? `${Math.floor(pos.hold_duration_min / 60)}h ${pos.hold_duration_min % 60}m` : '-';
                 
-                html += `<tr>
+                // Table row
+                tableHtml += `<tr>
                     <td><a class="ticker-link" onclick="showPositionDetails('${pos.symbol}')">${pos.symbol}</a></td>
                     <td>${pos.qty}</td>
                     <td>${formatCurrency(pos.avg_entry_price)}</td>
@@ -633,12 +902,51 @@
                     <td class="${plClass}">${formatCurrency(pos.unrealized_pl)}</td>
                     <td class="${plClass}">${formatPercent(pos.unrealized_plpc)}</td>
                     <td>${holdTime}</td>
-                    <td><button class="btn ${lockClass}" onclick="toggleLock('${pos.symbol}')" style="padding: 4px 8px; font-size: 11px;">${lockIcon}</button></td>
+                    <td><button class="btn ${lockClass}" onclick="toggleLock('${pos.symbol}')" style="padding: 4px 8px; font-size: 11px; min-height: 32px;">${lockIcon}</button></td>
                 </tr>`;
+                
+                // Card
+                cardsHtml += `<div class="position-card">
+                    <div class="position-card-header">
+                        <span class="position-card-symbol" onclick="showPositionDetails('${pos.symbol}')">${pos.symbol}</span>
+                        <span class="position-card-pl ${plClass}">${formatPercent(pos.unrealized_plpc)}</span>
+                    </div>
+                    <div class="position-card-grid">
+                        <div class="position-card-item">
+                            <span class="label">Entry</span>
+                            <span class="value">${formatCurrency(pos.avg_entry_price)}</span>
+                        </div>
+                        <div class="position-card-item">
+                            <span class="label">Current</span>
+                            <span class="value">${formatCurrency(pos.current_price)}</span>
+                        </div>
+                        <div class="position-card-item">
+                            <span class="label">P&L</span>
+                            <span class="value ${plClass}">${formatCurrency(pos.unrealized_pl)}</span>
+                        </div>
+                        <div class="position-card-item">
+                            <span class="label">Value</span>
+                            <span class="value">${formatCurrency(pos.market_value)}</span>
+                        </div>
+                        <div class="position-card-item">
+                            <span class="label">Qty</span>
+                            <span class="value">${pos.qty}</span>
+                        </div>
+                        <div class="position-card-item">
+                            <span class="label">Hold</span>
+                            <span class="value">${holdTime}</span>
+                        </div>
+                    </div>
+                    <div class="position-card-actions">
+                        <button class="btn btn-secondary" onclick="showPositionDetails('${pos.symbol}')">Details</button>
+                        <button class="btn ${lockClass}" onclick="toggleLock('${pos.symbol}')">${lockIcon} ${lockText}</button>
+                    </div>
+                </div>`;
             }
             
-            html += '</tbody></table>';
-            container.innerHTML = html;
+            tableHtml += '</tbody></table>';
+            tableContainer.innerHTML = tableHtml;
+            cardsContainer.innerHTML = cardsHtml;
             document.getElementById('positions-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
         }
 
@@ -703,7 +1011,7 @@
             document.getElementById('rebal-total').textContent = data.total_rebalances;
             document.getElementById('rebal-avg').textContent = data.avg_score_improvement ? `+${data.avg_score_improvement.toFixed(1)}` : '+0.0';
             document.getElementById('rebal-cooldown').textContent = `${data.cooldown_minutes}m`;
-            document.getElementById('rebal-status-icon').textContent = data.can_rebalance_now ? '✅' : '⏳';
+            document.getElementById('rebal-status-icon').innerHTML = data.can_rebalance_now ? '&#10004;' : '&#8987;';
             document.getElementById('rebal-status-icon').style.color = data.can_rebalance_now ? '#73bf69' : '#ff9830';
         }
 
@@ -840,18 +1148,18 @@
                         <div class="detail-card"><div class="label">Entry Price</div><div class="value">${formatCurrency(data.entry_price)}</div><div class="sub">${data.entry_time_formatted}</div></div>
                         <div class="detail-card"><div class="label">Current Price</div><div class="value">${formatCurrency(data.current_price)}</div><div class="sub">Qty: ${data.qty}</div></div>
                         <div class="detail-card"><div class="label">Unrealized P&L</div><div class="value ${plClass}">${formatCurrency(data.unrealized_pl)}</div><div class="sub ${plClass}">${formatPercent(data.unrealized_plpc)}</div></div>
-                        <div class="detail-card"><div class="label">Hold Duration</div><div class="value">${data.hold_duration}</div><div class="sub">${data.is_locked ? '🔒 Locked' : '🔓 Unlocked'}</div></div>
+                        <div class="detail-card"><div class="label">Hold Duration</div><div class="value">${data.hold_duration}</div><div class="sub">${data.is_locked ? '&#128274; Locked' : '&#128275; Unlocked'}</div></div>
                     </div>
-                    <div class="chart-container"><h3>📈 Price Chart</h3><iframe src="https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&theme=dark&style=1&timezone=exchange" style="width: 100%; height: 350px; border: none; border-radius: 4px;"></iframe></div>
-                    <div class="section-box"><h3>📊 Price Levels</h3>
+                    <div class="chart-container"><h3>Price Chart</h3><iframe src="https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&theme=dark&style=1&timezone=exchange" style="width: 100%; height: 350px; border: none; border-radius: 4px;"></iframe></div>
+                    <div class="section-box"><h3>Price Levels</h3>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;"><span class="red">Stop: ${formatCurrency(data.stop_loss_price)}</span><span class="blue">Current: ${formatCurrency(data.current_price)}</span><span class="green">Target: ${formatCurrency(data.take_profit_price)}</span></div>
                         <div class="price-bar"><div class="price-marker stop" style="left: 0%;"></div><div class="price-marker current" style="left: ${pricePosition}%;"></div><div class="price-marker target" style="left: 100%;"></div></div>
                         <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: #6e6e6e;"><span>${data.pct_to_stop.toFixed(1)}% above stop</span><span>${data.pct_to_target.toFixed(1)}% to target</span></div>
                     </div>
-                    <div class="section-box"><h3>📝 Entry Reasoning</h3><div class="content">${data.entry_reasoning.join('\n')}</div></div>
-                    <div class="section-box"><h3>🎯 Exit Plan</h3><div class="content">${data.exit_plan.join('\n')}</div></div>
-                    <div class="section-box"><h3>📰 Latest News</h3><div id="position-news" class="news-container"><div class="empty">Loading news...</div></div></div>
-                    <div style="margin-top: 16px;"><button class="btn btn-secondary" onclick="toggleLock('${symbol}'); closePositionModal();">${data.is_locked ? '🔓 Unlock' : '🔒 Lock'}</button></div>
+                    <div class="section-box"><h3>Entry Reasoning</h3><div class="content">${data.entry_reasoning.join('\n')}</div></div>
+                    <div class="section-box"><h3>Exit Plan</h3><div class="content">${data.exit_plan.join('\n')}</div></div>
+                    <div class="section-box"><h3>Latest News</h3><div id="position-news" class="news-container"><div class="empty">Loading news...</div></div></div>
+                    <div style="margin-top: 16px;"><button class="btn btn-secondary" onclick="toggleLock('${symbol}'); closePositionModal();">${data.is_locked ? '&#128275; Unlock' : '&#128274; Lock'}</button></div>
                 `;
                 
                 // Load news
