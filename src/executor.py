@@ -137,6 +137,9 @@ class TradeExecutor:
             logger.info("cannot_open_position", symbol=symbol)
             return False
 
+        # Mark as pending to prevent double buys
+        risk_manager.mark_pending_buy(symbol)
+
         # Use dynamic position sizing
         if size_override:
             size_result = size_override
@@ -175,6 +178,10 @@ class TradeExecutor:
         order_id = self.place_market_order(symbol, shares, OrderSide.BUY)
 
         if order_id:
+            # Clear pending marker since order was placed successfully
+            # (position will now show up in Alpaca after fill)
+            risk_manager.clear_pending_buy(symbol)
+            
             # Record entry for daily limit tracking
             position_sizer.record_entry(symbol)
             
@@ -207,6 +214,8 @@ class TradeExecutor:
             )
             return True
 
+        # Order failed - clear pending marker
+        risk_manager.clear_pending_buy(symbol)
         return False
 
     def buy_stock_with_size(
@@ -414,6 +423,10 @@ class TradeExecutor:
     ) -> bool:
         """
         Swap one position for another (rebalancing).
+        
+        IMPORTANT: This uses SELL-FIRST logic to ensure we free up cash
+        before attempting to buy. This prevents the scenario where we're
+        at max positions and can't execute the swap.
 
         Args:
             old_symbol: Symbol to sell
@@ -427,11 +440,24 @@ class TradeExecutor:
         Returns:
             True if swap executed successfully
         """
-        # Pre-check: Can we actually buy the new symbol?
-        # This prevents selling the old position only to fail on the buy
-        if not risk_manager.can_open_position(new_symbol, score=new_score):
+        new_symbol = new_symbol.upper()
+        old_symbol = old_symbol.upper()
+        
+        # Pre-check: Is the new symbol already held?
+        # (Don't check position limits - we're going to sell first!)
+        current_positions = risk_manager.get_current_positions()
+        if new_symbol in current_positions:
             logger.warning(
-                "swap_aborted_target_already_held",
+                "swap_aborted_already_holding_target",
+                old_symbol=old_symbol,
+                new_symbol=new_symbol,
+            )
+            return False
+        
+        # Check if there's a pending buy for the target symbol
+        if risk_manager.is_pending_buy(new_symbol):
+            logger.warning(
+                "swap_aborted_pending_buy_exists",
                 old_symbol=old_symbol,
                 new_symbol=new_symbol,
             )
@@ -441,7 +467,7 @@ class TradeExecutor:
         is_partial = partial_sell_pct < 1.0
 
         logger.info(
-            "attempting_position_swap",
+            "attempting_position_swap_sell_first",
             old_symbol=old_symbol,
             new_symbol=new_symbol,
             old_score=old_score,
@@ -451,7 +477,8 @@ class TradeExecutor:
             sell_pct=partial_sell_pct if is_partial else 1.0,
         )
 
-        # First, sell the old position (partial or full)
+        # === SELL FIRST ===
+        # This frees up both a position slot AND cash for the buy
         sell_success = self.sell_stock(
             old_symbol, "rebalancing", sell_pct=partial_sell_pct
         )
@@ -460,31 +487,89 @@ class TradeExecutor:
             logger.error("swap_failed_on_sell", old_symbol=old_symbol)
             return False
 
-        # Wait for sell to process
+        # Wait for sell to process and position to be removed
         time.sleep(2)
+        
+        # Verify the sell went through by checking positions again
+        updated_positions = risk_manager.get_current_positions()
+        if partial_sell_pct >= 1.0 and old_symbol in updated_positions:
+            logger.warning(
+                "swap_sell_may_not_have_completed",
+                old_symbol=old_symbol,
+                still_in_positions=True,
+            )
+            # Continue anyway - the order was placed
 
-        # Then buy the new position (uses dynamic sizing automatically)
-        # Pass skip_tracking=True since we track with reason="rebalancing" below
-        buy_success = self.buy_stock(new_symbol, new_score, new_reasoning, new_price, skip_tracking=True)
-
-        if not buy_success:
-            logger.error("swap_failed_on_buy", new_symbol=new_symbol)
+        # === THEN BUY ===
+        # Mark as pending to prevent race conditions
+        risk_manager.mark_pending_buy(new_symbol)
+        
+        try:
+            # Use dynamic sizing - skip the can_open_position check since we just sold
+            size_result = position_sizer.calculate_position_size(
+                symbol=new_symbol,
+                current_price=new_price,
+                composite_score=new_score,
+            )
+            
+            if size_result.recommended_shares <= 0:
+                logger.error("swap_failed_invalid_size", new_symbol=new_symbol)
+                risk_manager.clear_pending_buy(new_symbol)
+                return False
+            
+            # Validate the trade
+            is_valid, reason = risk_manager.validate_trade(
+                new_symbol, size_result.recommended_shares, new_price
+            )
+            if not is_valid:
+                logger.error("swap_failed_validation", new_symbol=new_symbol, reason=reason)
+                risk_manager.clear_pending_buy(new_symbol)
+                return False
+            
+            # Log trade decision
+            log_trade_decision(logger, new_symbol, "BUY", new_reasoning, new_score)
+            
+            # Execute the buy order
+            order_id = self.place_market_order(
+                new_symbol, size_result.recommended_shares, OrderSide.BUY
+            )
+            
+            if not order_id:
+                logger.error("swap_failed_on_buy_order", new_symbol=new_symbol)
+                risk_manager.clear_pending_buy(new_symbol)
+                return False
+            
+            # Success! Clear pending and track
+            risk_manager.clear_pending_buy(new_symbol)
+            position_sizer.record_entry(new_symbol)
+            
+            # Track the new position with rebalancing reason
+            position_tracker.track_entry(
+                symbol=new_symbol,
+                entry_price=new_price,
+                score=new_score,
+                reason="rebalancing",
+                score_breakdown={
+                    "technical": new_reasoning.get("technical", {}).get("total", 0),
+                    "sentiment": new_reasoning.get("sentiment", {}).get("total", 0),
+                    "fundamental": new_reasoning.get("fundamental", {}).get("total", 0),
+                },
+                news_sentiment=new_reasoning.get("sentiment", {}).get("total"),
+                news_count=None,
+            )
+            
+            logger.info(
+                "swap_buy_executed",
+                symbol=new_symbol,
+                shares=size_result.recommended_shares,
+                price=new_price,
+                order_id=order_id,
+            )
+            
+        except Exception as e:
+            logger.error("swap_buy_exception", new_symbol=new_symbol, error=str(e))
+            risk_manager.clear_pending_buy(new_symbol)
             return False
-
-        # Update the entry reason to "rebalancing" instead of "new_position"
-        position_tracker.track_entry(
-            symbol=new_symbol,
-            entry_price=new_price,
-            score=new_score,
-            reason="rebalancing",
-            score_breakdown={
-                "technical": new_reasoning.get("technical", {}).get("total", 0),
-                "sentiment": new_reasoning.get("sentiment", {}).get("total", 0),
-                "fundamental": new_reasoning.get("fundamental", {}).get("total", 0),
-            },
-            news_sentiment=new_reasoning.get("sentiment", {}).get("total"),
-            news_count=None,
-        )
 
         # Track rebalancing event AFTER successful swap
         position_tracker.track_rebalance(

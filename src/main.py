@@ -20,6 +20,7 @@ from src.strategy import strategy
 from src.universe import get_sp500_symbols, filter_liquid_stocks
 from src.position_tracker import position_tracker  # type: ignore
 from src.position_sizer import position_sizer
+from src.risk_manager import risk_manager
 
 
 # File paths for premarket data persistence
@@ -164,6 +165,9 @@ class TradingEngine:
                 paper=True,
             )
             positions = client.get_all_positions()
+            
+            # Clear any stale pending buys from previous session
+            risk_manager.clear_all_pending_buys()
             
             if positions:
                 sync_result = position_tracker.sync_with_alpaca(positions)
@@ -746,9 +750,94 @@ class TradingEngine:
             logger.info("trading_completed", trades_executed=trades_executed)
 
     def manage_positions(self) -> None:
-        """Manage existing positions (stops, take profits)."""
+        """Manage existing positions (stops, take profits, forced reductions)."""
         logger.info("managing_positions")
+        
+        # First, check account health and handle any critical issues
+        self._check_and_handle_account_health()
+        
+        # Then run normal stop loss/take profit management
         executor.manage_stop_losses()
+    
+    def _check_and_handle_account_health(self) -> None:
+        """Check account health and take corrective action if needed."""
+        from src.risk_manager import risk_manager
+        
+        health = risk_manager.check_account_health()
+        
+        if health.get("healthy", True):
+            return  # All good
+        
+        # Log the issues
+        logger.warning(
+            "account_health_issues_detected",
+            warnings=health.get("warnings", []),
+            actions_needed=health.get("actions_needed", []),
+            cash=health.get("cash", 0),
+            position_count=health.get("position_count", 0),
+            max_positions=health.get("max_positions", 10),
+        )
+        
+        # If we have negative cash or severe position overload, force reduction
+        cash = health.get("cash", 0)
+        position_count = health.get("position_count", 0)
+        max_positions = health.get("max_positions", 10)
+        
+        # Calculate how many positions to reduce
+        positions_over = max(0, position_count - max_positions)
+        
+        # If cash is negative, we need to sell enough to cover it
+        cash_needed = 0
+        positions_to_sell_for_cash = 0
+        if cash < 0:
+            cash_needed = abs(cash) + 5000  # Add $5K buffer
+            # Calculate how many positions to sell based on average position value
+            portfolio_value = health.get("portfolio_value", 100000)
+            avg_position_value = portfolio_value / max(position_count, 1)
+            positions_to_sell_for_cash = int(cash_needed / avg_position_value) + 1
+        
+        # Total positions to reduce: max of (over limit) or (needed for cash recovery)
+        target_reduction = max(positions_over, positions_to_sell_for_cash)
+        
+        if target_reduction > 0:
+            logger.warning(
+                "forced_position_reduction_needed",
+                positions_over=positions_over,
+                cash_needed=cash_needed,
+                positions_to_sell_for_cash=positions_to_sell_for_cash,
+                target_reduction=target_reduction,
+            )
+            
+            # Get weakest positions to sell
+            to_reduce = risk_manager.get_positions_to_reduce(target_reduction=target_reduction)
+            
+            if to_reduce:
+                for pos in to_reduce:
+                    symbol = pos["symbol"]
+                    score = pos.get("score", 0)
+                    
+                    logger.info(
+                        "forced_selling_weak_position",
+                        symbol=symbol,
+                        score=score,
+                        reason="account_health_recovery",
+                    )
+                    
+                    success = executor.sell_stock(symbol, "forced_reduction_account_health")
+                    
+                    if success:
+                        logger.info("forced_sell_completed", symbol=symbol)
+                        # Wait for order to process
+                        import time
+                        time.sleep(2)
+                        
+                        # Check if we've recovered enough
+                        new_health = risk_manager.check_account_health()
+                        if new_health.get("healthy", False):
+                            logger.info("account_health_recovered")
+                            break
+                    else:
+                        logger.error("forced_sell_failed", symbol=symbol)
 
     def end_of_day_close(self) -> None:
         """Close all positions at end of day."""
