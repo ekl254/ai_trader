@@ -20,9 +20,11 @@ def mock_config():
 
 @pytest.fixture
 def mock_trading_client():
-    """Mock Alpaca trading client."""
-    with patch("src.executor.TradingClient") as mock:
-        yield mock
+    """Mock Alpaca trading client via shared factory."""
+    with patch("src.executor.get_trading_client") as mock:
+        mock_client = MagicMock()
+        mock.return_value = mock_client
+        yield mock_client
 
 
 @pytest.fixture
@@ -38,6 +40,9 @@ def mock_risk_manager():
         }
         mock.validate_trade.return_value = (True, "Trade validated")
         mock.get_current_positions.return_value = {"AAPL": 10}
+        # Add return values for get_stop_loss_pct and get_take_profit_pct
+        mock.get_stop_loss_pct.return_value = 0.02
+        mock.get_take_profit_pct.return_value = 0.06
         yield mock
 
 
@@ -56,24 +61,51 @@ def mock_performance_tracker():
         yield mock
 
 
+@pytest.fixture
+def mock_position_sizer():
+    """Mock position sizer."""
+    with patch("src.executor.position_sizer") as mock:
+        # Create a mock PositionSizeResult
+        mock_result = Mock()
+        mock_result.recommended_shares = 10
+        mock_result.recommended_size = 1500.0
+        mock_result.conviction_multiplier = 1.0
+        mock_result.volatility_multiplier = 1.0
+        mock_result.rationale = ["Test rationale"]
+        mock.calculate_position_size.return_value = mock_result
+        yield mock
+
+
+@pytest.fixture
+def mock_circuit_breaker():
+    """Mock circuit breaker."""
+    with patch("src.executor.trading_circuit_breaker") as mock:
+        mock.can_proceed.return_value = True
+        mock.record_success.return_value = None
+        mock.record_failure.return_value = None
+        mock.get_status.return_value = {"state": "closed", "failures": 0}
+        yield mock
+
+
 def test_place_market_order_success(
     mock_config: Mock,
     mock_trading_client: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test successful market order placement."""
     from src.executor import TradeExecutor
 
     mock_order = Mock()
     mock_order.id = "order123"
-    mock_trading_client.return_value.submit_order.return_value = mock_order
+    mock_trading_client.submit_order.return_value = mock_order
 
     executor = TradeExecutor()
     order_id = executor.place_market_order("AAPL", 10, OrderSide.BUY)
 
     assert order_id == "order123"
-    mock_trading_client.return_value.submit_order.assert_called_once()
+    mock_trading_client.submit_order.assert_called_once()
 
 
 def test_place_market_order_failure(
@@ -81,11 +113,12 @@ def test_place_market_order_failure(
     mock_trading_client: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test market order failure handling."""
     from src.executor import TradeExecutor
 
-    mock_trading_client.return_value.submit_order.side_effect = Exception("API Error")
+    mock_trading_client.submit_order.side_effect = Exception("API Error")
 
     executor = TradeExecutor()
     order_id = executor.place_market_order("AAPL", 10, OrderSide.BUY)
@@ -99,13 +132,15 @@ def test_buy_stock_success(
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_position_sizer: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test successful stock purchase."""
     from src.executor import TradeExecutor
 
     mock_order = Mock()
     mock_order.id = "order123"
-    mock_trading_client.return_value.submit_order.return_value = mock_order
+    mock_trading_client.submit_order.return_value = mock_order
 
     executor = TradeExecutor()
     result = executor.buy_stock(
@@ -116,8 +151,8 @@ def test_buy_stock_success(
     )
 
     assert result is True
-    mock_risk_manager.can_open_position.assert_called_once_with("AAPL")
-    mock_risk_manager.calculate_position_size.assert_called_once()
+    mock_risk_manager.can_open_position.assert_called_once_with("AAPL", score=75.0)
+    mock_position_sizer.calculate_position_size.assert_called_once()
     mock_position_tracker.track_entry.assert_called_once()
 
 
@@ -127,6 +162,7 @@ def test_buy_stock_cannot_open_position(
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test buy fails when position cannot be opened."""
     from src.executor import TradeExecutor
@@ -150,13 +186,14 @@ def test_sell_stock_success(
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test successful stock sale."""
     from src.executor import TradeExecutor
 
     mock_order = Mock()
     mock_order.id = "order456"
-    mock_trading_client.return_value.submit_order.return_value = mock_order
+    mock_trading_client.submit_order.return_value = mock_order
 
     executor = TradeExecutor()
     result = executor.sell_stock("AAPL", "stop_loss")
@@ -173,6 +210,7 @@ def test_sell_stock_no_position(
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test sell fails when no position exists."""
     from src.executor import TradeExecutor
@@ -191,13 +229,14 @@ def test_sell_stock_partial(
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test partial stock sale."""
     from src.executor import TradeExecutor
 
     mock_order = Mock()
     mock_order.id = "order789"
-    mock_trading_client.return_value.submit_order.return_value = mock_order
+    mock_trading_client.submit_order.return_value = mock_order
 
     executor = TradeExecutor()
     result = executor.sell_stock("AAPL", "rebalancing", sell_pct=0.5)
@@ -213,6 +252,7 @@ def test_manage_stop_losses_triggers_stop(
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test stop loss triggers when loss exceeds threshold."""
     from src.executor import TradeExecutor
@@ -223,11 +263,11 @@ def test_manage_stop_losses_triggers_stop(
     mock_position.avg_entry_price = 150.0
     mock_position.unrealized_plpc = -0.035  # 3.5% loss, exceeds 2% stop
 
-    mock_trading_client.return_value.get_all_positions.return_value = [mock_position]
+    mock_trading_client.get_all_positions.return_value = [mock_position]
 
     mock_order = Mock()
     mock_order.id = "stop_order"
-    mock_trading_client.return_value.submit_order.return_value = mock_order
+    mock_trading_client.submit_order.return_value = mock_order
 
     executor = TradeExecutor()
 
@@ -242,6 +282,7 @@ def test_manage_stop_losses_triggers_take_profit(
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test take profit triggers when gain exceeds threshold."""
     from src.executor import TradeExecutor
@@ -252,7 +293,7 @@ def test_manage_stop_losses_triggers_take_profit(
     mock_position.avg_entry_price = 150.0
     mock_position.unrealized_plpc = 0.07  # 7% gain, exceeds 6% take profit
 
-    mock_trading_client.return_value.get_all_positions.return_value = [mock_position]
+    mock_trading_client.get_all_positions.return_value = [mock_position]
 
     executor = TradeExecutor()
 
@@ -267,6 +308,7 @@ def test_close_all_positions(
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
+    mock_circuit_breaker: Mock,
 ) -> None:
     """Test closing all positions."""
     from src.executor import TradeExecutor

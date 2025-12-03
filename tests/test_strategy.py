@@ -11,7 +11,16 @@ from src.strategy import TradingStrategy
 @pytest.fixture
 def strategy() -> TradingStrategy:
     """Create a TradingStrategy instance for testing."""
-    with patch("src.strategy.config"):
+    with patch("src.strategy.config") as mock_config:
+        # Set up proper mock values for config
+        mock_config.trading.rsi_period = 14
+        mock_config.trading.rsi_oversold = 30.0
+        mock_config.trading.rsi_overbought = 70.0
+        mock_config.trading.weight_technical = 0.4
+        mock_config.trading.weight_sentiment = 0.3
+        mock_config.trading.weight_fundamental = 0.3
+        mock_config.trading.min_composite_score = 72.5
+        mock_config.trading.min_factor_score = 40.0
         return TradingStrategy()
 
 
@@ -110,10 +119,14 @@ def test_score_symbol(
     mock_provider.get_bars.return_value = sample_df
     mock_sentiment.return_value = 60.0
 
+    # Ensure config has proper float values (not Mock objects)
     strategy.config = Mock()
     strategy.config.rsi_period = 14
     strategy.config.rsi_oversold = 30.0
     strategy.config.rsi_overbought = 70.0
+    strategy.config.weight_technical = 0.4
+    strategy.config.weight_sentiment = 0.3
+    strategy.config.weight_fundamental = 0.3
 
     score, reasoning = strategy.score_symbol("AAPL")
 
@@ -136,10 +149,14 @@ def test_should_buy_below_threshold(
     mock_provider.get_bars.return_value = sample_df
     mock_sentiment.return_value = 30.0  # Low sentiment
 
+    # Ensure config has proper float values (not Mock objects)
     strategy.config = Mock()
     strategy.config.rsi_period = 14
     strategy.config.rsi_oversold = 30.0
     strategy.config.rsi_overbought = 70.0
+    strategy.config.weight_technical = 0.4
+    strategy.config.weight_sentiment = 0.3
+    strategy.config.weight_fundamental = 0.3
     strategy.config.min_composite_score = 90.0  # High threshold
     strategy.config.min_factor_score = 40.0
 

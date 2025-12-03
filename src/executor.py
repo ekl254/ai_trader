@@ -4,8 +4,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from alpaca.trading.client import TradingClient
-from alpaca.trading.enums import OrderSide, OrderType, TimeInForce
+from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, OrderStatus
 from alpaca.trading.models import Order, Position
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
@@ -15,17 +14,14 @@ from src.performance_tracker import PerformanceTracker  # type: ignore
 from src.position_tracker import position_tracker  # type: ignore
 from src.risk_manager import risk_manager
 from src.position_sizer import position_sizer, PositionSizeResult
+from src.clients import get_trading_client, trading_circuit_breaker
 
 
 class TradeExecutor:
     """Executes trades and manages orders."""
 
     def __init__(self) -> None:
-        self.client = TradingClient(
-            config.alpaca.api_key,
-            config.alpaca.secret_key,
-            paper=True,
-        )
+        self.client = get_trading_client()
         self.performance_tracker = PerformanceTracker()
 
     def place_market_order(
@@ -37,6 +33,15 @@ class TradeExecutor:
         Returns:
             Order ID if successful, None otherwise
         """
+        # Check circuit breaker
+        if not trading_circuit_breaker.can_proceed():
+            logger.error(
+                "order_blocked_by_circuit_breaker",
+                symbol=symbol,
+                status=trading_circuit_breaker.get_status(),
+            )
+            return None
+        
         try:
             order_data = MarketOrderRequest(
                 symbol=symbol,
@@ -56,9 +61,11 @@ class TradeExecutor:
                 type="market",
             )
 
+            trading_circuit_breaker.record_success()
             return str(order.id)
 
         except Exception as e:
+            trading_circuit_breaker.record_failure()
             logger.error(
                 "order_failed",
                 symbol=symbol,
@@ -67,6 +74,55 @@ class TradeExecutor:
                 error=str(e),
             )
             return None
+
+    def wait_for_order_fill(
+        self, order_id: str, timeout_seconds: int = 30, poll_interval: float = 0.5
+    ) -> Optional[Order]:
+        """
+        Wait for an order to be filled.
+        
+        Args:
+            order_id: The order ID to check
+            timeout_seconds: Maximum time to wait
+            poll_interval: Time between status checks
+            
+        Returns:
+            The filled order, or None if not filled within timeout
+        """
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout_seconds:
+            try:
+                order = self.client.get_order_by_id(order_id)
+                
+                if order.status == OrderStatus.FILLED:
+                    logger.info(
+                        "order_filled",
+                        order_id=order_id,
+                        symbol=order.symbol,
+                        filled_qty=order.filled_qty,
+                        filled_avg_price=order.filled_avg_price,
+                    )
+                    return order
+                
+                if order.status in [OrderStatus.CANCELED, OrderStatus.EXPIRED, OrderStatus.REJECTED]:
+                    logger.warning(
+                        "order_not_filled",
+                        order_id=order_id,
+                        status=str(order.status),
+                        symbol=order.symbol,
+                    )
+                    return None
+                
+                # Order still pending, wait and retry
+                time.sleep(poll_interval)
+                
+            except Exception as e:
+                logger.error("order_status_check_failed", order_id=order_id, error=str(e))
+                time.sleep(poll_interval)
+        
+        logger.warning("order_fill_timeout", order_id=order_id, timeout=timeout_seconds)
+        return None
 
     def place_limit_order(
         self, symbol: str, qty: int, side: OrderSide, limit_price: float
@@ -487,18 +543,31 @@ class TradeExecutor:
             logger.error("swap_failed_on_sell", old_symbol=old_symbol)
             return False
 
-        # Wait for sell to process and position to be removed
-        time.sleep(2)
-        
-        # Verify the sell went through by checking positions again
-        updated_positions = risk_manager.get_current_positions()
-        if partial_sell_pct >= 1.0 and old_symbol in updated_positions:
-            logger.warning(
-                "swap_sell_may_not_have_completed",
-                old_symbol=old_symbol,
-                still_in_positions=True,
-            )
-            # Continue anyway - the order was placed
+        # Wait for sell order to fill with proper verification
+        # Give more time for the order to process
+        max_retries = 5
+        for attempt in range(max_retries):
+            time.sleep(1)  # Check every second
+            updated_positions = risk_manager.get_current_positions()
+            
+            if partial_sell_pct >= 1.0:
+                # Full sell - position should be gone
+                if old_symbol not in updated_positions:
+                    logger.info("swap_sell_confirmed", old_symbol=old_symbol, attempt=attempt + 1)
+                    break
+            else:
+                # Partial sell - harder to verify, just wait a bit more
+                if attempt >= 2:
+                    break
+        else:
+            if partial_sell_pct >= 1.0 and old_symbol in updated_positions:
+                logger.warning(
+                    "swap_sell_may_not_have_completed",
+                    old_symbol=old_symbol,
+                    still_in_positions=True,
+                    attempts=max_retries,
+                )
+                # Continue anyway - the order was placed
 
         # === THEN BUY ===
         # Mark as pending to prevent race conditions

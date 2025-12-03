@@ -9,9 +9,9 @@ from src.risk_manager import RiskManager
 @pytest.fixture
 def mock_risk_mgr():
     """Create a risk manager with mocked Alpaca client."""
-    with patch('src.risk_manager.TradingClient') as mock_client_class:
+    with patch('src.risk_manager.get_trading_client') as mock_get_client:
         mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         # Default healthy account
         mock_account = Mock()

@@ -44,7 +44,7 @@ class TradingConfig(BaseModel):
     # Risk management
     stop_loss_pct: float = Field(default=0.03)  # 3% stop loss (optimized via 5-year backtest)
     take_profit_pct: float = Field(default=0.08)  # 8% take profit (optimized via 5-year backtest)
-    trailing_stop_pct: float = Field(default=0.02)  # 2% trailing stop
+    # NOTE: trailing_stop_pct removed - feature not implemented
 
     # Position management
     min_volume: int = Field(default=1_000_000)  # Minimum daily volume

@@ -12,13 +12,12 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 
-from alpaca.trading.client import TradingClient
-from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
 from config.config import config
 from src.logger import logger
+from src.clients import get_trading_client, get_data_client
 
 
 @dataclass
@@ -47,11 +46,11 @@ class DynamicPositionSizer:
     
     # Position size limits as percentage of portfolio
     MIN_POSITION_PCT = 0.05  # 5% minimum
-    MAX_POSITION_PCT = 0.12  # 15% maximum
+    MAX_POSITION_PCT = 0.10  # 10% maximum (aligned with config.max_position_size)
     
-    # Target cash reserve
-    MIN_CASH_RESERVE_PCT = 0.10  # Keep at least 10% cash
-    CASH_DEPLOYMENT_TRIGGER_PCT = 0.20  # Deploy when cash > 20%
+    # Target cash reserve - unified with risk_manager.MIN_CASH_PCT
+    MIN_CASH_RESERVE_PCT = 0.05  # Keep at least 5% cash (matches risk_manager)
+    CASH_DEPLOYMENT_TRIGGER_PCT = 0.15  # Deploy when cash > 15%
     
     # Conviction multipliers based on composite score
     CONVICTION_TIERS = [
@@ -76,15 +75,8 @@ class DynamicPositionSizer:
     MAX_NEW_POSITIONS_PER_DAY = 4
     
     def __init__(self):
-        self.trading_client = TradingClient(
-            config.alpaca.api_key,
-            config.alpaca.secret_key,
-            paper=True
-        )
-        self.data_client = StockHistoricalDataClient(
-            config.alpaca.api_key,
-            config.alpaca.secret_key
-        )
+        self.trading_client = get_trading_client()
+        self.data_client = get_data_client()
         self._daily_entries: Dict[str, int] = {}  # date -> count
         self._volatility_cache: Dict[str, Tuple[float, datetime]] = {}
         
@@ -304,9 +296,10 @@ class DynamicPositionSizer:
                 symbol=symbol,
                 recommended_size=0,
                 recommended_shares=0,
+                conviction_score=composite_score,
                 conviction_multiplier=conviction_mult,
                 volatility_multiplier=vol_mult,
-                regime_multiplier=1.0,  # Not applied in this path
+                base_size=base_size,
                 capped=True,
                 cap_reason="No cash available (negative or below buffer)",
                 rationale=rationale + ["BLOCKED: No usable cash available"],

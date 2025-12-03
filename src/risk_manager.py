@@ -2,10 +2,9 @@
 
 from typing import Dict, Optional, Tuple, Set
 
-from alpaca.trading.client import TradingClient
-
 from config.config import config
 from src.logger import logger
+from src.clients import get_trading_client, trading_circuit_breaker
 
 
 class RiskManager:
@@ -18,11 +17,7 @@ class RiskManager:
 
     def __init__(self) -> None:
         self.config = config.trading
-        self.client = TradingClient(
-            config.alpaca.api_key,
-            config.alpaca.secret_key,
-            paper=True,
-        )
+        self.client = get_trading_client()
         self._regime_params: Optional[Dict] = None
         # Track pending buys to prevent race conditions with Alpaca API
         self._pending_buys: Set[str] = set()
