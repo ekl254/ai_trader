@@ -1,8 +1,152 @@
 {
-  "positions": {},
+  "positions": {
+    "CEG": {
+      "entry_time": "2025-12-01T17:56:30.633899+00:00",
+      "entry_price": 358.9,
+      "score": 74.33839219047985,
+      "reason": "rebalancing",
+      "score_breakdown": {},
+      "news_sentiment": null,
+      "news_count": null
+    },
+    "BLDR": {
+      "entry_time": "2025-12-02T14:56:28.537802+00:00",
+      "entry_price": 111.515,
+      "score": 76.46256548924272,
+      "reason": "new_position",
+      "score_breakdown": {
+        "technical": 0,
+        "sentiment": 0,
+        "fundamental": 0
+      },
+      "news_sentiment": null,
+      "news_count": null
+    },
+    "VRSK": {
+      "entry_time": "2025-12-02T15:53:39.097594+00:00",
+      "entry_price": 223.9,
+      "score": 72.95606749607761,
+      "reason": "new_position",
+      "score_breakdown": {
+        "technical": 0,
+        "sentiment": 0,
+        "fundamental": 0
+      },
+      "news_sentiment": null,
+      "news_count": null
+    },
+    "MA": {
+      "entry_time": "2025-12-02T17:08:02.067849+00:00",
+      "entry_price": 547.09,
+      "score": 0,
+      "reason": "synced_from_alpaca",
+      "score_breakdown": {},
+      "news_sentiment": null,
+      "news_count": null,
+      "note": "Position existed before tracking sync"
+    },
+    "LOW": {
+      "entry_time": "2025-12-02T17:34:31.234396+00:00",
+      "entry_price": 243.23,
+      "score": 78.81220954112743,
+      "reason": "new_position",
+      "score_breakdown": {
+        "technical": 82.11702537611177,
+        "sentiment": 71.10097259283066,
+        "fundamental": 50.0
+      },
+      "news_sentiment": 71.10097259283066,
+      "news_count": null
+    },
+    "O": {
+      "entry_time": "2025-12-02T17:34:32.315715+00:00",
+      "entry_price": 57.225,
+      "score": 77.75515982014491,
+      "reason": "new_position",
+      "score_breakdown": {
+        "technical": 71.89641351504773,
+        "sentiment": 91.4255678653717,
+        "fundamental": 50.0
+      },
+      "news_sentiment": 91.4255678653717,
+      "news_count": null
+    },
+    "SOLS": {
+      "entry_time": "2025-12-02T20:27:40.555574+00:00",
+      "entry_price": 47.125,
+      "score": 77.8287786555033,
+      "reason": "rebalancing",
+      "score_breakdown": {
+        "technical": 70.07127664085527,
+        "sentiment": 95.929616689682,
+        "fundamental": 50.0
+      },
+      "news_sentiment": 95.929616689682,
+      "news_count": null
+    },
+    "DD": {
+      "entry_time": "2025-12-02T21:01:15.766481+00:00",
+      "entry_price": 39.6,
+      "score": 0,
+      "reason": "synced_from_alpaca",
+      "score_breakdown": {},
+      "news_sentiment": null,
+      "news_count": null,
+      "note": "Position existed before tracking sync"
+    }
+  },
   "locked_positions": [
     "BRK.B"
   ],
-  "rebalancing_history": [],
-  "last_rebalance_time": null
+  "rebalancing_history": [
+    {
+      "timestamp": "2025-12-01T17:56:28.378150+00:00",
+      "old_symbol": "ACN",
+      "new_symbol": "CEG",
+      "old_score": 54.307959807372214,
+      "new_score": 74.33839219047985,
+      "score_diff": 20.030432383107637
+    },
+    {
+      "timestamp": "2025-12-01T19:00:41.245204+00:00",
+      "old_symbol": "BRO",
+      "new_symbol": "ELV",
+      "old_score": 57.721678057888745,
+      "new_score": 74.94971546343541,
+      "score_diff": 17.228037405546665
+    },
+    {
+      "timestamp": "2025-12-01T20:24:22.089008+00:00",
+      "old_symbol": "PG",
+      "new_symbol": "CEG",
+      "old_score": 60.191271682003084,
+      "new_score": 73.8780227921826,
+      "score_diff": 13.686751110179522
+    },
+    {
+      "timestamp": "2025-12-02T14:43:00.214607+00:00",
+      "old_symbol": "AWK",
+      "new_symbol": "FISV",
+      "old_score": 53.3478013080001,
+      "new_score": 74.9903057590567,
+      "score_diff": 21.642504451056595
+    },
+    {
+      "timestamp": "2025-12-02T15:53:36.722154+00:00",
+      "old_symbol": "BALL",
+      "new_symbol": "BLDR",
+      "old_score": 58.52010328962886,
+      "new_score": 75.50066194836887,
+      "score_diff": 16.980558658740016
+    },
+    {
+      "timestamp": "2025-12-02T20:27:40.556305+00:00",
+      "old_symbol": "BR",
+      "new_symbol": "SOLS",
+      "old_score": 61.16006977729611,
+      "new_score": 77.8287786555033,
+      "score_diff": 16.66870887820719
+    }
+  ],
+  "last_rebalance_time": "2025-12-02T20:27:40.556305+00:00"
 }

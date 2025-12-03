@@ -1668,3 +1668,62 @@ if __name__ == "__main__":
     print()
 
     app.run(host="0.0.0.0", port=8082, debug=False)
+
+# ============ MONITORING AND METRICS ENDPOINTS ============
+
+@app.route("/metrics")
+def metrics_endpoint():
+    """Prometheus metrics endpoint (no auth required for monitoring)."""
+    from src.metrics import trading_metrics
+    return trading_metrics.get_metrics(), 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
+@app.route("/health")
+def health_check():
+    """Health check endpoint for load balancers."""
+    try:
+        # Check if we can connect to Alpaca
+        trading_client.get_account()
+        status = "healthy"
+        code = 200
+    except Exception as e:
+        status = "unhealthy"
+        code = 503
+    
+    return jsonify({
+        "status": status,
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+    }), code
+
+
+@app.route("/ready")
+def readiness_check():
+    """Readiness check for Kubernetes."""
+    # Check if all required services are available
+    checks = {
+        "alpaca": False,
+        "market_data": False,
+    }
+    
+    try:
+        trading_client.get_account()
+        checks["alpaca"] = True
+    except:
+        pass
+    
+    try:
+        from src.data_provider import data_provider
+        data_provider.get_latest_price("SPY")
+        checks["market_data"] = True
+    except:
+        pass
+    
+    all_ready = all(checks.values())
+    
+    return jsonify({
+        "ready": all_ready,
+        "checks": checks,
+        "timestamp": datetime.now().isoformat(),
+    }), 200 if all_ready else 503
+

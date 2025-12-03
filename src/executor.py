@@ -371,25 +371,31 @@ class TradeExecutor:
                 avg_entry = float(position.avg_entry_price)
                 unrealized_pl_pct = float(position.unrealized_plpc or 0)
 
+                # Get regime-adjusted thresholds
+                stop_loss_pct = risk_manager.get_stop_loss_pct()
+                take_profit_pct = risk_manager.get_take_profit_pct()
+
                 # Check stop loss
-                if unrealized_pl_pct <= -config.trading.stop_loss_pct:
+                if unrealized_pl_pct <= -stop_loss_pct:
                     logger.warning(
                         "stop_loss_triggered",
                         symbol=symbol,
                         entry=avg_entry,
                         current=current_price,
                         loss_pct=unrealized_pl_pct,
+                        threshold=stop_loss_pct,
                     )
                     self.sell_stock(symbol, "stop_loss")
 
                 # Check take profit
-                elif unrealized_pl_pct >= config.trading.take_profit_pct:
+                elif unrealized_pl_pct >= take_profit_pct:
                     logger.info(
                         "take_profit_triggered",
                         symbol=symbol,
                         entry=avg_entry,
                         current=current_price,
                         profit_pct=unrealized_pl_pct,
+                        threshold=take_profit_pct,
                     )
                     self.sell_stock(symbol, "take_profit")
 

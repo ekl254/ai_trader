@@ -38,16 +38,17 @@ def setup_logging() -> structlog.BoundLogger:
     )
     
     # Configure standard logging
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, config.logging.log_level),
-    )
+    # Clear any existing handlers to prevent duplicates
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(getattr(logging, config.logging.log_level))
     
-    # Add file handler
-    file_handler = logging.FileHandler(config.logging.log_file)
-    file_handler.setLevel(getattr(logging, config.logging.log_level))
-    logging.getLogger().addHandler(file_handler)
+    # Add stdout handler only (systemd handles file logging)
+    # When not running under systemd, logs go to stdout only
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(getattr(logging, config.logging.log_level))
+    stdout_handler.setFormatter(logging.Formatter("%(message)s"))
+    root_logger.addHandler(stdout_handler)
     
     return structlog.get_logger()
 

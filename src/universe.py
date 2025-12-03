@@ -86,6 +86,10 @@ def get_sp500_symbols() -> List[str]:
             for s in symbols
             if pd.notna(s) and len(str(s)) <= 5
         ]
+        
+        # Normalize symbol formats for Alpaca compatibility
+        # Wikipedia uses hyphens (BRK-B) but Alpaca uses dots (BRK.B)
+        symbols = [s.replace("-", ".") for s in symbols]
 
         # Save to cache
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
