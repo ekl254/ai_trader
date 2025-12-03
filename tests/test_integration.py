@@ -94,13 +94,10 @@ def mock_news_client():
 @pytest.fixture
 def mock_sentiment_analyzer():
     """Create a mock sentiment analyzer."""
-    with patch("src.sentiment.sentiment_analyzer") as mock:
-        mock.analyze_batch.return_value = [0.75]  # Positive sentiment
-        mock.get_news_sentiment.return_value = {
-            "score": 65.0,
-            "avg_sentiment": 0.25,
-            "articles_count": 5,
-        }
+    with patch("src.sentiment.get_sentiment_analyzer") as mock:
+        mock_analyzer = MagicMock()
+        mock_analyzer.return_value = [{"label": "positive", "score": 0.75}]
+        mock.return_value = mock_analyzer
         yield mock
 
 
@@ -467,7 +464,7 @@ class TestRiskManagement:
         daily_loss_pct = daily_loss / float(account.last_equity)
         
         max_daily_loss_pct = -0.05  # 5% max daily loss
-        assert daily_loss_pct > max_daily_loss_pct  # -5% > -5% means within limit
+        assert daily_loss_pct >= max_daily_loss_pct  # -5% >= -5% means within limit
 
 
 # ============================================================================
