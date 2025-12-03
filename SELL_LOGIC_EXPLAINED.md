@@ -16,13 +16,13 @@ The system **is selling**, but positions are currently within normal P&L ranges,
 The bot checks positions **every 2 minutes** and sells automatically when:
 
 1. **Stop Loss**: Position drops **-2.0%** or more
-2. **Take Profit**: Position gains **+6.0%** or more
+2. **Take Profit**: Position gains **+8.0%** or more
 3. **End of Day**: Market closes (paper trading only)
 
 ### Current Thresholds
 ```python
-stop_loss_pct: 2.0%      # Sell at -2% loss
-take_profit_pct: 6.0%    # Sell at +6% profit
+stop_loss_pct: 3.0%      # Sell at -3% loss (optimized via 5-year backtest)
+take_profit_pct: 8.0%    # Sell at +8% profit (optimized via 5-year backtest)
 ```
 
 ---

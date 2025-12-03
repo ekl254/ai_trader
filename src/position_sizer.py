@@ -305,8 +305,8 @@ class DynamicPositionSizer:
                 recommended_size=0,
                 recommended_shares=0,
                 conviction_multiplier=conviction_mult,
-                volatility_multiplier=volatility_mult,
-                regime_multiplier=regime_mult,
+                volatility_multiplier=vol_mult,
+                regime_multiplier=1.0,  # Not applied in this path
                 capped=True,
                 cap_reason="No cash available (negative or below buffer)",
                 rationale=rationale + ["BLOCKED: No usable cash available"],

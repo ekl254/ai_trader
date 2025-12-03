@@ -13,8 +13,8 @@ class RiskManager:
     
     # Safety thresholds
     MIN_CASH_PCT = 0.05  # Minimum 5% cash reserve
-    MARGIN_WARNING_THRESHOLD = 0.02  # Warn if cash < 2% of portfolio
-    POSITION_OVERLOAD_THRESHOLD = 1.3  # Warn if positions > 130% of max
+    MARGIN_WARNING_THRESHOLD = 0.10  # Warn if cash < 10% of portfolio (early warning)
+    POSITION_OVERLOAD_THRESHOLD = 1.2  # Warn if positions > 120% of max
 
     def __init__(self) -> None:
         self.config = config.trading

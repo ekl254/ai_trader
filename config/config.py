@@ -24,11 +24,11 @@ class TradingConfig(BaseModel):
 
     max_positions: int = Field(default=10)
     risk_per_trade: float = Field(default=0.02)
-    max_position_size: float = Field(default=0.12)
+    max_position_size: float = Field(default=0.10)  # 10% max per position
     portfolio_value: float = Field(default=100000.0)
 
     # Scoring thresholds (optimized based on performance data)
-    min_composite_score: float = Field(default=70.0)
+    min_composite_score: float = Field(default=72.5)  # Raised for higher quality entries
     min_factor_score: float = Field(default=40.0)
 
     # Score weights for composite calculation (must sum to 1.0)
@@ -111,9 +111,9 @@ class Config(BaseModel):
             trading=TradingConfig(
                 max_positions=int(os.getenv("MAX_POSITIONS", "10")),
                 risk_per_trade=float(os.getenv("RISK_PER_TRADE", "0.02")),
-                max_position_size=float(os.getenv("MAX_POSITION_SIZE", "0.12")),
+                max_position_size=float(os.getenv("MAX_POSITION_SIZE", "0.10")),
                 portfolio_value=float(os.getenv("PORTFOLIO_VALUE", "100000")),
-                min_composite_score=float(os.getenv("MIN_COMPOSITE_SCORE", "70.0")),
+                min_composite_score=float(os.getenv("MIN_COMPOSITE_SCORE", "72.5")),
                 weight_technical=float(os.getenv("WEIGHT_TECHNICAL", "0.50")),
                 weight_sentiment=float(os.getenv("WEIGHT_SENTIMENT", "0.50")),
                 weight_fundamental=float(os.getenv("WEIGHT_FUNDAMENTAL", "0.00")),

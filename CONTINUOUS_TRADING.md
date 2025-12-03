@@ -206,7 +206,7 @@ max_position_size = 0.10  # 10% max per position
 ### Thresholds
 ```python
 # config/config.py:40-41
-min_composite_score = 55.0
+min_composite_score = 72.5  # Raised for higher quality entries
 min_factor_score = 40.0
 ```
 
