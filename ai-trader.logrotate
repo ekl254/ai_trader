@@ -2,37 +2,19 @@
 # Install: sudo cp ai-trader.logrotate /etc/logrotate.d/ai-trader
 # Test: sudo logrotate -d /etc/logrotate.d/ai-trader
 
-/root/ai_trader/logs/*.log {
-    # Rotate daily
+# Main trading log
+/root/ai_trader/logs/trading.log {
     daily
-    
-    # Keep 30 days of logs
     rotate 30
-    
-    # Compress old logs
     compress
     delaycompress
-    
-    # Don't error if log file is missing
     missingok
-    
-    # Don't rotate empty files
     notifempty
-    
-    # Create new log file with same permissions
     create 0644 root root
-    
-    # Add date extension to rotated files
     dateext
     dateformat -%Y%m%d
-    
-    # Copy and truncate instead of move (safer for running processes)
     copytruncate
-    
-    # Maximum size before rotation (in addition to daily)
     maxsize 100M
-    
-    # Minimum size to bother rotating
     minsize 1M
 }
 
@@ -48,18 +30,4 @@
     dateext
     copytruncate
     maxsize 50M
-}
-
-# Error logs - keep longer
-/root/ai_trader/logs/error.log {
-    daily
-    rotate 60
-    compress
-    delaycompress
-    missingok
-    notifempty
-    create 0644 root root
-    dateext
-    copytruncate
-    maxsize 100M
 }
