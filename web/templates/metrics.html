@@ -162,7 +162,7 @@
             <a href="/analysis">Analysis</a>
             <a href="/performance">Performance</a>
             <a href="/optimizer">Optimizer</a>
-            <a href="/metrics-view" class="active">Metrics</a>
+            <a href="/monitoring" class="active">Metrics</a>
             <a href="/grafana">Grafana</a>
             <a href="/logout" class="logout">Logout</a>
         </div>
@@ -317,10 +317,10 @@
             <div class="panel">
                 <div class="panel-body">
                     <p style="margin-bottom: 16px; color: #8e8e8e;">
-                        Raw metrics available at <span class="endpoint-badge">/metrics</span> for Prometheus scraping.
+                        Raw data available at <span class="endpoint-badge">/prom</span> for Prometheus scraping.
                     </p>
                     <div style="margin-bottom: 16px; display: flex; gap: 10px;">
-                        <button class="btn btn-primary" onclick="toggleRawMetrics()">Toggle Raw Metrics</button>
+                        <button class="btn btn-primary" onclick="toggleRawMetrics()">Toggle Raw Data</button>
                         <button class="btn btn-primary" onclick="refreshAll()">Refresh Now</button>
                     </div>
                     <div id="raw-metrics-container" style="display: none;">
@@ -464,10 +464,10 @@
 
         async function fetchRawMetrics() {
             try {
-                const response = await fetch('/metrics');
+                const response = await fetch('/prom');
                 return await response.text();
             } catch (error) {
-                return 'Error fetching raw metrics';
+                return 'Error fetching raw data';
             }
         }
 

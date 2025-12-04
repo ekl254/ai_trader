@@ -1202,7 +1202,7 @@ def api_unlock_position(symbol: str):
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/performance/metrics")
+@app.route("/api/performance/stats")
 @login_required
 def api_performance_metrics():
     """Get comprehensive performance metrics."""
@@ -1801,7 +1801,7 @@ def api_calculate_position_size(symbol: str):
 # ============ MONITORING AND METRICS ENDPOINTS ============
 
 
-@app.route("/metrics")
+@app.route("/prom")
 def metrics_endpoint():
     """Prometheus metrics endpoint (no auth required for monitoring)."""
     from src.metrics import trading_metrics
@@ -1911,7 +1911,7 @@ def readiness_check():
     ), (200 if all_ready else 503)
 
 
-@app.route("/metrics-view")
+@app.route("/monitoring")
 @login_required
 def metrics_view():
     """Metrics dashboard page."""
@@ -1925,7 +1925,7 @@ def grafana_view():
     return render_template("grafana.html")
 
 
-@app.route("/api/metrics")
+@app.route("/api/trading-data")
 @login_required
 def api_metrics():
     """JSON API endpoint for metrics data."""

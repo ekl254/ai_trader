@@ -284,7 +284,7 @@
             <a href="/">Dashboard</a>
             <a href="/analysis">Analysis</a>
             <a href="/performance">Performance</a>
-            <a href="/metrics-view">Metrics</a>
+            <a href="/monitoring">Metrics</a>
             <a href="/grafana" class="active">Grafana</a>
         </div>
         <div style="display: flex; align-items: center; gap: 16px;">
@@ -748,10 +748,10 @@
             }
         }
 
-        // Update metrics
+        // Update trading data
         async function updateMetrics() {
             try {
-                const response = await fetch('/api/metrics');
+                const response = await fetch('/api/trading-data');
                 const data = await response.json();
                 
                 // Trading metrics

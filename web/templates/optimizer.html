@@ -354,7 +354,7 @@
                 <a href="/analysis">Analysis</a>
                 <a href="/performance">Performance</a>
                 <a href="/optimizer" class="active">Optimizer</a>
-                <a href="/metrics-view">Metrics</a>
+                <a href="/monitoring">Metrics</a>
                 <a href="/grafana">Grafana</a>
                 <a href="/logout" class="logout">Logout</a>
             </div>
@@ -1061,7 +1061,7 @@
                 simulatePerformance();
                 
                 // Update current performance from API
-                const response = await fetchWithAuth('/api/performance/metrics');
+                const response = await fetchWithAuth('/api/performance/stats');
                 const data = await response.json();
                 
                 if (data && !data.error && data.total_trades > 0) {
