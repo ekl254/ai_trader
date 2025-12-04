@@ -9,9 +9,9 @@ from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
 from src.clients import get_trading_client, trading_circuit_breaker
 from src.logger import log_trade_decision, logger
-from src.performance_tracker import PerformanceTracker  # type: ignore
+from src.performance_tracker import PerformanceTracker
 from src.position_sizer import PositionSizeResult, position_sizer
-from src.position_tracker import position_tracker  # type: ignore
+from src.position_tracker import position_tracker
 from src.risk_manager import risk_manager
 
 
@@ -46,7 +46,7 @@ class TradeExecutor:
                 time_in_force=TimeInForce.DAY,
             )
 
-            order: Order = self.client.submit_order(order_data)  # type: ignore
+            order: Order = self.client.submit_order(order_data)
 
             logger.info(
                 "order_placed",
@@ -144,7 +144,7 @@ class TradeExecutor:
                 limit_price=limit_price,
             )
 
-            order: Order = self.client.submit_order(order_data)  # type: ignore
+            order: Order = self.client.submit_order(order_data)
 
             logger.info(
                 "order_placed",
@@ -451,7 +451,7 @@ class TradeExecutor:
     def manage_stop_losses(self) -> None:
         """Check and manage stop losses for open positions."""
         try:
-            positions: list[Position] = self.client.get_all_positions()  # type: ignore
+            positions: list[Position] = self.client.get_all_positions()
 
             for position in positions:
                 symbol = position.symbol

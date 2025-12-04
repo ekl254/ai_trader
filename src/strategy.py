@@ -3,7 +3,7 @@
 from typing import cast
 
 import pandas as pd
-import pandas_ta as ta  # type: ignore
+import pandas_ta as ta
 
 from config.config import config
 from src.data_provider import alpaca_provider
