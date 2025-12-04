@@ -51,8 +51,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-ci.txt
-          pip install -r requirements-dev.txt
+          pip install -r requirements-ci.txt --prefer-binary
+          pip install -r requirements-dev.txt --prefer-binary
       
       - name: Run mypy
         run: mypy src/ --ignore-missing-imports
@@ -72,8 +72,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-ci.txt
-          pip install -r requirements-dev.txt
+          pip install -r requirements-ci.txt --prefer-binary
+          pip install -r requirements-dev.txt --prefer-binary
       
       - name: Run unit tests
         run: pytest tests/ -v --tb=short
