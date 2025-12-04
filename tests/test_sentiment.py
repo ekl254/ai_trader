@@ -1,13 +1,15 @@
 """Tests for sentiment analysis."""
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 
 
 @pytest.fixture(autouse=True)
 def clear_sentiment_cache():
     """Clear sentiment cache before each test to ensure test isolation."""
     import src.sentiment
+
     src.sentiment._sentiment_cache.clear()
     yield
     src.sentiment._sentiment_cache.clear()
@@ -138,21 +140,21 @@ def test_get_news_sentiment_empty_content(
 
 def test_get_sentiment_analyzer_lazy_loading() -> None:
     """Test that sentiment analyzer is lazily loaded and cached."""
+    pytest.importorskip("transformers")
     import src.sentiment
-    
+
     # The analyzer is loaded on first call and cached
     # Verify this by checking that calling twice returns the same instance
-    
     # Get the analyzer (may already be loaded from previous tests)
     analyzer1 = src.sentiment.get_sentiment_analyzer()
-    
+
     # Verify the analyzer is not None
     assert analyzer1 is not None
-    
+
     # Verify calling again returns the same instance (lazy loading/caching)
     analyzer2 = src.sentiment.get_sentiment_analyzer()
     assert analyzer1 is analyzer2
-    
+
     # Verify the global cache was set
     assert src.sentiment._sentiment_analyzer is not None
     assert src.sentiment._sentiment_analyzer is analyzer1

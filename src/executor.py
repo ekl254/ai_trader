@@ -2,19 +2,17 @@
 
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, OrderStatus
+from alpaca.trading.enums import OrderSide, OrderStatus, TimeInForce
 from alpaca.trading.models import Order, Position
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-from config.config import config
+from src.clients import get_trading_client, trading_circuit_breaker
 from src.logger import log_trade_decision, logger
 from src.performance_tracker import PerformanceTracker  # type: ignore
+from src.position_sizer import PositionSizeResult, position_sizer
 from src.position_tracker import position_tracker  # type: ignore
 from src.risk_manager import risk_manager
-from src.position_sizer import position_sizer, PositionSizeResult
-from src.clients import get_trading_client, trading_circuit_breaker
 
 
 class TradeExecutor:
@@ -24,9 +22,7 @@ class TradeExecutor:
         self.client = get_trading_client()
         self.performance_tracker = PerformanceTracker()
 
-    def place_market_order(
-        self, symbol: str, qty: int, side: OrderSide
-    ) -> Optional[str]:
+    def place_market_order(self, symbol: str, qty: int, side: OrderSide) -> str | None:
         """
         Place a market order.
 
@@ -41,7 +37,7 @@ class TradeExecutor:
                 status=trading_circuit_breaker.get_status(),
             )
             return None
-        
+
         try:
             order_data = MarketOrderRequest(
                 symbol=symbol,
@@ -77,24 +73,24 @@ class TradeExecutor:
 
     def wait_for_order_fill(
         self, order_id: str, timeout_seconds: int = 30, poll_interval: float = 0.5
-    ) -> Optional[Order]:
+    ) -> Order | None:
         """
         Wait for an order to be filled.
-        
+
         Args:
             order_id: The order ID to check
             timeout_seconds: Maximum time to wait
             poll_interval: Time between status checks
-            
+
         Returns:
             The filled order, or None if not filled within timeout
         """
         start_time = time.time()
-        
+
         while time.time() - start_time < timeout_seconds:
             try:
                 order = self.client.get_order_by_id(order_id)
-                
+
                 if order.status == OrderStatus.FILLED:
                     logger.info(
                         "order_filled",
@@ -104,8 +100,12 @@ class TradeExecutor:
                         filled_avg_price=order.filled_avg_price,
                     )
                     return order
-                
-                if order.status in [OrderStatus.CANCELED, OrderStatus.EXPIRED, OrderStatus.REJECTED]:
+
+                if order.status in [
+                    OrderStatus.CANCELED,
+                    OrderStatus.EXPIRED,
+                    OrderStatus.REJECTED,
+                ]:
                     logger.warning(
                         "order_not_filled",
                         order_id=order_id,
@@ -113,20 +113,22 @@ class TradeExecutor:
                         symbol=order.symbol,
                     )
                     return None
-                
+
                 # Order still pending, wait and retry
                 time.sleep(poll_interval)
-                
+
             except Exception as e:
-                logger.error("order_status_check_failed", order_id=order_id, error=str(e))
+                logger.error(
+                    "order_status_check_failed", order_id=order_id, error=str(e)
+                )
                 time.sleep(poll_interval)
-        
+
         logger.warning("order_fill_timeout", order_id=order_id, timeout=timeout_seconds)
         return None
 
     def place_limit_order(
         self, symbol: str, qty: int, side: OrderSide, limit_price: float
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Place a limit order.
 
@@ -168,9 +170,13 @@ class TradeExecutor:
             return None
 
     def buy_stock(
-        self, symbol: str, score: float, reasoning: Dict, current_price: float,
-        size_override: Optional[PositionSizeResult] = None,
-        skip_tracking: bool = False
+        self,
+        symbol: str,
+        score: float,
+        reasoning: dict,
+        current_price: float,
+        size_override: PositionSizeResult | None = None,
+        skip_tracking: bool = False,
     ) -> bool:
         """
         Execute a buy order with full risk management and dynamic sizing.
@@ -205,7 +211,7 @@ class TradeExecutor:
                 current_price=current_price,
                 composite_score=score,
             )
-        
+
         shares = size_result.recommended_shares
 
         if shares <= 0:
@@ -236,7 +242,7 @@ class TradeExecutor:
         if order_id:
             # Wait for order fill before proceeding
             filled_order = self.wait_for_order_fill(order_id, timeout_seconds=30)
-            
+
             if filled_order is None:
                 logger.error(
                     "buy_order_not_filled",
@@ -247,32 +253,32 @@ class TradeExecutor:
                 # Order wasn't filled - clear pending marker and fail
                 risk_manager.clear_pending_buy(symbol)
                 return False
-            
+
             # Order filled - now safe to clear pending and track
             risk_manager.clear_pending_buy(symbol)
-            
+
             # Record entry for daily limit tracking
             position_sizer.record_entry(symbol)
-            
+
             # Use actual fill price if available
             actual_price = float(filled_order.filled_avg_price or current_price)
             actual_shares = int(filled_order.filled_qty or shares)
-            
+
             # Track position entry with detailed score breakdown and sizing info
             # Skip if called from swap_position (which handles its own tracking)
             if not skip_tracking:
                 position_tracker.track_entry(
-                symbol=symbol,
-                entry_price=actual_price,
-                score=score,
-                reason="new_position",
-                score_breakdown={
-                    "technical": reasoning.get("technical", {}).get("total", 0),
-                    "sentiment": reasoning.get("sentiment", {}).get("total", 0),
-                    "fundamental": reasoning.get("fundamental", {}).get("total", 0),
-                },
-                news_sentiment=reasoning.get("sentiment", {}).get("total"),
-                news_count=None,  # News count not tracked in current sentiment structure
+                    symbol=symbol,
+                    entry_price=actual_price,
+                    score=score,
+                    reason="new_position",
+                    score_breakdown={
+                        "technical": reasoning.get("technical", {}).get("total", 0),
+                        "sentiment": reasoning.get("sentiment", {}).get("total", 0),
+                        "fundamental": reasoning.get("fundamental", {}).get("total", 0),
+                    },
+                    news_sentiment=reasoning.get("sentiment", {}).get("total"),
+                    news_count=None,  # News count not tracked in current sentiment structure
                 )
 
             logger.info(
@@ -292,16 +298,16 @@ class TradeExecutor:
         return False
 
     def buy_stock_with_size(
-        self, 
-        symbol: str, 
-        score: float, 
-        reasoning: Dict, 
+        self,
+        symbol: str,
+        score: float,
+        reasoning: dict,
         current_price: float,
-        size_result: PositionSizeResult
+        size_result: PositionSizeResult,
     ) -> bool:
         """
         Execute a buy order with a pre-calculated position size.
-        
+
         This is used by main.py when batch sizing is already done.
         """
         return self.buy_stock(
@@ -310,7 +316,7 @@ class TradeExecutor:
             reasoning=reasoning,
             current_price=current_price,
             size_override=size_result,
-            skip_tracking=False
+            skip_tracking=False,
         )
 
     def sell_stock(self, symbol: str, reason: str, sell_pct: float = 1.0) -> bool:
@@ -445,7 +451,7 @@ class TradeExecutor:
     def manage_stop_losses(self) -> None:
         """Check and manage stop losses for open positions."""
         try:
-            positions: List[Position] = self.client.get_all_positions()  # type: ignore
+            positions: list[Position] = self.client.get_all_positions()  # type: ignore
 
             for position in positions:
                 symbol = position.symbol
@@ -490,13 +496,13 @@ class TradeExecutor:
         new_symbol: str,
         old_score: float,
         new_score: float,
-        new_reasoning: Dict,
+        new_reasoning: dict,
         new_price: float,
         partial_sell_pct: float = 1.0,
     ) -> bool:
         """
         Swap one position for another (rebalancing).
-        
+
         IMPORTANT: This uses SELL-FIRST logic to ensure we free up cash
         before attempting to buy. This prevents the scenario where we're
         at max positions and can't execute the swap.
@@ -515,7 +521,7 @@ class TradeExecutor:
         """
         new_symbol = new_symbol.upper()
         old_symbol = old_symbol.upper()
-        
+
         # Pre-check: Is the new symbol already held?
         # (Don't check position limits - we're going to sell first!)
         current_positions = risk_manager.get_current_positions()
@@ -526,7 +532,7 @@ class TradeExecutor:
                 new_symbol=new_symbol,
             )
             return False
-        
+
         # Check if there's a pending buy for the target symbol
         if risk_manager.is_pending_buy(new_symbol):
             logger.warning(
@@ -566,11 +572,15 @@ class TradeExecutor:
         for attempt in range(max_retries):
             time.sleep(1)  # Check every second
             updated_positions = risk_manager.get_current_positions()
-            
+
             if partial_sell_pct >= 1.0:
                 # Full sell - position should be gone
                 if old_symbol not in updated_positions:
-                    logger.info("swap_sell_confirmed", old_symbol=old_symbol, attempt=attempt + 1)
+                    logger.info(
+                        "swap_sell_confirmed",
+                        old_symbol=old_symbol,
+                        attempt=attempt + 1,
+                    )
                     break
             else:
                 # Partial sell - harder to verify, just wait a bit more
@@ -589,7 +599,7 @@ class TradeExecutor:
         # === THEN BUY ===
         # Mark as pending to prevent race conditions
         risk_manager.mark_pending_buy(new_symbol)
-        
+
         try:
             # Use dynamic sizing - skip the can_open_position check since we just sold
             size_result = position_sizer.calculate_position_size(
@@ -597,38 +607,40 @@ class TradeExecutor:
                 current_price=new_price,
                 composite_score=new_score,
             )
-            
+
             if size_result.recommended_shares <= 0:
                 logger.error("swap_failed_invalid_size", new_symbol=new_symbol)
                 risk_manager.clear_pending_buy(new_symbol)
                 return False
-            
+
             # Validate the trade
             is_valid, reason = risk_manager.validate_trade(
                 new_symbol, size_result.recommended_shares, new_price
             )
             if not is_valid:
-                logger.error("swap_failed_validation", new_symbol=new_symbol, reason=reason)
+                logger.error(
+                    "swap_failed_validation", new_symbol=new_symbol, reason=reason
+                )
                 risk_manager.clear_pending_buy(new_symbol)
                 return False
-            
+
             # Log trade decision
             log_trade_decision(logger, new_symbol, "BUY", new_reasoning, new_score)
-            
+
             # Execute the buy order
             order_id = self.place_market_order(
                 new_symbol, size_result.recommended_shares, OrderSide.BUY
             )
-            
+
             if not order_id:
                 logger.error("swap_failed_on_buy_order", new_symbol=new_symbol)
                 risk_manager.clear_pending_buy(new_symbol)
                 return False
-            
+
             # Success! Clear pending and track
             risk_manager.clear_pending_buy(new_symbol)
             position_sizer.record_entry(new_symbol)
-            
+
             # Track the new position with rebalancing reason
             position_tracker.track_entry(
                 symbol=new_symbol,
@@ -643,7 +655,7 @@ class TradeExecutor:
                 news_sentiment=new_reasoning.get("sentiment", {}).get("total"),
                 news_count=None,
             )
-            
+
             logger.info(
                 "swap_buy_executed",
                 symbol=new_symbol,
@@ -651,7 +663,7 @@ class TradeExecutor:
                 price=new_price,
                 order_id=order_id,
             )
-            
+
         except Exception as e:
             logger.error("swap_buy_exception", new_symbol=new_symbol, error=str(e))
             risk_manager.clear_pending_buy(new_symbol)

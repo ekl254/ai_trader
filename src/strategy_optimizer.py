@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Automated strategy optimization based on historical performance."""
 
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from scipy.optimize import minimize
@@ -28,7 +26,7 @@ class StrategyOptimizer:
         self.current_threshold = config.trading.min_composite_score
         self.min_trades_for_optimization = 30
 
-    def analyze_and_recommend(self) -> Dict[str, Any]:
+    def analyze_and_recommend(self) -> dict[str, Any]:
         """
         Analyze historical performance and recommend optimizations.
 
@@ -112,8 +110,8 @@ class StrategyOptimizer:
         return result
 
     def _calculate_expected_win_rate(
-        self, weights: Dict[str, float], threshold: float
-    ) -> Dict[str, Any]:
+        self, weights: dict[str, float], threshold: float
+    ) -> dict[str, Any]:
         """
         Calculate expected win rate for given weights and threshold.
 
@@ -131,7 +129,7 @@ class StrategyOptimizer:
                 "win_rate": None,
                 "sample_size": len(trades),
                 "avg_profit_pct": None,
-                "message": "Insufficient data"
+                "message": "Insufficient data",
             }
 
         # Recalculate composite scores with given weights
@@ -145,18 +143,20 @@ class StrategyOptimizer:
             )
 
             if new_composite >= threshold:
-                qualifying_trades.append({
-                    "profit_loss": trade.get("profit_loss", 0),
-                    "profit_loss_pct": trade.get("profit_loss_pct", 0),
-                    "composite_score": new_composite,
-                })
+                qualifying_trades.append(
+                    {
+                        "profit_loss": trade.get("profit_loss", 0),
+                        "profit_loss_pct": trade.get("profit_loss_pct", 0),
+                        "composite_score": new_composite,
+                    }
+                )
 
         if len(qualifying_trades) < 5:
             return {
                 "win_rate": None,
                 "sample_size": len(qualifying_trades),
                 "avg_profit_pct": None,
-                "message": "Too few qualifying trades"
+                "message": "Too few qualifying trades",
             }
 
         # Calculate win rate
@@ -171,7 +171,9 @@ class StrategyOptimizer:
         losers = [t for t in qualifying_trades if t["profit_loss"] <= 0]
         avg_loser = np.mean([t["profit_loss_pct"] for t in losers]) if losers else 0
 
-        expected_value = (win_rate / 100 * avg_winner) + ((100 - win_rate) / 100 * avg_loser)
+        expected_value = (win_rate / 100 * avg_winner) + (
+            (100 - win_rate) / 100 * avg_loser
+        )
 
         return {
             "win_rate": round(win_rate, 1),
@@ -182,7 +184,7 @@ class StrategyOptimizer:
             "expected_value_pct": round(expected_value, 2),
         }
 
-    def _optimize_score_weights(self) -> Tuple[Dict[str, float], float]:
+    def _optimize_score_weights(self) -> tuple[dict[str, float], float]:
         """
         Find optimal score component weights using historical data.
 
@@ -265,7 +267,7 @@ class StrategyOptimizer:
 
         return optimal_weights, improvement_pct
 
-    def _optimize_threshold(self) -> Tuple[float, float]:
+    def _optimize_threshold(self) -> tuple[float, float]:
         """
         Find optimal minimum score threshold.
 
@@ -342,7 +344,7 @@ class StrategyOptimizer:
 
         return optimal_threshold, improvement_pct
 
-    def _calculate_sharpe(self, returns: List[float]) -> float:
+    def _calculate_sharpe(self, returns: list[float]) -> float:
         """Calculate annualized Sharpe ratio."""
         if len(returns) < 2:
             return 0.0
@@ -357,13 +359,13 @@ class StrategyOptimizer:
 
     def _generate_recommendations(
         self,
-        optimal_weights: Dict[str, float],
+        optimal_weights: dict[str, float],
         weight_improvement: float,
         optimal_threshold: float,
         threshold_improvement: float,
-        score_analysis: Dict,
-        metrics: Dict,
-    ) -> List[Dict[str, Any]]:
+        score_analysis: dict,
+        metrics: dict,
+    ) -> list[dict[str, Any]]:
         """Generate actionable recommendations."""
         recommendations = []
 
@@ -395,7 +397,7 @@ class StrategyOptimizer:
                     "description": f"Raising threshold could improve Sharpe ratio by {threshold_improvement:.1f}%",
                     "current": self.current_threshold,
                     "recommended": optimal_threshold,
-                    "impact": f"May reduce trade frequency but improve win rate",
+                    "impact": "May reduce trade frequency but improve win rate",
                 }
             )
 
@@ -428,7 +430,7 @@ class StrategyOptimizer:
                         "type": "component",
                         "priority": "low",
                         "title": f"No Variance in {', '.join(c.capitalize() for c in none_corrs)} Scores",
-                        "description": f"These components show no variation across trades (all same value)",
+                        "description": "These components show no variation across trades (all same value)",
                         "suggestion": f"Consider removing or diversifying {', '.join(none_corrs)} analysis",
                     }
                 )
@@ -469,7 +471,7 @@ class StrategyOptimizer:
 
     def apply_optimizations(
         self, apply_weights: bool = False, apply_threshold: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Apply recommended optimizations to config.
 

@@ -7,8 +7,7 @@ and operational insights via Prometheus-compatible endpoints.
 
 import threading
 import time
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Any
 
 
 class TradingMetrics:
@@ -17,7 +16,7 @@ class TradingMetrics:
     def __init__(self) -> None:
         """Initialize metrics storage."""
         self._lock = threading.Lock()
-        self._metrics: Dict[str, Any] = {
+        self._metrics: dict[str, Any] = {
             # Counters
             "trades_total": 0,
             "trades_buy_total": 0,
@@ -29,7 +28,6 @@ class TradingMetrics:
             "errors_total": 0,
             "api_calls_total": 0,
             "scans_total": 0,
-            
             # Gauges
             "portfolio_value": 0.0,
             "buying_power": 0.0,
@@ -40,13 +38,11 @@ class TradingMetrics:
             "daily_pnl_percent": 0.0,
             "win_rate": 0.0,
             "active_orders_count": 0,
-            
             # Trading specific
             "last_scan_duration_seconds": 0.0,
             "last_trade_timestamp": 0,
             "market_regime": "unknown",
             "bot_status": "stopped",
-            
             # Histograms (simplified as averages)
             "avg_trade_score": 0.0,
             "avg_position_hold_minutes": 0.0,
@@ -76,7 +72,7 @@ class TradingMetrics:
         symbol: str,
         qty: float,
         price: float,
-        score: Optional[float] = None,
+        score: float | None = None,
     ) -> None:
         """Record a trade execution."""
         with self._lock:
@@ -86,14 +82,14 @@ class TradingMetrics:
             else:
                 self._metrics["trades_sell_total"] += 1
             self._metrics["last_trade_timestamp"] = int(time.time())
-            
+
             if score is not None:
                 # Update rolling average score
                 total = self._metrics["trades_total"]
                 old_avg = self._metrics["avg_trade_score"]
                 self._metrics["avg_trade_score"] = (
-                    (old_avg * (total - 1) + score) / total
-                )
+                    old_avg * (total - 1) + score
+                ) / total
 
     def record_order(self, status: str) -> None:
         """Record an order status."""
@@ -202,8 +198,8 @@ class TradingMetrics:
                 "# TYPE ai_trader_last_trade_timestamp gauge",
                 f"ai_trader_last_trade_timestamp {self._metrics['last_trade_timestamp']}",
                 "",
-                f'# HELP ai_trader_info Trading bot information',
-                f'# TYPE ai_trader_info gauge',
+                "# HELP ai_trader_info Trading bot information",
+                "# TYPE ai_trader_info gauge",
                 f'ai_trader_info{{version="1.0.0",regime="{self._metrics["market_regime"]}",status="{self._metrics["bot_status"]}"}} 1',
             ]
             return "\n".join(lines) + "\n"

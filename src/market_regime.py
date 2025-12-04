@@ -1,10 +1,7 @@
 """Market regime detection for adaptive trading with dynamic parameters."""
 
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Tuple, Optional
+from datetime import UTC, datetime
 from enum import Enum
-
-import pandas as pd
 
 from src.logger import logger
 
@@ -23,59 +20,59 @@ class MarketRegime(Enum):
 # Regime-specific trading parameters (optimized via backtesting study)
 REGIME_PARAMETERS = {
     MarketRegime.STRONG_BULL: {
-        "stop_loss_pct": 0.05,      # 5% - wider stops in strong trends
-        "take_profit_pct": 0.12,    # 12% - let winners run
-        "min_score": 60,            # Lower threshold - ride the trend
+        "stop_loss_pct": 0.05,  # 5% - wider stops in strong trends
+        "take_profit_pct": 0.12,  # 12% - let winners run
+        "min_score": 60,  # Lower threshold - ride the trend
         "position_multiplier": 1.0,
         "max_positions": 10,
         "should_trade": True,
-        "description": "Strong uptrend - wider stops, aggressive targets"
+        "description": "Strong uptrend - wider stops, aggressive targets",
     },
     MarketRegime.BULL: {
-        "stop_loss_pct": 0.04,      # 4% - moderately wide
-        "take_profit_pct": 0.10,    # 10% - good targets
-        "min_score": 65,            # Moderate threshold
+        "stop_loss_pct": 0.04,  # 4% - moderately wide
+        "take_profit_pct": 0.10,  # 10% - good targets
+        "min_score": 65,  # Moderate threshold
         "position_multiplier": 1.0,
         "max_positions": 10,
         "should_trade": True,
-        "description": "Bullish trend - normal trading with trend"
+        "description": "Bullish trend - normal trading with trend",
     },
     MarketRegime.NEUTRAL: {
         # Allow full positions in neutral - we have cash to deploy
-        "stop_loss_pct": 0.03,      # 3% - tighter for choppy markets
-        "take_profit_pct": 0.06,    # 6% - take profits quicker
-        "min_score": 70,            # Higher threshold - be selective
+        "stop_loss_pct": 0.03,  # 3% - tighter for choppy markets
+        "take_profit_pct": 0.06,  # 6% - take profits quicker
+        "min_score": 70,  # Higher threshold - be selective
         "position_multiplier": 0.75,
         "max_positions": 7,
         "should_trade": True,
-        "description": "Sideways market - be selective, tighter stops"
+        "description": "Sideways market - be selective, tighter stops",
     },
     MarketRegime.BEAR: {
-        "stop_loss_pct": 0.02,      # 2% - tight stops
-        "take_profit_pct": 0.05,    # 5% - quick profits
-        "min_score": 75,            # High threshold - only best setups
+        "stop_loss_pct": 0.02,  # 2% - tight stops
+        "take_profit_pct": 0.05,  # 5% - quick profits
+        "min_score": 75,  # High threshold - only best setups
         "position_multiplier": 0.5,
         "max_positions": 5,
         "should_trade": True,
-        "description": "Bearish trend - defensive, tight stops"
+        "description": "Bearish trend - defensive, tight stops",
     },
     MarketRegime.STRONG_BEAR: {
-        "stop_loss_pct": 0.02,      # 2% - very tight
-        "take_profit_pct": 0.04,    # 4% - take any profit
-        "min_score": 80,            # Very high threshold
+        "stop_loss_pct": 0.02,  # 2% - very tight
+        "take_profit_pct": 0.04,  # 4% - take any profit
+        "min_score": 80,  # Very high threshold
         "position_multiplier": 0.25,
         "max_positions": 3,
-        "should_trade": False,      # Avoid new longs
-        "description": "Strong downtrend - capital preservation mode"
+        "should_trade": False,  # Avoid new longs
+        "description": "Strong downtrend - capital preservation mode",
     },
     MarketRegime.HIGH_VOLATILITY: {
-        "stop_loss_pct": 0.04,      # 4% - wider for vol spikes
-        "take_profit_pct": 0.08,    # 8% - moderate targets
-        "min_score": 72,            # Elevated threshold
+        "stop_loss_pct": 0.04,  # 4% - wider for vol spikes
+        "take_profit_pct": 0.08,  # 8% - moderate targets
+        "min_score": 72,  # Elevated threshold
         "position_multiplier": 0.5,
         "max_positions": 5,
         "should_trade": True,
-        "description": "High volatility - reduced size, wider stops"
+        "description": "High volatility - reduced size, wider stops",
     },
 }
 
@@ -84,10 +81,10 @@ class MarketRegimeDetector:
     """Detects current market regime using SPY and VIX indicators."""
 
     def __init__(self) -> None:
-        self._cache: Dict[str, Tuple[datetime, Dict]] = {}
+        self._cache: dict[str, tuple[datetime, dict]] = {}
         self._cache_ttl = 900  # 15 minutes
 
-    def get_market_regime(self) -> Dict:
+    def get_market_regime(self) -> dict:
         """
         Analyze current market regime using SPY trend and VIX levels.
 
@@ -95,7 +92,7 @@ class MarketRegimeDetector:
             Dict with regime, trading parameters, and recommendations
         """
         cache_key = "market_regime"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Check cache
         if cache_key in self._cache:
@@ -207,10 +204,10 @@ class MarketRegimeDetector:
 
         return MarketRegime.NEUTRAL
 
-    def get_trading_parameters(self) -> Dict:
+    def get_trading_parameters(self) -> dict:
         """
         Get current regime-adjusted trading parameters.
-        
+
         Returns:
             Dict with stop_loss_pct, take_profit_pct, min_score
         """
@@ -225,7 +222,7 @@ class MarketRegimeDetector:
             "recommendation": regime_data["recommendation"],
         }
 
-    def _default_regime(self, reason: str) -> Dict:
+    def _default_regime(self, reason: str) -> dict:
         """Return default neutral regime on error."""
         params = REGIME_PARAMETERS[MarketRegime.NEUTRAL]
         return {
@@ -238,10 +235,10 @@ class MarketRegimeDetector:
             "max_positions_override": params["max_positions"],
             "should_trade": True,
             "recommendation": f"Using default neutral settings due to: {reason}",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
-    def should_enter_trade(self) -> Tuple[bool, str]:
+    def should_enter_trade(self) -> tuple[bool, str]:
         """
         Quick check if market conditions allow new trades.
 

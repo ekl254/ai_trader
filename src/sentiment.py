@@ -1,17 +1,15 @@
 """Sentiment analysis for news articles."""
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from datetime import UTC, datetime
 
-from src.newsapi_client import newsapi_client
 from src.logger import logger
-
+from src.newsapi_client import newsapi_client
 
 # Load sentiment model (cached after first use)
 _sentiment_analyzer = None
 
 # Sentiment score cache: {symbol: (timestamp, score, article_count)}
-_sentiment_cache: Dict[str, Tuple[datetime, float, int]] = {}
+_sentiment_cache: dict[str, tuple[datetime, float, int]] = {}
 _SENTIMENT_CACHE_TTL = 1800  # 30 minutes
 
 
@@ -77,9 +75,9 @@ def get_news_sentiment(symbol: str, max_articles: int = 20) -> float:
     global _sentiment_cache
 
     # Check cache first
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if symbol in _sentiment_cache:
-        cached_time, cached_score, cached_count = _sentiment_cache[symbol]
+        cached_time, cached_score, _cached_count = _sentiment_cache[symbol]
         cache_age = (now - cached_time).total_seconds()
         if cache_age < _SENTIMENT_CACHE_TTL:
             logger.info(
@@ -143,7 +141,7 @@ def get_news_sentiment(symbol: str, max_articles: int = 20) -> float:
         return 50.0  # Neutral on error
 
 
-def clear_sentiment_cache(symbol: Optional[str] = None) -> None:
+def clear_sentiment_cache(symbol: str | None = None) -> None:
     """
     Clear sentiment cache for a specific symbol or all symbols.
 
@@ -159,9 +157,9 @@ def clear_sentiment_cache(symbol: Optional[str] = None) -> None:
         logger.info("sentiment_cache_cleared_all")
 
 
-def get_sentiment_cache_stats() -> Dict:
+def get_sentiment_cache_stats() -> dict:
     """Get statistics about the sentiment cache."""
-    now = datetime.now(timezone.utc)
+    datetime.now(UTC)
     return {
         "cached_symbols": len(_sentiment_cache),
         "symbols": list(_sentiment_cache.keys()),

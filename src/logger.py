@@ -1,11 +1,10 @@
 """Structured logging for the trading system."""
 
-import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 
@@ -14,11 +13,11 @@ from config.config import config
 
 def setup_logging() -> structlog.BoundLogger:
     """Configure structured logging."""
-    
+
     # Create logs directory
     log_dir = Path(config.logging.log_file).parent
     log_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Configure structlog
     structlog.configure(
         processors=[
@@ -36,20 +35,20 @@ def setup_logging() -> structlog.BoundLogger:
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
-    
+
     # Configure standard logging
     # Clear any existing handlers to prevent duplicates
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.setLevel(getattr(logging, config.logging.log_level))
-    
+
     # Add stdout handler only (systemd handles file logging)
     # When not running under systemd, logs go to stdout only
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(getattr(logging, config.logging.log_level))
     stdout_handler.setFormatter(logging.Formatter("%(message)s"))
     root_logger.addHandler(stdout_handler)
-    
+
     return structlog.get_logger()
 
 
@@ -57,7 +56,7 @@ def log_trade_decision(
     logger: structlog.BoundLogger,
     symbol: str,
     action: str,
-    reasoning: Dict[str, Any],
+    reasoning: dict[str, Any],
     score: float,
 ) -> None:
     """Log a trade decision with full reasoning."""

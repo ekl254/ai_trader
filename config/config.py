@@ -1,8 +1,6 @@
 """Configuration management for the trading system."""
 
 import os
-from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
@@ -28,7 +26,9 @@ class TradingConfig(BaseModel):
     portfolio_value: float = Field(default=100000.0)
 
     # Scoring thresholds (optimized based on performance data)
-    min_composite_score: float = Field(default=72.5)  # Raised for higher quality entries
+    min_composite_score: float = Field(
+        default=72.5
+    )  # Raised for higher quality entries
     min_factor_score: float = Field(default=40.0)
 
     # Score weights for composite calculation (must sum to 1.0)
@@ -42,8 +42,12 @@ class TradingConfig(BaseModel):
     rsi_overbought: float = Field(default=70.0)
 
     # Risk management
-    stop_loss_pct: float = Field(default=0.03)  # 3% stop loss (optimized via 5-year backtest)
-    take_profit_pct: float = Field(default=0.08)  # 8% take profit (optimized via 5-year backtest)
+    stop_loss_pct: float = Field(
+        default=0.03
+    )  # 3% stop loss (optimized via 5-year backtest)
+    take_profit_pct: float = Field(
+        default=0.08
+    )  # 8% take profit (optimized via 5-year backtest)
     # NOTE: trailing_stop_pct removed - feature not implemented
 
     # Position management

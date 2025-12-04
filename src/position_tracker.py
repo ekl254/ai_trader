@@ -1,9 +1,9 @@
 """Track position entry times, rebalancing history, and locked positions."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 from src.logger import logger
 
@@ -14,20 +14,20 @@ class PositionTracker:
     def __init__(self, data_file: str = "data/position_tracking.json") -> None:
         self.data_file = Path(data_file)
         self.data_file.parent.mkdir(parents=True, exist_ok=True)
-        self.data: Dict[str, Any] = self._load_data()
+        self.data: dict[str, Any] = self._load_data()
 
-    def _load_data(self) -> Dict[str, Any]:
+    def _load_data(self) -> dict[str, Any]:
         """Load tracking data from file."""
         if self.data_file.exists():
             try:
-                with open(self.data_file, "r") as f:
+                with open(self.data_file) as f:
                     return json.load(f)
             except Exception as e:
                 logger.error("failed_to_load_position_tracking", error=str(e))
                 return self._initialize_data()
         return self._initialize_data()
 
-    def _initialize_data(self) -> Dict[str, Any]:
+    def _initialize_data(self) -> dict[str, Any]:
         """Initialize empty tracking data structure."""
         return {
             "positions": {},  # {symbol: {entry_time, entry_price, score, reason}}
@@ -51,9 +51,9 @@ class PositionTracker:
         entry_price: float,
         score: float,
         reason: str,
-        score_breakdown: Optional[Dict[str, float]] = None,
-        news_sentiment: Optional[float] = None,
-        news_count: Optional[int] = None,
+        score_breakdown: dict[str, float] | None = None,
+        news_sentiment: float | None = None,
+        news_count: int | None = None,
     ) -> None:
         """
         Track a new position entry.
@@ -67,7 +67,7 @@ class PositionTracker:
             news_sentiment: News sentiment at entry
             news_count: Number of news articles at entry
         """
-        entry_time = datetime.now(timezone.utc)
+        entry_time = datetime.now(UTC)
 
         self.data["positions"][symbol] = {
             "entry_time": entry_time.isoformat(),
@@ -129,7 +129,7 @@ class PositionTracker:
             new_score: Score of new position
             score_diff: Score difference
         """
-        rebalance_time = datetime.now(timezone.utc)
+        rebalance_time = datetime.now(UTC)
 
         event = {
             "timestamp": rebalance_time.isoformat(),
@@ -152,7 +152,7 @@ class PositionTracker:
             score_diff=score_diff,
         )
 
-    def get_entry_time(self, symbol: str) -> Optional[datetime]:
+    def get_entry_time(self, symbol: str) -> datetime | None:
         """
         Get entry time for a position.
 
@@ -179,13 +179,13 @@ class PositionTracker:
         """
         entry_time = self.get_entry_time(symbol)
         if entry_time:
-            return (datetime.now(timezone.utc) - entry_time).total_seconds()
+            return (datetime.now(UTC) - entry_time).total_seconds()
         return 0.0
 
     def _calculate_hold_duration(self, entry_time_str: str) -> float:
         """Calculate hold duration in seconds from ISO string."""
         entry_time = datetime.fromisoformat(entry_time_str)
-        return (datetime.now(timezone.utc) - entry_time).total_seconds()
+        return (datetime.now(UTC) - entry_time).total_seconds()
 
     def is_locked(self, symbol: str) -> bool:
         """
@@ -223,11 +223,11 @@ class PositionTracker:
             self._save_data()
             logger.info("position_unlocked", symbol=symbol)
 
-    def get_locked_positions(self) -> List[str]:
+    def get_locked_positions(self) -> list[str]:
         """Get list of locked positions."""
         return self.data["locked_positions"].copy()
 
-    def get_last_rebalance_time(self) -> Optional[datetime]:
+    def get_last_rebalance_time(self) -> datetime | None:
         """
         Get timestamp of last rebalancing event.
 
@@ -253,12 +253,12 @@ class PositionTracker:
         if last_rebalance is None:
             return True
 
-        elapsed_seconds = (datetime.now(timezone.utc) - last_rebalance).total_seconds()
+        elapsed_seconds = (datetime.now(UTC) - last_rebalance).total_seconds()
         elapsed_minutes = elapsed_seconds / 60
 
         return elapsed_minutes >= cooldown_minutes
 
-    def get_rebalancing_history(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_rebalancing_history(self, limit: int = 50) -> list[dict[str, Any]]:
         """
         Get recent rebalancing history.
 
@@ -271,7 +271,7 @@ class PositionTracker:
         history = self.data["rebalancing_history"]
         return list(reversed(history[-limit:]))
 
-    def get_rebalancing_stats(self) -> Dict[str, Any]:
+    def get_rebalancing_stats(self) -> dict[str, Any]:
         """
         Get rebalancing statistics.
 
@@ -297,55 +297,58 @@ class PositionTracker:
             "max_score_improvement": max(score_diffs),
         }
 
-
-    def sync_with_alpaca(self, alpaca_positions: list) -> Dict[str, Any]:
+    def sync_with_alpaca(self, alpaca_positions: list) -> dict[str, Any]:
         """
         Synchronize tracking data with actual Alpaca positions.
-        
+
         - Adds missing positions (in Alpaca but not tracked)
         - Removes stale positions (tracked but not in Alpaca)
-        
+
         Args:
             alpaca_positions: List of Position objects from Alpaca
-            
+
         Returns:
             Dict with sync results (added, removed, unchanged)
         """
         alpaca_symbols = {pos.symbol for pos in alpaca_positions}
         tracked_symbols = set(self.data["positions"].keys())
-        
+
         # Find discrepancies
         missing = alpaca_symbols - tracked_symbols  # In Alpaca, not tracked
-        stale = tracked_symbols - alpaca_symbols    # Tracked, not in Alpaca
-        
+        stale = tracked_symbols - alpaca_symbols  # Tracked, not in Alpaca
+
         results = {
             "added": [],
             "removed": [],
             "unchanged": list(alpaca_symbols & tracked_symbols),
         }
-        
+
         # Add missing positions with placeholder data
         for symbol in missing:
             pos = next(p for p in alpaca_positions if p.symbol == symbol)
             self.data["positions"][symbol] = {
-                "entry_time": datetime.now(timezone.utc).isoformat(),
+                "entry_time": datetime.now(UTC).isoformat(),
                 "entry_price": float(pos.avg_entry_price),
                 "score": 0,  # Unknown - position predates tracking
                 "reason": "synced_from_alpaca",
                 "score_breakdown": {},
                 "news_sentiment": None,
                 "news_count": None,
-                "note": "Position existed before tracking sync"
+                "note": "Position existed before tracking sync",
             }
             results["added"].append(symbol)
-            logger.info("position_synced_from_alpaca", symbol=symbol, entry_price=float(pos.avg_entry_price))
-        
+            logger.info(
+                "position_synced_from_alpaca",
+                symbol=symbol,
+                entry_price=float(pos.avg_entry_price),
+            )
+
         # Remove stale positions
         for symbol in stale:
             del self.data["positions"][symbol]
             results["removed"].append(symbol)
             logger.info("stale_position_removed", symbol=symbol)
-        
+
         if results["added"] or results["removed"]:
             self._save_data()
             logger.info(
@@ -354,7 +357,7 @@ class PositionTracker:
                 removed=len(results["removed"]),
                 total=len(self.data["positions"]),
             )
-        
+
         return results
 
 

@@ -4,9 +4,9 @@
 import argparse
 import sys
 from datetime import datetime
-from typing import List
 
 from alpaca.trading.client import TradingClient
+
 from config.config import config
 from src.position_tracker import position_tracker
 

@@ -1,10 +1,8 @@
 """S&P 500 stock universe management."""
 
 import json
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List
 
 import pandas as pd
 import requests
@@ -15,7 +13,7 @@ CACHE_FILE = Path(__file__).parent.parent / "data" / "sp500_cache.json"
 CACHE_DURATION_HOURS = 24  # Refresh daily to catch additions/removals
 
 
-def get_sp500_symbols() -> List[str]:
+def get_sp500_symbols() -> list[str]:
     """
     Get list of S&P 500 symbols from Wikipedia with caching.
     Cache is refreshed daily to catch S&P 500 additions/removals.
@@ -26,7 +24,7 @@ def get_sp500_symbols() -> List[str]:
     # Check cache first
     if CACHE_FILE.exists():
         try:
-            with open(CACHE_FILE, "r") as f:
+            with open(CACHE_FILE) as f:
                 cache = json.load(f)
                 cache_time = datetime.fromisoformat(cache["timestamp"])
 
@@ -81,12 +79,8 @@ def get_sp500_symbols() -> List[str]:
         symbols = df[symbol_col].tolist()
 
         # Filter out NaN and clean symbols
-        symbols = [
-            str(s).strip()
-            for s in symbols
-            if pd.notna(s) and len(str(s)) <= 5
-        ]
-        
+        symbols = [str(s).strip() for s in symbols if pd.notna(s) and len(str(s)) <= 5]
+
         # Normalize symbol formats for Alpaca compatibility
         # Wikipedia uses hyphens (BRK-B) but Alpaca uses dots (BRK.B)
         symbols = [s.replace("-", ".") for s in symbols]
@@ -112,12 +106,12 @@ def get_sp500_symbols() -> List[str]:
         # Try to use stale cache as last resort
         if CACHE_FILE.exists():
             try:
-                with open(CACHE_FILE, "r") as f:
+                with open(CACHE_FILE) as f:
                     cache = json.load(f)
                     symbols = cache["symbols"]
                     logger.warning("using_stale_cache", count=len(symbols))
                     return symbols
-            except:
+            except Exception:
                 pass
 
         # Final fallback to hardcoded liquid stocks
@@ -146,7 +140,7 @@ def get_sp500_symbols() -> List[str]:
         ]
 
 
-def filter_liquid_stocks(symbols: List[str], min_volume: int = 1_000_000) -> List[str]:
+def filter_liquid_stocks(symbols: list[str], min_volume: int = 1_000_000) -> list[str]:
     """
     Filter stocks by liquidity using actual volume data from Alpaca.
 
@@ -163,6 +157,7 @@ def filter_liquid_stocks(symbols: List[str], min_volume: int = 1_000_000) -> Lis
         from alpaca.data.historical import StockHistoricalDataClient
         from alpaca.data.requests import StockBarsRequest
         from alpaca.data.timeframe import TimeFrame
+
         from config.config import config
 
         client = StockHistoricalDataClient(

@@ -1,10 +1,9 @@
 """LLM-based reason generator for trading decisions using Ollama."""
 
-import hashlib
-import json
 import os
-from typing import Dict, Optional
+
 import requests
+
 from src.logger import logger
 
 
@@ -31,7 +30,7 @@ class LLMReasonGenerator:
         technical: float,
         fundamental: float,
         sentiment: float,
-        thresholds: Dict[str, float],
+        thresholds: dict[str, float],
     ) -> str:
         """Generate a concise trading decision reason using LLM.
 
@@ -62,7 +61,6 @@ class LLMReasonGenerator:
         )
 
         # Build concise prompt
-        status = "QUALIFIED for trading" if qualified else "REJECTED from trading"
 
         # Find the weakest scores
         weaknesses = []
@@ -138,7 +136,7 @@ class LLMReasonGenerator:
         technical: float,
         fundamental: float,
         sentiment: float,
-        thresholds: Dict[str, float],
+        thresholds: dict[str, float],
     ) -> str:
         """Generate cache key from scores (rounded to reduce cache misses)."""
         # Round scores to nearest 5 for better cache hits
@@ -153,7 +151,7 @@ class LLMReasonGenerator:
         composite: float,
         technical: float,
         sentiment: float,
-        thresholds: Dict[str, float],
+        thresholds: dict[str, float],
     ) -> str:
         """Generate fallback reason when LLM is unavailable."""
         if qualified:
@@ -164,7 +162,7 @@ class LLMReasonGenerator:
                 strengths.append("positive sentiment")
             if strengths:
                 return f"✓ {', '.join(strengths).capitalize()}"
-            return f"✓ All criteria met"
+            return "✓ All criteria met"
 
         # Find weakest area
         scores = [
@@ -180,10 +178,10 @@ class LLMReasonGenerator:
 
 
 # Singleton instance
-_llm_generator: Optional[LLMReasonGenerator] = None
+_llm_generator: LLMReasonGenerator | None = None
 
 
-def get_llm_reason_generator(ollama_url: Optional[str] = None) -> LLMReasonGenerator:
+def get_llm_reason_generator(ollama_url: str | None = None) -> LLMReasonGenerator:
     """Get or create LLM reason generator singleton.
 
     Args:

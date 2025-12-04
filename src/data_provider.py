@@ -1,7 +1,7 @@
 """Data provider for market data from Alpaca."""
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pandas as pd
 from alpaca.data.historical import StockHistoricalDataClient
@@ -27,7 +27,7 @@ class AlpacaProvider:
         request = StockBarsRequest(
             symbol_or_symbols=symbol,
             timeframe=timeframe,
-            start=datetime.now(timezone.utc) - timedelta(days=days),
+            start=datetime.now(UTC) - timedelta(days=days),
         )
 
         try:
@@ -39,7 +39,7 @@ class AlpacaProvider:
             logger.error("bars_fetch_failed", symbol=symbol, error=str(e))
             raise
 
-    def get_latest_trade(self, symbol: str) -> Dict[str, Any]:
+    def get_latest_trade(self, symbol: str) -> dict[str, Any]:
         """Get latest trade price."""
         try:
             request = StockLatestTradeRequest(symbol_or_symbols=symbol)

@@ -4,8 +4,8 @@ Uses Alpaca News API exclusively - free with trading account,
 better financial coverage, and no rate limits.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from src.logger import logger
 
@@ -15,7 +15,7 @@ class AlpacaNewsClient:
 
     def __init__(self):
         self._client = None
-        self._cache: Dict[str, tuple] = {}
+        self._cache: dict[str, tuple] = {}
         self._cache_ttl = 1800  # 30 minutes
 
     def _get_client(self):
@@ -23,11 +23,11 @@ class AlpacaNewsClient:
         if self._client is None:
             try:
                 from alpaca.data.historical.news import NewsClient
+
                 from config.config import config
-                
+
                 self._client = NewsClient(
-                    config.alpaca.api_key, 
-                    config.alpaca.secret_key
+                    config.alpaca.api_key, config.alpaca.secret_key
                 )
             except Exception as e:
                 logger.error("alpaca_news_client_init_failed", error=str(e))
@@ -36,7 +36,7 @@ class AlpacaNewsClient:
 
     def get_stock_news(
         self, symbol: str, days_back: int = 7, max_articles: int = 20
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Fetch news articles for a stock symbol from Alpaca.
 
@@ -54,7 +54,9 @@ class AlpacaNewsClient:
         if cache_key in self._cache:
             timestamp, cached_articles = self._cache[cache_key]
             if (now - timestamp) < self._cache_ttl:
-                logger.info("alpaca_news_cache_hit", symbol=symbol, count=len(cached_articles))
+                logger.info(
+                    "alpaca_news_cache_hit", symbol=symbol, count=len(cached_articles)
+                )
                 return cached_articles
 
         client = self._get_client()
@@ -66,7 +68,7 @@ class AlpacaNewsClient:
             from alpaca.data.requests import NewsRequest
 
             # Calculate date range
-            end_date = datetime.now(timezone.utc)
+            end_date = datetime.now(UTC)
             start_date = end_date - timedelta(days=days_back)
 
             request = NewsRequest(
@@ -77,7 +79,7 @@ class AlpacaNewsClient:
             )
 
             response = client.get_news(request)
-            
+
             # Parse the NewsSet response correctly
             # response.data is a dict with 'news' key containing list of News objects
             news_items = response.data.get("news", [])
@@ -113,7 +115,7 @@ class AlpacaNewsClient:
             logger.error("alpaca_news_error", symbol=symbol, error=str(e))
             return []
 
-    def clear_cache(self, symbol: Optional[str] = None) -> None:
+    def clear_cache(self, symbol: str | None = None) -> None:
         """Clear news cache for a specific symbol or all symbols."""
         if symbol:
             keys_to_remove = [k for k in self._cache if k.startswith(f"{symbol}_")]

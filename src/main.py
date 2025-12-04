@@ -3,32 +3,38 @@
 import json
 import sys
 import time
-from datetime import datetime, time as dt_time, timezone
+from datetime import UTC, datetime
+from datetime import time as dt_time
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 import pytz  # type: ignore
 from alpaca.trading.client import TradingClient
-from alpaca.trading.models import Position, Clock
+from alpaca.trading.models import Clock, Position
 
 from config.config import config
 from src.data_provider import alpaca_provider
 from src.executor import executor
 from src.logger import logger
-from src.market_regime import market_regime_detector, MarketRegime
-from src.strategy import strategy
-from src.universe import get_sp500_symbols, filter_liquid_stocks
-from src.position_tracker import position_tracker  # type: ignore
+from src.market_regime import market_regime_detector
 from src.position_sizer import position_sizer
+from src.position_tracker import position_tracker  # type: ignore
 from src.risk_manager import risk_manager
-
+from src.strategy import strategy
+from src.universe import filter_liquid_stocks, get_sp500_symbols
 
 # File paths for premarket data persistence
-PREMARKET_CANDIDATES_FILE = Path(__file__).parent.parent / "data" / "premarket_candidates.json"
-PREMARKET_HISTORY_FILE = Path(__file__).parent.parent / "data" / "premarket_history.json"
+PREMARKET_CANDIDATES_FILE = (
+    Path(__file__).parent.parent / "data" / "premarket_candidates.json"
+)
+PREMARKET_HISTORY_FILE = (
+    Path(__file__).parent.parent / "data" / "premarket_history.json"
+)
 
 
-def save_premarket_candidates(candidates: List[Dict[str, Any]], scan_time: datetime) -> None:
+def save_premarket_candidates(
+    candidates: list[dict[str, Any]], scan_time: datetime
+) -> None:
     """Save premarket candidates to file for dashboard visibility."""
     data = {
         "scan_time": scan_time.isoformat(),
@@ -44,11 +50,11 @@ def save_premarket_candidates(candidates: List[Dict[str, Any]], scan_time: datet
         logger.error("failed_to_save_premarket_candidates", error=str(e))
 
 
-def load_premarket_candidates() -> Dict[str, Any]:
+def load_premarket_candidates() -> dict[str, Any]:
     """Load premarket candidates from file."""
     try:
         if PREMARKET_CANDIDATES_FILE.exists():
-            with open(PREMARKET_CANDIDATES_FILE, "r") as f:
+            with open(PREMARKET_CANDIDATES_FILE) as f:
                 return json.load(f)
     except Exception as e:
         logger.error("failed_to_load_premarket_candidates", error=str(e))
@@ -57,8 +63,8 @@ def load_premarket_candidates() -> Dict[str, Any]:
 
 def record_premarket_execution(
     date: str,
-    candidates: List[Dict[str, Any]],
-    executed: List[Dict[str, Any]],
+    candidates: list[dict[str, Any]],
+    executed: list[dict[str, Any]],
     regime: str,
 ) -> None:
     """Record premarket scan and execution results for historical tracking."""
@@ -66,9 +72,9 @@ def record_premarket_execution(
         # Load existing history
         history = []
         if PREMARKET_HISTORY_FILE.exists():
-            with open(PREMARKET_HISTORY_FILE, "r") as f:
+            with open(PREMARKET_HISTORY_FILE) as f:
                 history = json.load(f)
-        
+
         # Create record for this day
         record = {
             "date": date,
@@ -82,42 +88,44 @@ def record_premarket_execution(
             "executed": executed,
             "execution_count": len(executed),
         }
-        
+
         # Check if we already have a record for today (update it)
         existing_idx = None
         for i, h in enumerate(history):
             if h.get("date") == date:
                 existing_idx = i
                 break
-        
+
         if existing_idx is not None:
             # Update existing record
             history[existing_idx] = record
         else:
             # Add new record
             history.append(record)
-        
+
         # Keep last 90 days of history
         history = history[-90:]
-        
+
         # Save
         with open(PREMARKET_HISTORY_FILE, "w") as f:
             json.dump(history, f, indent=2)
-        
+
         logger.info("premarket_history_recorded", date=date, executed=len(executed))
     except Exception as e:
         logger.error("failed_to_record_premarket_history", error=str(e))
 
 
-def update_premarket_performance(symbol: str, entry_price: float, exit_price: float, exit_reason: str) -> None:
+def update_premarket_performance(
+    symbol: str, entry_price: float, exit_price: float, exit_reason: str
+) -> None:
     """Update premarket trade performance when a position is closed."""
     try:
         if not PREMARKET_HISTORY_FILE.exists():
             return
-        
-        with open(PREMARKET_HISTORY_FILE, "r") as f:
+
+        with open(PREMARKET_HISTORY_FILE) as f:
             history = json.load(f)
-        
+
         # Find the most recent record where this symbol was executed
         for record in reversed(history):
             for executed in record.get("executed", []):
@@ -125,14 +133,18 @@ def update_premarket_performance(symbol: str, entry_price: float, exit_price: fl
                     # Update with exit data
                     executed["exit_price"] = exit_price
                     executed["exit_reason"] = exit_reason
-                    executed["exit_time"] = datetime.now(pytz.timezone("US/Eastern")).isoformat()
+                    executed["exit_time"] = datetime.now(
+                        pytz.timezone("US/Eastern")
+                    ).isoformat()
                     executed["profit_loss"] = exit_price - entry_price
-                    executed["profit_loss_pct"] = ((exit_price - entry_price) / entry_price) * 100
-                    
+                    executed["profit_loss_pct"] = (
+                        (exit_price - entry_price) / entry_price
+                    ) * 100
+
                     # Save updated history
                     with open(PREMARKET_HISTORY_FILE, "w") as f:
                         json.dump(history, f, indent=2)
-                    
+
                     logger.info(
                         "premarket_performance_updated",
                         symbol=symbol,
@@ -148,14 +160,16 @@ class TradingEngine:
 
     def __init__(self) -> None:
         self.universe = self._load_universe()
-        self.premarket_candidates: List[Dict[str, Any]] = []  # Store premarket scan results
-        self.last_premarket_scan: Optional[datetime] = None
-        
+        self.premarket_candidates: list[dict[str, Any]] = (
+            []
+        )  # Store premarket scan results
+        self.last_premarket_scan: datetime | None = None
+
         # Sync position tracking with Alpaca on startup
         self._sync_position_tracking()
-        
+
         logger.info("trading_engine_initialized", universe_size=len(self.universe))
-    
+
     def _sync_position_tracking(self) -> None:
         """Sync position tracking data with actual Alpaca positions."""
         try:
@@ -165,10 +179,10 @@ class TradingEngine:
                 paper=True,
             )
             positions = client.get_all_positions()
-            
+
             # Clear any stale pending buys from previous session
             risk_manager.clear_all_pending_buys()
-            
+
             if positions:
                 sync_result = position_tracker.sync_with_alpaca(positions)
                 if sync_result["added"] or sync_result["removed"]:
@@ -180,7 +194,7 @@ class TradingEngine:
         except Exception as e:
             logger.warning("position_sync_failed_on_startup", error=str(e))
 
-    def _load_universe(self) -> List[str]:
+    def _load_universe(self) -> list[str]:
         """Load and filter stock universe."""
         symbols = get_sp500_symbols()
         liquid_symbols = filter_liquid_stocks(symbols)
@@ -208,15 +222,15 @@ class TradingEngine:
             et = pytz.timezone("US/Eastern")
             now = datetime.now(et)
             current_time = now.time()
-            
+
             # Premarket: 4:00 AM to 9:30 AM ET (weekdays only)
             premarket_start = dt_time(4, 0)
             premarket_end = dt_time(9, 30)
-            
+
             # Check if it's a weekday (Monday=0, Sunday=6)
             if now.weekday() >= 5:  # Saturday or Sunday
                 return False
-            
+
             return premarket_start <= current_time < premarket_end
         except Exception as e:
             logger.error("failed_to_check_premarket_hours", error=str(e))
@@ -228,38 +242,38 @@ class TradingEngine:
             et = pytz.timezone("US/Eastern")
             now = datetime.now(et)
             market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
-            
+
             if now >= market_open:
                 return 0
-            
+
             delta = market_open - now
             return int(delta.total_seconds() / 60)
         except Exception:
             return 0
 
-    def run_premarket_scan(self) -> List[Dict[str, Any]]:
+    def run_premarket_scan(self) -> list[dict[str, Any]]:
         """Run premarket analysis to identify top candidates for market open.
-        
+
         This scans the universe and scores stocks using available premarket data.
         Results are stored and ready for immediate execution at market open.
         """
         logger.info("premarket_scan_started", universe_size=len(self.universe))
-        
+
         # Get regime data for adaptive parameters
         regime_data = market_regime_detector.get_market_regime()
         regime = regime_data.get("regime", "neutral")
         regime_min_score = regime_data.get("min_score", 70)
-        
+
         logger.info(
             "premarket_regime_check",
             regime=regime,
             min_score=regime_min_score,
         )
-        
+
         candidates = []
         scanned = 0
         errors = 0
-        
+
         for i, symbol in enumerate(self.universe):
             try:
                 # Log progress every 50 symbols
@@ -269,10 +283,10 @@ class TradingEngine:
                         progress=f"{i + 1}/{len(self.universe)}",
                         candidates_found=len(candidates),
                     )
-                
+
                 should_buy, score, reasoning = strategy.should_buy(symbol)
                 scanned += 1
-                
+
                 if should_buy:
                     # Get current/premarket price
                     try:
@@ -280,39 +294,43 @@ class TradingEngine:
                         price = latest["price"]
                     except Exception:
                         price = 0  # Will get fresh price at market open
-                    
-                    candidates.append({
-                        "symbol": symbol,
-                        "score": score,
-                        "reasoning": reasoning,
-                        "price": price,
-                        "scanned_at": datetime.now(pytz.timezone("US/Eastern")).isoformat(),
-                    })
+
+                    candidates.append(
+                        {
+                            "symbol": symbol,
+                            "score": score,
+                            "reasoning": reasoning,
+                            "price": price,
+                            "scanned_at": datetime.now(
+                                pytz.timezone("US/Eastern")
+                            ).isoformat(),
+                        }
+                    )
                     logger.info(
                         "premarket_candidate_found",
                         symbol=symbol,
                         score=score,
                     )
-                
+
                 # Small delay to avoid rate limits
                 time.sleep(0.2)
-                
+
             except Exception as e:
                 errors += 1
                 if errors <= 5:  # Only log first 5 errors
                     logger.warning("premarket_scan_error", symbol=symbol, error=str(e))
                 continue
-        
+
         # Sort by score
         candidates.sort(key=lambda x: x["score"], reverse=True)
-        
+
         # Store results in memory and file
         self.premarket_candidates = candidates
         self.last_premarket_scan = datetime.now(pytz.timezone("US/Eastern"))
-        
+
         # Save to file for dashboard visibility
         save_premarket_candidates(candidates, self.last_premarket_scan)
-        
+
         logger.info(
             "premarket_scan_completed",
             scanned=scanned,
@@ -320,67 +338,73 @@ class TradingEngine:
             errors=errors,
             top_5=[c["symbol"] for c in candidates[:5]],
         )
-        
+
         return candidates
 
     def execute_premarket_candidates(self, max_positions: int = 3) -> int:
         """Execute trades for premarket candidates at market open.
-        
+
         Returns number of trades executed.
         """
         if not self.premarket_candidates:
             logger.info("no_premarket_candidates_to_execute")
             return 0
-        
+
         # Check how many slots available
         client = TradingClient(
             config.alpaca.api_key, config.alpaca.secret_key, paper=True
         )
-        positions: List[Position] = client.get_all_positions()  # type: ignore
+        positions: list[Position] = client.get_all_positions()  # type: ignore
         current_positions = len(positions)
         available_slots = max(0, config.trading.max_positions - current_positions)
-        
+
         if available_slots == 0:
             logger.info("no_slots_for_premarket_candidates")
             return 0
-        
-        trades_to_execute = min(available_slots, max_positions, len(self.premarket_candidates))
+
+        trades_to_execute = min(
+            available_slots, max_positions, len(self.premarket_candidates)
+        )
         executed = 0
         executed_trades = []
-        
+
         # Get regime for historical record
         regime_data = market_regime_detector.get_market_regime()
         regime = regime_data.get("regime", "unknown")
-        
+
         logger.info(
             "executing_premarket_candidates",
             candidates=len(self.premarket_candidates),
             slots_available=available_slots,
             will_execute=trades_to_execute,
         )
-        
+
         for candidate in self.premarket_candidates[:trades_to_execute]:
             try:
                 # Get fresh price at market open
                 latest = alpaca_provider.get_latest_trade(candidate["symbol"])
                 current_price = latest["price"]
-                
+
                 success = executor.buy_stock(
                     candidate["symbol"],
                     candidate["score"],
                     candidate["reasoning"],
                     current_price,
                 )
-                
+
                 if success:
                     executed += 1
-                    executed_trades.append({
-                        "symbol": candidate["symbol"],
-                        "score": candidate["score"],
-                        "premarket_price": candidate["price"],
-                        "execution_price": current_price,
-                        "execution_time": datetime.now(pytz.timezone("US/Eastern")).isoformat(),
-                    })
+                    executed_trades.append(
+                        {
+                            "symbol": candidate["symbol"],
+                            "score": candidate["score"],
+                            "premarket_price": candidate["price"],
+                            "execution_price": current_price,
+                            "execution_time": datetime.now(
+                                pytz.timezone("US/Eastern")
+                            ).isoformat(),
+                        }
+                    )
                     logger.info(
                         "premarket_candidate_executed",
                         symbol=candidate["symbol"],
@@ -389,14 +413,14 @@ class TradingEngine:
                         execution_price=current_price,
                     )
                     time.sleep(1)
-                    
+
             except Exception as e:
                 logger.error(
                     "premarket_execution_failed",
                     symbol=candidate["symbol"],
                     error=str(e),
                 )
-        
+
         # Record to history
         today = datetime.now(pytz.timezone("US/Eastern")).strftime("%Y-%m-%d")
         record_premarket_execution(
@@ -405,10 +429,10 @@ class TradingEngine:
             executed=executed_trades,
             regime=regime,
         )
-        
+
         # Clear candidates after execution (but keep file for dashboard until next scan)
         self.premarket_candidates = []
-        
+
         logger.info("premarket_execution_completed", trades_executed=executed)
         return executed
 
@@ -422,22 +446,25 @@ class TradingEngine:
         should_trade = regime_data.get("should_trade", True)
         position_multiplier = regime_data.get("position_size_multiplier", 1.0)
         max_positions_override = regime_data.get("max_positions_override")
-        
+
         # Get regime-adaptive parameters
         regime_stop_loss = regime_data.get("stop_loss_pct", 0.03)
         regime_take_profit = regime_data.get("take_profit_pct", 0.08)
         regime_min_score = regime_data.get("min_score", 70)
-        
+
         # Set regime parameters in risk manager
         from src.risk_manager import risk_manager
-        risk_manager.set_regime_parameters({
-            "regime": regime,
-            "stop_loss_pct": regime_stop_loss,
-            "take_profit_pct": regime_take_profit,
-            "min_score": regime_min_score,
-            "position_multiplier": position_multiplier,
-            "max_positions": max_positions_override,
-        })
+
+        risk_manager.set_regime_parameters(
+            {
+                "regime": regime,
+                "stop_loss_pct": regime_stop_loss,
+                "take_profit_pct": regime_take_profit,
+                "min_score": regime_min_score,
+                "position_multiplier": position_multiplier,
+                "max_positions": max_positions_override,
+            }
+        )
 
         logger.info(
             "market_regime_check",
@@ -463,15 +490,15 @@ class TradingEngine:
         client = TradingClient(
             config.alpaca.api_key, config.alpaca.secret_key, paper=True
         )
-        positions: List[Position] = client.get_all_positions()  # type: ignore
+        positions: list[Position] = client.get_all_positions()  # type: ignore
         current_positions = len(positions)
 
         # Use regime-adjusted max positions if available
         base_max_positions = max_positions_override or config.trading.max_positions
-        
+
         # Get portfolio info for dynamic position sizing
         portfolio_info = position_sizer.get_portfolio_info()
-        
+
         logger.info(
             "portfolio_status",
             portfolio_value=portfolio_info["portfolio_value"],
@@ -481,11 +508,11 @@ class TradingEngine:
         )
 
         # Rescore existing positions if rebalancing enabled and all slots full
-        position_scores: Dict[str, Dict[str, Any]] = {}
-        position_entry_times: Dict[str, datetime] = {}
+        position_scores: dict[str, dict[str, Any]] = {}
+        position_entry_times: dict[str, datetime] = {}
 
         available_slots = max(0, base_max_positions - current_positions)
-        
+
         if config.trading.enable_rebalancing and available_slots == 0:
             logger.info(
                 "rebalancing_enabled_rescoring_positions", count=current_positions
@@ -501,9 +528,7 @@ class TradingEngine:
                     position_entry_times[pos.symbol] = tracked_entry
                 else:
                     # Fallback: assume position is old enough to rebalance
-                    position_entry_times[pos.symbol] = datetime.min.replace(
-                        tzinfo=timezone.utc
-                    )
+                    position_entry_times[pos.symbol] = datetime.min.replace(tzinfo=UTC)
                     logger.warning(
                         "no_tracked_entry_time",
                         symbol=pos.symbol,
@@ -528,7 +553,9 @@ class TradingEngine:
         # If no slots available and rebalancing disabled, check cash deployment
         if available_slots == 0 and not config.trading.enable_rebalancing:
             # Check if we should deploy excess cash
-            should_deploy, deploy_reason = position_sizer.should_deploy_cash(portfolio_info)
+            should_deploy, deploy_reason = position_sizer.should_deploy_cash(
+                portfolio_info
+            )
             if not should_deploy:
                 logger.info("no_available_position_slots", cash_status=deploy_reason)
                 return
@@ -588,14 +615,14 @@ class TradingEngine:
                 last_rebalance = position_tracker.get_last_rebalance_time()
                 logger.info(
                     "rebalancing_in_cooldown",
-                    last_rebalance=last_rebalance.isoformat()
-                    if last_rebalance
-                    else None,
+                    last_rebalance=(
+                        last_rebalance.isoformat() if last_rebalance else None
+                    ),
                     cooldown_minutes=config.trading.rebalance_cooldown_minutes,
                 )
                 # Don't return - check cash deployment instead
             else:
-                current_time = datetime.now(timezone.utc)
+                current_time = datetime.now(UTC)
                 min_hold_seconds = config.trading.rebalance_min_hold_time * 60
 
                 # Get locked positions
@@ -615,7 +642,7 @@ class TradingEngine:
 
                     score = data["score"]
                     entry_time = position_entry_times.get(
-                        symbol, datetime.min.replace(tzinfo=timezone.utc)
+                        symbol, datetime.min.replace(tzinfo=UTC)
                     )
                     hold_duration = (current_time - entry_time).total_seconds()
 
@@ -665,12 +692,14 @@ class TradingEngine:
 
         # === DYNAMIC CASH DEPLOYMENT ===
         # Check if we should deploy excess cash by adding positions beyond regime limit
-        adjusted_max_positions, max_reason = position_sizer.get_max_positions_with_cash_deployment(
-            base_max=base_max_positions,
-            portfolio_info=portfolio_info,
-            qualified_count=len(buy_candidates),
+        adjusted_max_positions, max_reason = (
+            position_sizer.get_max_positions_with_cash_deployment(
+                base_max=base_max_positions,
+                portfolio_info=portfolio_info,
+                qualified_count=len(buy_candidates),
+            )
         )
-        
+
         logger.info(
             "position_limit_check",
             base_max=base_max_positions,
@@ -678,7 +707,7 @@ class TradingEngine:
             reason=max_reason,
             current_positions=current_positions,
         )
-        
+
         # Recalculate available slots with adjusted max
         available_slots = max(0, adjusted_max_positions - current_positions)
 
@@ -695,31 +724,33 @@ class TradingEngine:
         # Use dynamic position sizer for batch sizing
         if buy_candidates and available_slots > 0:
             size_results = position_sizer.calculate_batch_sizes(
-                candidates=buy_candidates[:available_slots * 2],  # Consider 2x candidates for flexibility
+                candidates=buy_candidates[
+                    : available_slots * 2
+                ],  # Consider 2x candidates for flexibility
                 portfolio_info=portfolio_info,
                 max_positions=adjusted_max_positions,
             )
-            
+
             logger.info(
                 "batch_sizing_completed",
                 candidates_considered=min(len(buy_candidates), available_slots * 2),
                 positions_sized=len(size_results),
             )
-            
+
             # Execute trades with dynamic sizes
             trades_executed = 0
             for size_result in size_results:
                 if trades_executed >= max_new_positions:
                     break
-                    
+
                 # Find the candidate data for this symbol
                 candidate = next(
                     (c for c in buy_candidates if c["symbol"] == size_result.symbol),
-                    None
+                    None,
                 )
                 if not candidate:
                     continue
-                
+
                 try:
                     logger.info(
                         "executing_sized_trade",
@@ -729,7 +760,7 @@ class TradingEngine:
                         conviction_mult=size_result.conviction_multiplier,
                         volatility_mult=size_result.volatility_multiplier,
                     )
-                    
+
                     success = executor.buy_stock_with_size(
                         symbol=candidate["symbol"],
                         score=candidate["score"],
@@ -744,30 +775,32 @@ class TradingEngine:
 
                 except Exception as e:
                     logger.error(
-                        "trade_execution_failed", symbol=candidate["symbol"], error=str(e)
+                        "trade_execution_failed",
+                        symbol=candidate["symbol"],
+                        error=str(e),
                     )
-            
+
             logger.info("trading_completed", trades_executed=trades_executed)
 
     def manage_positions(self) -> None:
         """Manage existing positions (stops, take profits, forced reductions)."""
         logger.info("managing_positions")
-        
+
         # First, check account health and handle any critical issues
         self._check_and_handle_account_health()
-        
+
         # Then run normal stop loss/take profit management
         executor.manage_stop_losses()
-    
+
     def _check_and_handle_account_health(self) -> None:
         """Check account health and take corrective action if needed."""
         from src.risk_manager import risk_manager
-        
+
         health = risk_manager.check_account_health()
-        
+
         if health.get("healthy", True):
             return  # All good
-        
+
         # Log the issues
         logger.warning(
             "account_health_issues_detected",
@@ -777,15 +810,15 @@ class TradingEngine:
             position_count=health.get("position_count", 0),
             max_positions=health.get("max_positions", 10),
         )
-        
+
         # If we have negative cash or severe position overload, force reduction
         cash = health.get("cash", 0)
         position_count = health.get("position_count", 0)
         max_positions = health.get("max_positions", 10)
-        
+
         # Calculate how many positions to reduce
         positions_over = max(0, position_count - max_positions)
-        
+
         # If cash is negative, we need to sell enough to cover it
         cash_needed = 0
         positions_to_sell_for_cash = 0
@@ -795,10 +828,10 @@ class TradingEngine:
             portfolio_value = health.get("portfolio_value", 100000)
             avg_position_value = portfolio_value / max(position_count, 1)
             positions_to_sell_for_cash = int(cash_needed / avg_position_value) + 1
-        
+
         # Total positions to reduce: max of (over limit) or (needed for cash recovery)
         target_reduction = max(positions_over, positions_to_sell_for_cash)
-        
+
         if target_reduction > 0:
             logger.warning(
                 "forced_position_reduction_needed",
@@ -807,30 +840,35 @@ class TradingEngine:
                 positions_to_sell_for_cash=positions_to_sell_for_cash,
                 target_reduction=target_reduction,
             )
-            
+
             # Get weakest positions to sell
-            to_reduce = risk_manager.get_positions_to_reduce(target_reduction=target_reduction)
-            
+            to_reduce = risk_manager.get_positions_to_reduce(
+                target_reduction=target_reduction
+            )
+
             if to_reduce:
                 for pos in to_reduce:
                     symbol = pos["symbol"]
                     score = pos.get("score", 0)
-                    
+
                     logger.info(
                         "forced_selling_weak_position",
                         symbol=symbol,
                         score=score,
                         reason="account_health_recovery",
                     )
-                    
-                    success = executor.sell_stock(symbol, "forced_reduction_account_health")
-                    
+
+                    success = executor.sell_stock(
+                        symbol, "forced_reduction_account_health"
+                    )
+
                     if success:
                         logger.info("forced_sell_completed", symbol=symbol)
                         # Wait for order to process
                         import time
+
                         time.sleep(2)
-                        
+
                         # Check if we've recovered enough
                         new_health = risk_manager.check_account_health()
                         if new_health.get("healthy", False):
@@ -894,7 +932,7 @@ class TradingEngine:
             try:
                 current_time = datetime.now(pytz.timezone("US/Eastern"))
                 current_date = current_time.date()
-                
+
                 # Reset daily flags at midnight
                 if last_trading_day != current_date:
                     executed_premarket_today = False
@@ -902,11 +940,11 @@ class TradingEngine:
                     self.premarket_candidates = []
                     last_trading_day = current_date
                     logger.info("new_trading_day", date=str(current_date))
-                
+
                 # Check if market is open
                 if self.is_market_open():
                     # === MARKET IS OPEN ===
-                    
+
                     # Execute premarket candidates at market open (once per day)
                     if not executed_premarket_today and self.premarket_candidates:
                         logger.info(
@@ -917,7 +955,7 @@ class TradingEngine:
                         executed_premarket_today = True
                         if trades > 0:
                             last_scan_time = current_time  # Skip immediate rescan
-                    
+
                     # Full universe scan every 15 minutes
                     if (
                         last_scan_time is None
@@ -943,18 +981,19 @@ class TradingEngine:
 
                     # Sleep for 30 seconds before next check
                     time.sleep(30)
-                    
+
                 elif self.is_premarket_hours():
                     # === PREMARKET HOURS (4:00 AM - 9:30 AM ET) ===
                     minutes_to_open = self.get_minutes_until_market_open()
-                    
+
                     # Run premarket scan once, about 30-60 minutes before market open
                     # or if we haven't scanned today
                     should_scan = (
                         last_premarket_scan_time is None
-                        or (current_time - last_premarket_scan_time).total_seconds() >= 3600  # Re-scan every hour
+                        or (current_time - last_premarket_scan_time).total_seconds()
+                        >= 3600  # Re-scan every hour
                     )
-                    
+
                     if should_scan and minutes_to_open <= 90:  # Within 90 mins of open
                         logger.info(
                             "running_premarket_analysis",
@@ -962,13 +1001,16 @@ class TradingEngine:
                         )
                         self.run_premarket_scan()
                         last_premarket_scan_time = current_time
-                        
+
                         # Log top candidates
                         if self.premarket_candidates:
                             logger.info(
                                 "premarket_top_candidates",
                                 count=len(self.premarket_candidates),
-                                top_5=[(c["symbol"], c["score"]) for c in self.premarket_candidates[:5]],
+                                top_5=[
+                                    (c["symbol"], c["score"])
+                                    for c in self.premarket_candidates[:5]
+                                ],
                                 minutes_to_open=minutes_to_open,
                             )
                     else:
@@ -976,9 +1018,13 @@ class TradingEngine:
                             "premarket_waiting",
                             minutes_to_open=minutes_to_open,
                             has_candidates=len(self.premarket_candidates) > 0,
-                            next_scan_in="60 min" if last_premarket_scan_time else f"{max(0, 90 - minutes_to_open)} min",
+                            next_scan_in=(
+                                "60 min"
+                                if last_premarket_scan_time
+                                else f"{max(0, 90 - minutes_to_open)} min"
+                            ),
                         )
-                    
+
                     # Check more frequently as we approach market open
                     if minutes_to_open <= 5:
                         time.sleep(30)  # Check every 30 seconds near open
@@ -986,12 +1032,12 @@ class TradingEngine:
                         time.sleep(60)  # Check every minute
                     else:
                         time.sleep(300)  # Check every 5 minutes
-                        
+
                 else:
                     # === MARKET CLOSED (not premarket) ===
                     if auto_restart:
                         logger.info(
-                            "market_closed_waiting", 
+                            "market_closed_waiting",
                             check_interval_min=5,
                             current_time=current_time.strftime("%H:%M ET"),
                         )
@@ -1046,9 +1092,9 @@ def main() -> None:
             # Run premarket scan manually
             logger.info("manual_premarket_scan_requested")
             candidates = engine.run_premarket_scan()
-            print(f"\n=== Premarket Scan Results ===")
+            print("\n=== Premarket Scan Results ===")
             print(f"Total candidates: {len(candidates)}")
-            print(f"\nTop 10 candidates:")
+            print("\nTop 10 candidates:")
             for i, c in enumerate(candidates[:10], 1):
                 print(f"  {i}. {c['symbol']}: score={c['score']:.1f}")
         else:

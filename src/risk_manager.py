@@ -1,15 +1,13 @@
 """Risk management and position sizing with regime-adaptive parameters."""
 
-from typing import Dict, Optional, Tuple, Set
-
 from config.config import config
+from src.clients import get_trading_client
 from src.logger import logger
-from src.clients import get_trading_client, trading_circuit_breaker
 
 
 class RiskManager:
     """Manages risk and position sizing with regime-adaptive parameters."""
-    
+
     # Safety thresholds
     MIN_CASH_PCT = 0.05  # Minimum 5% cash reserve
     MARGIN_WARNING_THRESHOLD = 0.10  # Warn if cash < 10% of portfolio (early warning)
@@ -18,16 +16,16 @@ class RiskManager:
     def __init__(self) -> None:
         self.config = config.trading
         self.client = get_trading_client()
-        self._regime_params: Optional[Dict] = None
+        self._regime_params: dict | None = None
         # Track pending buys to prevent race conditions with Alpaca API
-        self._pending_buys: Set[str] = set()
+        self._pending_buys: set[str] = set()
         self._margin_warning_logged = False
         self._overload_warning_logged = False
 
-    def set_regime_parameters(self, regime_params: Dict) -> None:
+    def set_regime_parameters(self, regime_params: dict) -> None:
         """
         Set regime-specific trading parameters.
-        
+
         Args:
             regime_params: Dict with stop_loss_pct, take_profit_pct, etc.
         """
@@ -72,7 +70,7 @@ class RiskManager:
 
     def mark_pending_buy(self, symbol: str) -> None:
         """Mark a symbol as having a pending buy order.
-        
+
         This prevents race conditions where we might try to buy the same
         stock twice before the first order shows up in Alpaca positions.
         """
@@ -120,7 +118,7 @@ class RiskManager:
             logger.error("failed_to_get_cash", error=str(e))
             return 0.0
 
-    def get_current_positions(self) -> Dict[str, float]:
+    def get_current_positions(self) -> dict[str, float]:
         """Get current positions as {symbol: quantity}."""
         try:
             positions = self.client.get_all_positions()
@@ -129,10 +127,10 @@ class RiskManager:
             logger.error("failed_to_get_positions", error=str(e))
             return {}
 
-    def check_account_health(self) -> Dict:
+    def check_account_health(self) -> dict:
         """
         Check account health and return status with any warnings.
-        
+
         Returns dict with:
             - healthy: bool
             - cash_pct: float
@@ -144,21 +142,23 @@ class RiskManager:
         try:
             account = self.client.get_account()
             positions = self.client.get_all_positions()
-            
+
             portfolio_value = float(account.portfolio_value)
             cash = float(account.cash)
             cash_pct = cash / portfolio_value if portfolio_value > 0 else 0
             position_count = len(positions)
             max_positions = self.get_max_positions()
-            
+
             warnings = []
             actions_needed = []
             healthy = True
-            
+
             # Check for negative cash (margin usage)
             if cash < 0:
                 healthy = False
-                warnings.append(f"CRITICAL: Negative cash balance (${cash:,.2f}) - using margin!")
+                warnings.append(
+                    f"CRITICAL: Negative cash balance (${cash:,.2f}) - using margin!"
+                )
                 actions_needed.append("Sell positions to restore positive cash balance")
                 if not self._margin_warning_logged:
                     logger.error(
@@ -169,7 +169,9 @@ class RiskManager:
                     )
                     self._margin_warning_logged = True
             elif cash_pct < self.MARGIN_WARNING_THRESHOLD:
-                warnings.append(f"Low cash reserve ({cash_pct:.1%}) - risk of margin call")
+                warnings.append(
+                    f"Low cash reserve ({cash_pct:.1%}) - risk of margin call"
+                )
                 if not self._margin_warning_logged:
                     logger.warning(
                         "low_cash_warning",
@@ -180,18 +182,24 @@ class RiskManager:
                     self._margin_warning_logged = True
             else:
                 self._margin_warning_logged = False
-            
+
             # Check for position overload
             if position_count > max_positions:
                 overload_pct = position_count / max_positions
                 if overload_pct >= self.POSITION_OVERLOAD_THRESHOLD:
                     healthy = False
-                    warnings.append(f"CRITICAL: {position_count} positions vs {max_positions} max ({overload_pct:.0%})")
+                    warnings.append(
+                        f"CRITICAL: {position_count} positions vs {max_positions} max ({overload_pct:.0%})"
+                    )
                     excess = position_count - max_positions
-                    actions_needed.append(f"Sell {excess} position(s) to get back under limit")
+                    actions_needed.append(
+                        f"Sell {excess} position(s) to get back under limit"
+                    )
                 else:
-                    warnings.append(f"Position overload: {position_count}/{max_positions}")
-                
+                    warnings.append(
+                        f"Position overload: {position_count}/{max_positions}"
+                    )
+
                 if not self._overload_warning_logged:
                     logger.warning(
                         "position_overload_warning",
@@ -202,7 +210,7 @@ class RiskManager:
                     self._overload_warning_logged = True
             else:
                 self._overload_warning_logged = False
-            
+
             return {
                 "healthy": healthy,
                 "cash": cash,
@@ -213,25 +221,25 @@ class RiskManager:
                 "warnings": warnings,
                 "actions_needed": actions_needed,
             }
-            
+
         except Exception as e:
             logger.error("account_health_check_failed", error=str(e))
             return {
                 "healthy": False,
-                "warnings": [f"Failed to check account health: {str(e)}"],
+                "warnings": [f"Failed to check account health: {e!s}"],
                 "actions_needed": [],
             }
 
     def get_positions_to_reduce(self, target_reduction: int = 0) -> list:
         """
         Identify positions that should be sold to reduce position count.
-        
+
         If target_reduction is 0, calculates based on being over max.
         Returns list of symbols sorted by priority (weakest first).
-        
+
         Args:
             target_reduction: Number of positions to reduce (0 = auto-calculate)
-            
+
         Returns:
             List of dicts with symbol, score, reason for each position to sell
         """
@@ -239,20 +247,21 @@ class RiskManager:
             positions = self.client.get_all_positions()
             max_positions = self.get_max_positions()
             current_count = len(positions)
-            
+
             if target_reduction <= 0:
                 target_reduction = max(0, current_count - max_positions)
-            
+
             if target_reduction <= 0:
                 return []
-            
+
             # Get position tracker for scores
             try:
                 from src.position_tracker import position_tracker
+
                 tracked_data = position_tracker.data.get("positions", {})
             except Exception:
                 tracked_data = {}
-            
+
             # Build list of positions with their data
             position_list = []
             for pos in positions:
@@ -261,62 +270,68 @@ class RiskManager:
                 score = tracked.get("score", 50)  # Default to neutral score
                 entry_price = float(pos.avg_entry_price)
                 current_price = float(pos.current_price or entry_price)
-                pnl_pct = ((current_price - entry_price) / entry_price) * 100 if entry_price > 0 else 0
-                
-                position_list.append({
-                    "symbol": symbol,
-                    "score": score,
-                    "pnl_pct": pnl_pct,
-                    "market_value": float(pos.market_value),
-                    "reason": tracked.get("reason", "unknown"),
-                })
-            
+                pnl_pct = (
+                    ((current_price - entry_price) / entry_price) * 100
+                    if entry_price > 0
+                    else 0
+                )
+
+                position_list.append(
+                    {
+                        "symbol": symbol,
+                        "score": score,
+                        "pnl_pct": pnl_pct,
+                        "market_value": float(pos.market_value),
+                        "reason": tracked.get("reason", "unknown"),
+                    }
+                )
+
             # Sort by score (lowest first) - these are candidates for selling
             position_list.sort(key=lambda x: x["score"])
-            
+
             # Return the weakest positions up to target_reduction
             to_reduce = position_list[:target_reduction]
-            
+
             logger.info(
                 "positions_identified_for_reduction",
                 target_reduction=target_reduction,
                 candidates=[p["symbol"] for p in to_reduce],
             )
-            
+
             return to_reduce
-            
+
         except Exception as e:
             logger.error("failed_to_identify_positions_to_reduce", error=str(e))
             return []
 
-    def should_block_new_buys(self) -> Tuple[bool, str]:
+    def should_block_new_buys(self) -> tuple[bool, str]:
         """
         Check if new buys should be blocked due to account health issues.
-        
+
         Returns:
             (should_block, reason)
         """
         health = self.check_account_health()
-        
+
         # Block if not healthy (negative cash or severe overload)
         if not health.get("healthy", True):
             reasons = health.get("warnings", ["Unknown issue"])
             return True, f"Account unhealthy: {'; '.join(reasons)}"
-        
+
         # Block if over position limit (even if not critical)
         position_count = health.get("position_count", 0)
         max_positions = health.get("max_positions", 10)
         if position_count >= max_positions:
             return True, f"At position limit ({position_count}/{max_positions})"
-        
+
         return False, "OK"
 
     def calculate_position_size(
         self,
         symbol: str,
         entry_price: float,
-        stop_loss_price: Optional[float] = None,
-    ) -> Dict[str, float]:
+        stop_loss_price: float | None = None,
+    ) -> dict[str, float]:
         """
         Calculate position size based on risk rule with regime-adaptive parameters.
 
@@ -356,8 +371,8 @@ class RiskManager:
                 stop=stop_loss_price,
             )
             return {
-                "shares": 0, 
-                "position_value": 0, 
+                "shares": 0,
+                "position_value": 0,
                 "risk_amount": 0,
                 "stop_loss_price": stop_loss_price,
                 "take_profit_price": take_profit_price,
@@ -386,7 +401,7 @@ class RiskManager:
         cash = self.get_cash()
         min_cash_buffer = account_value * self.MIN_CASH_PCT
         available_cash = max(0, cash - min_cash_buffer)
-        
+
         if position_value > available_cash:
             shares = int(available_cash / entry_price)
             position_value = shares * entry_price
@@ -421,8 +436,16 @@ class RiskManager:
             "stop_loss_pct": stop_loss_pct,
             "take_profit_price": take_profit_price,
             "take_profit_pct": take_profit_pct,
-            "risk_reward_ratio": (take_profit_price - entry_price) / risk_per_share if risk_per_share > 0 else 0,
-            "regime": self._regime_params.get("regime", "default") if self._regime_params else "default",
+            "risk_reward_ratio": (
+                (take_profit_price - entry_price) / risk_per_share
+                if risk_per_share > 0
+                else 0
+            ),
+            "regime": (
+                self._regime_params.get("regime", "default")
+                if self._regime_params
+                else "default"
+            ),
         }
 
         logger.info(
@@ -438,20 +461,22 @@ class RiskManager:
 
         return result
 
-    def can_open_position(self, symbol: str, score: float = 0, skip_health_check: bool = False) -> bool:
+    def can_open_position(
+        self, symbol: str, score: float = 0, skip_health_check: bool = False
+    ) -> bool:
         """
         Check if we can open a new position.
-        
+
         Args:
             symbol: Stock symbol
             score: Composite score (optional) - high scores can exceed regime limits
             skip_health_check: If True, skip account health check (used by swap_position)
-            
+
         Returns:
             True if position can be opened
         """
         symbol = symbol.upper()
-        
+
         # === SAFETY CHECK: Account health ===
         if not skip_health_check:
             should_block, block_reason = self.should_block_new_buys()
@@ -462,7 +487,7 @@ class RiskManager:
                     reason=block_reason,
                 )
                 return False
-        
+
         current_positions = self.get_current_positions()
 
         # Check if already holding
@@ -478,6 +503,7 @@ class RiskManager:
         # Also check position tracker as another source of truth
         try:
             from src.position_tracker import position_tracker
+
             if symbol in position_tracker.data.get("positions", {}):
                 logger.info("position_tracked_locally", symbol=symbol)
                 return False
@@ -488,7 +514,7 @@ class RiskManager:
         regime_max = self.get_max_positions()
         absolute_max = self.config.max_positions  # Hard cap from config (usually 10)
         current_count = len(current_positions) + len(self._pending_buys)
-        
+
         # Dynamic position limit based on score:
         # - Score >= 80: Can go up to absolute max (high conviction)
         # - Score >= 75: Can exceed regime limit by 2
@@ -502,7 +528,7 @@ class RiskManager:
             effective_max = min(regime_max + 1, absolute_max)
         else:
             effective_max = regime_max
-        
+
         if current_count >= effective_max:
             logger.info(
                 "max_positions_reached",
@@ -512,10 +538,14 @@ class RiskManager:
                 absolute_max=absolute_max,
                 score=score,
                 pending_buys=len(self._pending_buys),
-                regime=self._regime_params.get("regime", "default") if self._regime_params else "default",
+                regime=(
+                    self._regime_params.get("regime", "default")
+                    if self._regime_params
+                    else "default"
+                ),
             )
             return False
-        
+
         # Log when we're exceeding regime limit due to high score
         if current_count >= regime_max and current_count < effective_max:
             logger.info(
@@ -531,7 +561,7 @@ class RiskManager:
 
     def validate_trade(
         self, symbol: str, shares: int, price: float
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Validate a trade before execution.
 
@@ -557,13 +587,13 @@ class RiskManager:
         cash = self.get_cash()
         min_cash_buffer = account_value * self.MIN_CASH_PCT
         available_for_trade = cash - min_cash_buffer
-        
+
         if position_value > available_for_trade:
             return (
                 False,
                 f"Insufficient cash: ${cash:.2f} (need ${position_value:.2f} + ${min_cash_buffer:.0f} buffer)",
             )
-        
+
         # Also check against buying power as a safety net
         buying_power = self.get_buying_power()
         if position_value > buying_power:

@@ -8,13 +8,11 @@ Provides a unified interface for retrieving secrets from multiple backends:
 - AWS Secrets Manager (optional)
 """
 
-import os
 import json
 import logging
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional
-
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +21,7 @@ class SecretsBackend(ABC):
     """Abstract base class for secrets backends."""
 
     @abstractmethod
-    def get_secret(self, key: str) -> Optional[str]:
+    def get_secret(self, key: str) -> str | None:
         """Retrieve a secret by key."""
         pass
 
@@ -36,7 +34,7 @@ class SecretsBackend(ABC):
 class EnvSecretsBackend(SecretsBackend):
     """Environment variables secrets backend."""
 
-    def get_secret(self, key: str) -> Optional[str]:
+    def get_secret(self, key: str) -> str | None:
         """Get secret from environment variable."""
         return os.getenv(key)
 
@@ -50,7 +48,7 @@ class DockerSecretsBackend(SecretsBackend):
 
     SECRETS_PATH = Path("/run/secrets")
 
-    def get_secret(self, key: str) -> Optional[str]:
+    def get_secret(self, key: str) -> str | None:
         """Get secret from Docker secrets file."""
         secret_file = self.SECRETS_PATH / key.lower()
         if secret_file.exists():
@@ -71,12 +69,12 @@ class KubernetesSecretsBackend(SecretsBackend):
     # Default K8s secrets mount path
     SECRETS_PATH = Path("/var/run/secrets/ai-trader")
 
-    def __init__(self, mount_path: Optional[str] = None) -> None:
+    def __init__(self, mount_path: str | None = None) -> None:
         """Initialize with optional custom mount path."""
         if mount_path:
             self.SECRETS_PATH = Path(mount_path)
 
-    def get_secret(self, key: str) -> Optional[str]:
+    def get_secret(self, key: str) -> str | None:
         """Get secret from Kubernetes mounted file."""
         secret_file = self.SECRETS_PATH / key.lower()
         if secret_file.exists():
@@ -94,17 +92,19 @@ class KubernetesSecretsBackend(SecretsBackend):
 class FileSecretsBackend(SecretsBackend):
     """JSON file-based secrets backend for development."""
 
-    def __init__(self, file_path: Optional[str] = None) -> None:
+    def __init__(self, file_path: str | None = None) -> None:
         """Initialize with secrets file path."""
-        self.file_path = Path(file_path) if file_path else Path.home() / ".ai_trader_secrets.json"
-        self._secrets: Dict[str, str] = {}
+        self.file_path = (
+            Path(file_path) if file_path else Path.home() / ".ai_trader_secrets.json"
+        )
+        self._secrets: dict[str, str] = {}
         self._loaded = False
 
     def _load_secrets(self) -> None:
         """Load secrets from file."""
         if self._loaded:
             return
-        
+
         if self.file_path.exists():
             try:
                 self._secrets = json.loads(self.file_path.read_text())
@@ -113,7 +113,7 @@ class FileSecretsBackend(SecretsBackend):
                 logger.warning(f"Failed to load secrets file: {e}")
                 self._secrets = {}
 
-    def get_secret(self, key: str) -> Optional[str]:
+    def get_secret(self, key: str) -> str | None:
         """Get secret from JSON file."""
         self._load_secrets()
         return self._secrets.get(key)
@@ -125,7 +125,7 @@ class FileSecretsBackend(SecretsBackend):
 
 class SecretsManager:
     """Unified secrets manager with multiple backend support.
-    
+
     Backends are tried in order of priority:
     1. Kubernetes secrets (if available)
     2. Docker secrets (if available)
@@ -136,7 +136,7 @@ class SecretsManager:
     def __init__(self) -> None:
         """Initialize secrets manager with available backends."""
         self._backends: list[SecretsBackend] = []
-        self._cache: Dict[str, str] = {}
+        self._cache: dict[str, str] = {}
         self._setup_backends()
 
     def _setup_backends(self) -> None:
@@ -164,23 +164,23 @@ class SecretsManager:
             logger.info("File-based secrets backend enabled")
 
     def get_secret(
-        self, 
-        key: str, 
-        default: Optional[str] = None,
+        self,
+        key: str,
+        default: str | None = None,
         required: bool = False,
         cache: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get a secret value from the first available backend.
-        
+
         Args:
             key: The secret key to retrieve
             default: Default value if secret not found
             required: If True, raise exception when not found
             cache: Whether to cache the result
-            
+
         Returns:
             The secret value or default
-            
+
         Raises:
             ValueError: If required=True and secret not found
         """
@@ -202,7 +202,7 @@ class SecretsManager:
 
         return default
 
-    def get_alpaca_credentials(self) -> Dict[str, str]:
+    def get_alpaca_credentials(self) -> dict[str, str]:
         """Get Alpaca API credentials."""
         return {
             "api_key": self.get_secret("ALPACA_API_KEY", required=True),
@@ -210,11 +210,11 @@ class SecretsManager:
             "paper": self.get_secret("ALPACA_PAPER", default="true").lower() == "true",
         }
 
-    def get_newsapi_key(self) -> Optional[str]:
+    def get_newsapi_key(self) -> str | None:
         """Get NewsAPI key."""
         return self.get_secret("NEWSAPI_KEY")
 
-    def get_dashboard_credentials(self) -> Dict[str, Optional[str]]:
+    def get_dashboard_credentials(self) -> dict[str, str | None]:
         """Get dashboard authentication credentials."""
         return {
             "username": self.get_secret("DASHBOARD_USERNAME"),
@@ -222,7 +222,7 @@ class SecretsManager:
             "secret_key": self.get_secret("DASHBOARD_SECRET_KEY"),
         }
 
-    def get_ollama_config(self) -> Dict[str, str]:
+    def get_ollama_config(self) -> dict[str, str]:
         """Get Ollama LLM configuration."""
         return {
             "host": self.get_secret("OLLAMA_HOST", default="http://localhost:11434"),
@@ -243,6 +243,8 @@ secrets_manager = SecretsManager()
 
 
 # Convenience functions
-def get_secret(key: str, default: Optional[str] = None, required: bool = False) -> Optional[str]:
+def get_secret(
+    key: str, default: str | None = None, required: bool = False
+) -> str | None:
     """Get a secret using the global secrets manager."""
     return secrets_manager.get_secret(key, default=default, required=required)

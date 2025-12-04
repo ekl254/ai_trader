@@ -1,6 +1,6 @@
 """Trading strategy with multi-factor scoring."""
 
-from typing import Dict, List, Tuple, cast
+from typing import cast
 
 import pandas as pd
 import pandas_ta as ta  # type: ignore
@@ -8,7 +8,7 @@ import pandas_ta as ta  # type: ignore
 from config.config import config
 from src.data_provider import alpaca_provider
 from src.logger import logger
-from src.sentiment import analyze_sentiment, get_news_sentiment
+from src.sentiment import get_news_sentiment
 
 
 class TradingStrategy:
@@ -17,7 +17,7 @@ class TradingStrategy:
     def __init__(self) -> None:
         self.config = config.trading
 
-    def calculate_technical_score(self, df: pd.DataFrame) -> Tuple[float, Dict]:
+    def calculate_technical_score(self, df: pd.DataFrame) -> tuple[float, dict]:
         """Calculate technical analysis score (0-100)."""
         if len(df) < 30:
             return 0.0, {"error": "insufficient_data"}
@@ -90,7 +90,7 @@ class TradingStrategy:
         close = latest["close"]
         bb_upper = latest.get("BB_upper")
         bb_lower = latest.get("BB_lower")
-        bb_mid = latest.get("BB_mid")
+        latest.get("BB_mid")
 
         if pd.isna(bb_upper) or pd.isna(bb_lower):
             bb_score = 50.0
@@ -161,9 +161,11 @@ class TradingStrategy:
             "rsi_score": rsi_score,
             "macd": float(macd_value) if not pd.isna(macd_value) else None,
             "macd_signal": float(macd_signal) if not pd.isna(macd_signal) else None,
-            "macd_histogram": float(macd_value - macd_signal)
-            if not pd.isna(macd_value) and not pd.isna(macd_signal)
-            else None,
+            "macd_histogram": (
+                float(macd_value - macd_signal)
+                if not pd.isna(macd_value) and not pd.isna(macd_signal)
+                else None
+            ),
             "macd_score": macd_score,
             "bb_score": bb_score,
             "bb_upper": float(bb_upper) if not pd.isna(bb_upper) else None,
@@ -179,12 +181,12 @@ class TradingStrategy:
 
         return technical_score, details
 
-    def calculate_fundamental_score(self, symbol: str) -> Tuple[float, Dict]:
+    def calculate_fundamental_score(self, symbol: str) -> tuple[float, dict]:
         """Calculate fundamental analysis score (neutral - not using external fundamental data)."""
         # Simplified: no external fundamental data, always neutral
         return 50.0, {"total": 50.0, "note": "Using technical + sentiment only"}
 
-    def calculate_sentiment_score(self, symbol: str) -> Tuple[float, Dict]:
+    def calculate_sentiment_score(self, symbol: str) -> tuple[float, dict]:
         """Calculate news sentiment score (0-100)."""
         # Sentiment analysis (using NewsAPI)
         try:
@@ -203,7 +205,7 @@ class TradingStrategy:
             logger.error("sentiment_analysis_failed", symbol=symbol, error=str(e))
             return 50.0, {"total": 50.0, "error": str(e)}
 
-    def score_symbol(self, symbol: str) -> Tuple[float, Dict]:
+    def score_symbol(self, symbol: str) -> tuple[float, dict]:
         """Calculate composite score for a symbol."""
         logger.info("scoring_symbol", symbol=symbol)
 
@@ -242,12 +244,13 @@ class TradingStrategy:
 
         return composite_score, reasoning
 
-    def should_buy(self, symbol: str) -> Tuple[bool, float, Dict]:
+    def should_buy(self, symbol: str) -> tuple[bool, float, dict]:
         """Determine if symbol should be bought."""
         score, reasoning = self.score_symbol(symbol)
 
         # Check composite score (regime-adjusted)
         from src.risk_manager import risk_manager
+
         min_score = risk_manager.get_min_score()
         if score < min_score:
             return False, score, reasoning
@@ -271,7 +274,7 @@ class TradingStrategy:
 
         return True, score, reasoning
 
-    def rescore_positions(self, symbols: List[str]) -> Dict[str, Dict]:
+    def rescore_positions(self, symbols: list[str]) -> dict[str, dict]:
         """
         Rescore existing positions to evaluate rebalancing opportunities.
 
@@ -281,7 +284,7 @@ class TradingStrategy:
         Returns:
             Dict mapping symbol to score and reasoning
         """
-        position_scores: Dict[str, Dict] = {}
+        position_scores: dict[str, dict] = {}
 
         for symbol in symbols:
             try:

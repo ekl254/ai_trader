@@ -1,21 +1,9 @@
 """Tests for trade executor."""
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
-
 from alpaca.trading.enums import OrderSide
-
-
-@pytest.fixture
-def mock_config():
-    """Mock configuration."""
-    with patch("src.executor.config") as mock:
-        mock.alpaca.api_key = "test_key"
-        mock.alpaca.secret_key = "test_secret"
-        mock.trading.stop_loss_pct = 0.02
-        mock.trading.take_profit_pct = 0.06
-        yield mock
 
 
 @pytest.fixture
@@ -88,7 +76,6 @@ def mock_circuit_breaker():
 
 
 def test_place_market_order_success(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
@@ -109,7 +96,6 @@ def test_place_market_order_success(
 
 
 def test_place_market_order_failure(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_position_tracker: Mock,
     mock_performance_tracker: Mock,
@@ -127,7 +113,6 @@ def test_place_market_order_failure(
 
 
 def test_buy_stock_success(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
@@ -136,8 +121,9 @@ def test_buy_stock_success(
     mock_circuit_breaker: Mock,
 ) -> None:
     """Test successful stock purchase."""
-    from src.executor import TradeExecutor
     from alpaca.trading.enums import OrderStatus
+
+    from src.executor import TradeExecutor
 
     mock_order = Mock()
     mock_order.id = "order123"
@@ -163,7 +149,6 @@ def test_buy_stock_success(
 
 
 def test_buy_stock_cannot_open_position(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
@@ -187,7 +172,6 @@ def test_buy_stock_cannot_open_position(
 
 
 def test_sell_stock_success(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
@@ -211,7 +195,6 @@ def test_sell_stock_success(
 
 
 def test_sell_stock_no_position(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
@@ -230,7 +213,6 @@ def test_sell_stock_no_position(
 
 
 def test_sell_stock_partial(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
@@ -253,7 +235,6 @@ def test_sell_stock_partial(
 
 
 def test_manage_stop_losses_triggers_stop(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
@@ -283,7 +264,6 @@ def test_manage_stop_losses_triggers_stop(
 
 
 def test_manage_stop_losses_triggers_take_profit(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
@@ -309,7 +289,6 @@ def test_manage_stop_losses_triggers_take_profit(
 
 
 def test_close_all_positions(
-    mock_config: Mock,
     mock_trading_client: Mock,
     mock_risk_manager: Mock,
     mock_position_tracker: Mock,
