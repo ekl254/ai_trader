@@ -22,6 +22,7 @@ Fully automated trading system using Alpaca Paper Trading with multi-factor anal
 - **Sentiment Caching**: 30-minute TTL cache reduces NewsAPI calls
 - **Market Regime Filter**: Detects bull/bear/neutral markets using SPY
 - **EMA Trend Confirmation**: 20/50 EMA crossover for trend validation
+- **Watchdog & Auto-Recovery**: Automatic hang detection and restart
 
 ### Premarket Scanner
 - **Pre-Market Analysis**: Scans top movers before market open (4:00-9:30 AM ET)
@@ -153,6 +154,7 @@ ai_trader/
 │   ├── universe.py                # S&P 500 with liquidity filtering
 │   ├── position_tracker.py        # Position management
 │   ├── metrics.py                 # Prometheus metrics for monitoring
+│   ├── watchdog.py                # Hang detection & auto-recovery
 │   └── secrets_manager.py         # Secure credential management
 │
 ├── web/
@@ -207,6 +209,13 @@ ai_trader/
 - **Sell-First Logic**: Swaps sell the old position before buying replacement
 - **Score-Based Selection**: Weakest positions (lowest scores) sold first during forced reduction
 - **Health Recovery**: Continues selling until cash balance is restored
+
+### Watchdog & Auto-Recovery
+- **Heartbeat Monitoring**: Detects stuck/frozen trading loops
+- **Automatic Timeout**: 10-minute timeout on all critical operations
+- **Self-Healing**: Automatic restart when hang detected
+- **Health Endpoint**: `/api/bot/health` for external monitoring
+- **Systemd Integration**: Works with systemd watchdog for service-level recovery
 
 ## 📈 Data Sources
 

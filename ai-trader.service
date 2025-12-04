@@ -6,14 +6,30 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/root/ai_trader
-ExecStart=/usr/bin/python3 -m src.main continuous
-Restart=on-failure
-RestartSec=10
+ExecStart=/root/ai_trader/.venv/bin/python -m src.main continuous --auto-restart
+Restart=always
+RestartSec=30
+
+# Watchdog: systemd will restart if bot doesn't respond within 15 minutes
+WatchdogSec=900
+# Notify systemd of successful startup
+NotifyAccess=main
+
+# Logging
 StandardOutput=append:/root/ai_trader/logs/trading.log
 StandardError=append:/root/ai_trader/logs/trading_error.log
 
 # Environment
 Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONPATH=/root/ai_trader"
+
+# Resource limits
+MemoryMax=4G
+CPUQuota=200%
+
+# Graceful shutdown
+TimeoutStopSec=30
+KillMode=mixed
 
 [Install]
 WantedBy=multi-user.target

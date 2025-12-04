@@ -1,5 +1,93 @@
 # Changelog
 
+## 2025-12-04 - Watchdog & Auto-Recovery System
+
+### 🛡️ Critical Fixes
+
+#### 1. Hang Detection & Prevention
+**Problem:** Trading bot would occasionally freeze/hang during universe scans or API calls, requiring manual restart. The last incident showed the bot stuck for over 1.5 hours with no log activity.
+
+**Solution:**
+- Added comprehensive watchdog module (`src/watchdog.py`)
+- Heartbeat tracking throughout all critical operations
+- Automatic timeout on API calls and long-running operations
+- Self-healing with automatic restart when hang detected
+- Health file for external monitoring
+
+**Files Changed:**
+- `src/watchdog.py` - NEW: Complete watchdog implementation
+- `src/main.py` - Integrated heartbeats and timeouts throughout
+- `web/dashboard.py` - Added `/api/bot/health` and `/api/watchdog/status` endpoints
+- `ai-trader.service` - Added systemd watchdog integration
+
+#### 2. Operation Timeouts
+**Problem:** API calls could hang indefinitely, causing the bot to freeze.
+
+**Solution:**
+- Added `OperationTimeout` context manager for time-limited operations
+- 10-minute timeout on universe scans
+- 5-minute timeout on premarket execution
+- 2-minute timeout on position management
+- 30-second timeout on market status checks
+
+#### 3. Error Recovery Improvements
+**Problem:** Consecutive errors could accumulate without recovery.
+
+**Solution:**
+- Track consecutive errors with automatic exit after 10 failures
+- Reset error count on successful operations
+- Reset error count on new trading day
+- Systemd will auto-restart on exit
+
+### 🔧 New Features
+
+#### Watchdog Module (`src/watchdog.py`)
+- **Heartbeat Tracking**: Records last activity with timestamps
+- **Health File**: Writes status to `data/heartbeat.json` for external monitoring
+- **Timeout Context Manager**: `OperationTimeout` for time-limited operations
+- **Auto-Recovery**: Triggers restart callback or forces exit on hang
+- **Configurable Thresholds**: 10-minute default timeout, 30-second check interval
+
+#### Dashboard Health Endpoints
+- **`/api/bot/health`**: Unauthenticated health check for Docker/systemd
+- **`/api/watchdog/status`**: Detailed watchdog status for dashboard
+
+#### Systemd Integration
+- Added `WatchdogSec=900` for 15-minute systemd-level timeout
+- Added `Restart=always` with 30-second delay
+- Added memory and CPU limits
+- Added graceful shutdown handling
+
+### 📊 Usage
+
+```python
+from src.watchdog import watchdog, OperationTimeout
+
+# Update heartbeat in long loops
+for symbol in symbols:
+    watchdog.heartbeat(f"scanning_{symbol}")
+    process_symbol(symbol)
+
+# Timeout-protected API calls
+with OperationTimeout(seconds=30, operation="api_call"):
+    result = api.call()
+```
+
+### 🔍 Monitoring
+
+```bash
+# Check bot health via API
+curl http://localhost:8082/api/bot/health
+
+# Check heartbeat file directly
+cat data/heartbeat.json
+
+# View watchdog logs
+grep watchdog logs/trading.log | tail -20
+```
+
+---
+
 ## 2025-12-03 - Account Health & Margin Prevention
 
 ### 🛡️ Critical Fixes

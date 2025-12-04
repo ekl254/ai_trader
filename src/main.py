@@ -1,6 +1,7 @@
 """Main trading engine."""
 
 import json
+import os
 import sys
 import time
 from datetime import UTC, datetime
@@ -22,6 +23,7 @@ from src.position_tracker import position_tracker
 from src.risk_manager import risk_manager
 from src.strategy import strategy
 from src.universe import filter_liquid_stocks, get_sp500_symbols
+from src.watchdog import OperationTimeout, watchdog
 
 # File paths for premarket data persistence
 PREMARKET_CANDIDATES_FILE = (
@@ -161,9 +163,9 @@ class TradingEngine:
 
     def __init__(self) -> None:
         self.universe = self._load_universe()
-        self.premarket_candidates: list[dict[str, Any]] = (
-            []
-        )  # Store premarket scan results
+        self.premarket_candidates: list[
+            dict[str, Any]
+        ] = []  # Store premarket scan results
         self.last_premarket_scan: datetime | None = None
 
         # Sync position tracking with Alpaca on startup
@@ -206,14 +208,18 @@ class TradingEngine:
     def is_market_open(self) -> bool:
         """Check if market is currently open."""
         try:
-            client = TradingClient(
-                config.alpaca.api_key,
-                config.alpaca.secret_key,
-                paper=True,
-            )
-            clock: Clock = client.get_clock()
-            return bool(clock.is_open)
+            with OperationTimeout(seconds=30, operation="check_market_status"):
+                client = TradingClient(
+                    config.alpaca.api_key,
+                    config.alpaca.secret_key,
+                    paper=True,
+                )
+                clock: Clock = client.get_clock()
+                return bool(clock.is_open)
 
+        except TimeoutError:
+            logger.error("market_status_check_timeout")
+            return False
         except Exception as e:
             logger.error("failed_to_check_market_status", error=str(e))
             return False
@@ -441,6 +447,7 @@ class TradingEngine:
     def scan_and_trade(self, max_new_positions: int = 5) -> None:
         """Scan universe and execute trades (with optional rebalancing)."""
         logger.info("starting_market_scan", universe_size=len(self.universe))
+        watchdog.heartbeat("scan_and_trade_started")
 
         # Check market regime and get adaptive trading parameters
         regime_data = market_regime_detector.get_market_regime()
@@ -569,6 +576,10 @@ class TradingEngine:
         # Scan ALL universe (not just 20)
         for i, symbol in enumerate(self.universe):
             try:
+                # Update heartbeat every 50 symbols to prevent timeout
+                if i % 50 == 0:
+                    watchdog.heartbeat(f"scanning_symbol_{i}/{len(self.universe)}")
+
                 logger.info(
                     "scanning_symbol",
                     symbol=symbol,
@@ -601,6 +612,7 @@ class TradingEngine:
         buy_candidates.sort(key=lambda x: x["score"], reverse=True)
 
         logger.info("scan_complete", candidates=len(buy_candidates))
+        watchdog.heartbeat("scan_complete_checking_rebalancing")
 
         # Check for rebalancing opportunities if enabled and no slots available
         if (
@@ -931,6 +943,12 @@ class TradingEngine:
         - Position management every 2 minutes (stop losses, take profits)
         - If auto_restart=True, waits for market to open instead of exiting
 
+        Safeguards:
+        - Watchdog monitors for hangs and triggers restart if unresponsive
+        - Heartbeat updates every loop iteration
+        - Timeout protection on critical operations
+        - Automatic recovery from API failures
+
         Args:
             auto_restart: If True, bot waits for market open and auto-restarts
         """
@@ -940,15 +958,35 @@ class TradingEngine:
             auto_restart=auto_restart,
         )
 
+        # Start watchdog monitoring
+        watchdog.start_monitoring()
+        watchdog.heartbeat("trading_engine_starting")
+
+        # Set up restart callback for watchdog
+        def restart_callback() -> None:
+            """Called by watchdog when a hang is detected."""
+            logger.warning("watchdog_triggered_restart")
+            # Force a new scan by resetting timers
+            nonlocal last_scan_time, last_manage_time
+            last_scan_time = None
+            last_manage_time = None
+
+        watchdog.set_restart_callback(restart_callback)
+
         scan_count = 0
         last_scan_time = None
         last_manage_time = None
         last_premarket_scan_time = None
         executed_premarket_today = False
         last_trading_day = None
+        consecutive_errors = 0
+        max_consecutive_errors = 10
 
         while True:
             try:
+                # Update heartbeat at start of each loop iteration
+                watchdog.heartbeat("main_loop_iteration")
+
                 current_time = datetime.now(pytz.timezone("US/Eastern"))
                 current_date = current_time.date()
 
@@ -958,11 +996,14 @@ class TradingEngine:
                     last_premarket_scan_time = None
                     self.premarket_candidates = []
                     last_trading_day = current_date
+                    consecutive_errors = 0  # Reset error count on new day
                     logger.info("new_trading_day", date=str(current_date))
+                    watchdog.heartbeat("new_trading_day_reset")
 
                 # Check if market is open
                 if self.is_market_open():
                     # === MARKET IS OPEN ===
+                    watchdog.heartbeat("market_open_processing")
 
                     # Execute premarket candidates at market open (once per day)
                     if not executed_premarket_today and self.premarket_candidates:
@@ -970,10 +1011,22 @@ class TradingEngine:
                             "market_opened_executing_premarket_candidates",
                             candidates=len(self.premarket_candidates),
                         )
-                        trades = self.execute_premarket_candidates(max_positions=3)
-                        executed_premarket_today = True
-                        if trades > 0:
-                            last_scan_time = current_time  # Skip immediate rescan
+                        watchdog.heartbeat("executing_premarket_candidates")
+                        try:
+                            with OperationTimeout(
+                                seconds=300, operation="premarket_execution"
+                            ):
+                                trades = self.execute_premarket_candidates(
+                                    max_positions=3
+                                )
+                                executed_premarket_today = True
+                                if trades > 0:
+                                    last_scan_time = (
+                                        current_time  # Skip immediate rescan
+                                    )
+                        except TimeoutError:
+                            logger.error("premarket_execution_timeout")
+                            executed_premarket_today = True  # Don't retry
 
                     # Full universe scan every 15 minutes
                     if (
@@ -985,9 +1038,23 @@ class TradingEngine:
                             scan_number=scan_count + 1,
                             symbols=len(self.universe),
                         )
-                        self.scan_and_trade(max_new_positions=3)
-                        last_scan_time = current_time
-                        scan_count += 1
+                        watchdog.heartbeat("starting_universe_scan")
+                        try:
+                            with OperationTimeout(
+                                seconds=600, operation="universe_scan"
+                            ):
+                                self.scan_and_trade(max_new_positions=3)
+                                last_scan_time = current_time
+                                scan_count += 1
+                                consecutive_errors = 0  # Reset on success
+                        except TimeoutError:
+                            logger.error(
+                                "universe_scan_timeout",
+                                scan_number=scan_count + 1,
+                            )
+                            last_scan_time = current_time  # Prevent immediate retry
+                            consecutive_errors += 1
+                        watchdog.heartbeat("universe_scan_complete")
 
                     # Manage positions every 2 minutes
                     if (
@@ -995,14 +1062,24 @@ class TradingEngine:
                         or (current_time - last_manage_time).total_seconds() >= 120
                     ):
                         logger.info("running_position_management_check")
-                        self.manage_positions()
-                        last_manage_time = current_time
+                        watchdog.heartbeat("managing_positions")
+                        try:
+                            with OperationTimeout(
+                                seconds=120, operation="position_management"
+                            ):
+                                self.manage_positions()
+                                last_manage_time = current_time
+                        except TimeoutError:
+                            logger.error("position_management_timeout")
+                            last_manage_time = current_time
 
                     # Sleep for 30 seconds before next check
+                    watchdog.heartbeat("sleeping_30s")
                     time.sleep(30)
 
                 elif self.is_premarket_hours():
                     # === PREMARKET HOURS (4:00 AM - 9:30 AM ET) ===
+                    watchdog.heartbeat("premarket_hours_processing")
                     minutes_to_open = self.get_minutes_until_market_open()
 
                     # Run premarket scan once, about 30-60 minutes before market open
@@ -1018,8 +1095,16 @@ class TradingEngine:
                             "running_premarket_analysis",
                             minutes_to_open=minutes_to_open,
                         )
-                        self.run_premarket_scan()
-                        last_premarket_scan_time = current_time
+                        watchdog.heartbeat("running_premarket_scan")
+                        try:
+                            with OperationTimeout(
+                                seconds=600, operation="premarket_scan"
+                            ):
+                                self.run_premarket_scan()
+                                last_premarket_scan_time = current_time
+                        except TimeoutError:
+                            logger.error("premarket_scan_timeout")
+                            last_premarket_scan_time = current_time
 
                         # Log top candidates
                         if self.premarket_candidates:
@@ -1046,15 +1131,19 @@ class TradingEngine:
 
                     # Check more frequently as we approach market open
                     if minutes_to_open <= 5:
+                        watchdog.heartbeat("premarket_waiting_near_open")
                         time.sleep(30)  # Check every 30 seconds near open
                     elif minutes_to_open <= 15:
+                        watchdog.heartbeat("premarket_waiting_15min")
                         time.sleep(60)  # Check every minute
                     else:
+                        watchdog.heartbeat("premarket_waiting")
                         time.sleep(300)  # Check every 5 minutes
 
                 else:
                     # === MARKET CLOSED (not premarket) ===
                     if auto_restart:
+                        watchdog.heartbeat("market_closed_waiting")
                         logger.info(
                             "market_closed_waiting",
                             check_interval_min=5,
@@ -1066,13 +1155,32 @@ class TradingEngine:
                         logger.info("market_closed_stopping_trading")
                         break
 
+                # Check for too many consecutive errors
+                if consecutive_errors >= max_consecutive_errors:
+                    logger.critical(
+                        "too_many_consecutive_errors",
+                        count=consecutive_errors,
+                        max_allowed=max_consecutive_errors,
+                    )
+                    # Force exit - systemd will restart us
+                    watchdog.stop_monitoring()
+                    os._exit(1)
+
             except KeyboardInterrupt:
                 logger.info("continuous_trading_interrupted")
+                watchdog.stop_monitoring()
                 break
             except Exception as e:
-                logger.error("continuous_trading_error", error=str(e))
+                consecutive_errors += 1
+                logger.error(
+                    "continuous_trading_error",
+                    error=str(e),
+                    consecutive_errors=consecutive_errors,
+                )
+                watchdog.heartbeat(f"error_recovery_{consecutive_errors}")
                 time.sleep(60)  # Wait 1 minute before retrying
 
+        watchdog.stop_monitoring()
         logger.info("continuous_trading_stopped", total_scans=scan_count)
 
     def run_eod_routine(self) -> None:

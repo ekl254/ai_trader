@@ -67,6 +67,7 @@
 - `src/metrics.py` - Prometheus metrics for monitoring
 - `src/secrets_manager.py` - Secure credential handling
 - `src/logger.py` - Structured logging configuration
+- `src/watchdog.py` - Hang detection, heartbeat monitoring, and auto-recovery
 
 ## Constants Reference
 
@@ -107,4 +108,21 @@ if not is_valid:
 to_reduce = risk_manager.get_positions_to_reduce(target_reduction=3)
 for pos in to_reduce:
     executor.sell_stock(pos["symbol"], "forced_reduction")
+```
+
+### Using Watchdog for Long Operations
+```python
+from src.watchdog import watchdog, OperationTimeout
+
+# Update heartbeat regularly in long-running loops
+for symbol in symbols:
+    watchdog.heartbeat(f"scanning_{symbol}")
+    process_symbol(symbol)
+
+# Wrap API calls in timeout protection
+try:
+    with OperationTimeout(seconds=30, operation="api_call"):
+        result = api.call()
+except TimeoutError:
+    logger.error("api_call_timeout")
 ```

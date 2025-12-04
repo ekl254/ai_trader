@@ -1757,6 +1757,40 @@ def health_check():
     )
 
 
+@app.route("/api/watchdog/status")
+@login_required
+def api_watchdog_status():
+    """Get watchdog/heartbeat status for the trading bot."""
+    try:
+        from src.watchdog import check_health_file
+
+        health = check_health_file()
+        return jsonify(health)
+    except Exception as e:
+        return jsonify({"error": str(e), "is_healthy": False}), 500
+
+
+@app.route("/api/bot/health")
+def api_bot_health():
+    """
+    Bot health check endpoint for external monitoring (Docker, systemd, etc.).
+
+    Returns 200 if bot is healthy, 503 if unhealthy.
+    No authentication required for monitoring tools.
+    """
+    try:
+        from src.watchdog import check_health_file
+
+        health = check_health_file()
+
+        if health.get("is_healthy", False):
+            return jsonify(health), 200
+        else:
+            return jsonify(health), 503
+    except Exception as e:
+        return jsonify({"error": str(e), "is_healthy": False}), 503
+
+
 @app.route("/ready")
 def readiness_check():
     """Readiness check for Kubernetes."""
