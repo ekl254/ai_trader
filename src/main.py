@@ -8,7 +8,7 @@ from datetime import time as dt_time
 from pathlib import Path
 from typing import Any
 
-import pytz  # type: ignore
+import pytz
 from alpaca.trading.client import TradingClient
 from alpaca.trading.models import Clock, Position
 
@@ -18,7 +18,7 @@ from src.executor import executor
 from src.logger import logger
 from src.market_regime import market_regime_detector
 from src.position_sizer import position_sizer
-from src.position_tracker import position_tracker  # type: ignore
+from src.position_tracker import position_tracker
 from src.risk_manager import risk_manager
 from src.strategy import strategy
 from src.universe import filter_liquid_stocks, get_sp500_symbols
@@ -209,7 +209,7 @@ class TradingEngine:
                 config.alpaca.secret_key,
                 paper=True,
             )
-            clock: Clock = client.get_clock()  # type: ignore
+            clock: Clock = client.get_clock()
             return bool(clock.is_open)
 
         except Exception as e:
@@ -354,7 +354,7 @@ class TradingEngine:
         client = TradingClient(
             config.alpaca.api_key, config.alpaca.secret_key, paper=True
         )
-        positions: list[Position] = client.get_all_positions()  # type: ignore
+        positions: list[Position] = client.get_all_positions()
         current_positions = len(positions)
         available_slots = max(0, config.trading.max_positions - current_positions)
 
@@ -490,7 +490,7 @@ class TradingEngine:
         client = TradingClient(
             config.alpaca.api_key, config.alpaca.secret_key, paper=True
         )
-        positions: list[Position] = client.get_all_positions()  # type: ignore
+        positions: list[Position] = client.get_all_positions()
         current_positions = len(positions)
 
         # Use regime-adjusted max positions if available
