@@ -1,19 +1,20 @@
 """Sentiment analysis for news articles."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from src.logger import logger
 from src.newsapi_client import newsapi_client
 
 # Load sentiment model (cached after first use)
-_sentiment_analyzer = None
+_sentiment_analyzer: Any = None
 
 # Sentiment score cache: {symbol: (timestamp, score, article_count)}
 _sentiment_cache: dict[str, tuple[datetime, float, int]] = {}
 _SENTIMENT_CACHE_TTL = 1800  # 30 minutes
 
 
-def get_sentiment_analyzer():
+def get_sentiment_analyzer() -> Any:
     """Get or create sentiment analyzer."""
     global _sentiment_analyzer
     if _sentiment_analyzer is None:
@@ -42,14 +43,14 @@ def analyze_sentiment(text: str) -> float:
 
     try:
         result = analyzer(text[:512])[0]  # Limit text length
-        label = result["label"]
-        score = result["score"]
+        label: str = result["label"]
+        score: float = result["score"]
 
         # Convert to -1 to 1 scale
         if label.lower() == "positive":
-            return score
+            return float(score)
         elif label.lower() == "negative":
-            return -score
+            return float(-score)
         else:
             return 0.0  # Neutral
 
@@ -157,7 +158,7 @@ def clear_sentiment_cache(symbol: str | None = None) -> None:
         logger.info("sentiment_cache_cleared_all")
 
 
-def get_sentiment_cache_stats() -> dict:
+def get_sentiment_cache_stats() -> dict[str, Any]:
     """Get statistics about the sentiment cache."""
     datetime.now(UTC)
     return {

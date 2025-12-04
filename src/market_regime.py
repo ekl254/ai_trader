@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 from src.logger import logger
 
@@ -81,10 +82,10 @@ class MarketRegimeDetector:
     """Detects current market regime using SPY and VIX indicators."""
 
     def __init__(self) -> None:
-        self._cache: dict[str, tuple[datetime, dict]] = {}
+        self._cache: dict[str, tuple[datetime, dict[str, Any]]] = {}
         self._cache_ttl = 900  # 15 minutes
 
-    def get_market_regime(self) -> dict:
+    def get_market_regime(self) -> dict[str, Any]:
         """
         Analyze current market regime using SPY trend and VIX levels.
 
@@ -204,7 +205,7 @@ class MarketRegimeDetector:
 
         return MarketRegime.NEUTRAL
 
-    def get_trading_parameters(self) -> dict:
+    def get_trading_parameters(self) -> dict[str, Any]:
         """
         Get current regime-adjusted trading parameters.
 
@@ -222,7 +223,7 @@ class MarketRegimeDetector:
             "recommendation": regime_data["recommendation"],
         }
 
-    def _default_regime(self, reason: str) -> dict:
+    def _default_regime(self, reason: str) -> dict[str, Any]:
         """Return default neutral regime on error."""
         params = REGIME_PARAMETERS[MarketRegime.NEUTRAL]
         return {

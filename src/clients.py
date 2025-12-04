@@ -112,7 +112,7 @@ class CircuitBreaker:
         )
         return False
 
-    def get_status(self) -> dict:
+    def get_status(self) -> dict[str, object]:
         """Get circuit breaker status."""
         import time
 

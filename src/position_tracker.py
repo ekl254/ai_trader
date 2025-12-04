@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from alpaca.trading.models import Position
+
 from src.logger import logger
 
 
@@ -21,7 +23,8 @@ class PositionTracker:
         if self.data_file.exists():
             try:
                 with open(self.data_file) as f:
-                    return json.load(f)
+                    data: dict[str, Any] = json.load(f)
+                    return data
             except Exception as e:
                 logger.error("failed_to_load_position_tracking", error=str(e))
                 return self._initialize_data()
@@ -225,7 +228,8 @@ class PositionTracker:
 
     def get_locked_positions(self) -> list[str]:
         """Get list of locked positions."""
-        return self.data["locked_positions"].copy()
+        locked: list[str] = self.data["locked_positions"].copy()
+        return locked
 
     def get_last_rebalance_time(self) -> datetime | None:
         """
@@ -297,7 +301,7 @@ class PositionTracker:
             "max_score_improvement": max(score_diffs),
         }
 
-    def sync_with_alpaca(self, alpaca_positions: list) -> dict[str, Any]:
+    def sync_with_alpaca(self, alpaca_positions: list[Position]) -> dict[str, Any]:
         """
         Synchronize tracking data with actual Alpaca positions.
 

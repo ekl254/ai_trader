@@ -13,12 +13,12 @@ from src.logger import logger
 class AlpacaNewsClient:
     """Client for Alpaca's News API - free with trading account."""
 
-    def __init__(self):
-        self._client = None
-        self._cache: dict[str, tuple] = {}
+    def __init__(self) -> None:
+        self._client: Any = None
+        self._cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
         self._cache_ttl = 1800  # 30 minutes
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         """Lazy-load Alpaca NewsClient."""
         if self._client is None:
             try:
@@ -57,7 +57,8 @@ class AlpacaNewsClient:
                 logger.info(
                     "alpaca_news_cache_hit", symbol=symbol, count=len(cached_articles)
                 )
-                return cached_articles
+                articles_list: list[dict[str, Any]] = cached_articles
+                return articles_list
 
         client = self._get_client()
         if client is None:

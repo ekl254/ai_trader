@@ -9,7 +9,8 @@ numpy>=1.24.0
 python-dotenv>=1.0.0
 
 # Technical analysis (requires Python 3.12+)
-pandas-ta>=0.4.0
+# Note: pandas-ta uses beta versions like 0.4.71b0
+pandas-ta>=0.4.67b0
 
 # Web dashboard
 flask>=3.0.0

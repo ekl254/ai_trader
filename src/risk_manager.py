@@ -1,5 +1,9 @@
 """Risk management and position sizing with regime-adaptive parameters."""
 
+from typing import Any
+
+from alpaca.trading.models import Position, TradeAccount
+
 from config.config import config
 from src.clients import get_trading_client
 from src.logger import logger
@@ -16,13 +20,13 @@ class RiskManager:
     def __init__(self) -> None:
         self.config = config.trading
         self.client = get_trading_client()
-        self._regime_params: dict | None = None
+        self._regime_params: dict[str, Any] | None = None
         # Track pending buys to prevent race conditions with Alpaca API
         self._pending_buys: set[str] = set()
         self._margin_warning_logged = False
         self._overload_warning_logged = False
 
-    def set_regime_parameters(self, regime_params: dict) -> None:
+    def set_regime_parameters(self, regime_params: dict[str, Any]) -> None:
         """
         Set regime-specific trading parameters.
 
@@ -41,31 +45,36 @@ class RiskManager:
     def get_stop_loss_pct(self) -> float:
         """Get current stop loss percentage (regime-adjusted or default)."""
         if self._regime_params and "stop_loss_pct" in self._regime_params:
-            return self._regime_params["stop_loss_pct"]
+            result: float = self._regime_params["stop_loss_pct"]
+            return result
         return self.config.stop_loss_pct
 
     def get_take_profit_pct(self) -> float:
         """Get current take profit percentage (regime-adjusted or default)."""
         if self._regime_params and "take_profit_pct" in self._regime_params:
-            return self._regime_params["take_profit_pct"]
+            result: float = self._regime_params["take_profit_pct"]
+            return result
         return self.config.take_profit_pct
 
     def get_min_score(self) -> float:
         """Get current minimum score threshold (regime-adjusted or default)."""
         if self._regime_params and "min_score" in self._regime_params:
-            return self._regime_params["min_score"]
+            result: float = self._regime_params["min_score"]
+            return result
         return self.config.min_composite_score
 
     def get_position_multiplier(self) -> float:
         """Get position size multiplier for current regime."""
         if self._regime_params and "position_multiplier" in self._regime_params:
-            return self._regime_params["position_multiplier"]
+            result: float = self._regime_params["position_multiplier"]
+            return result
         return 1.0
 
     def get_max_positions(self) -> int:
         """Get max positions for current regime."""
         if self._regime_params and "max_positions" in self._regime_params:
-            return self._regime_params["max_positions"]
+            result: int = self._regime_params["max_positions"]
+            return result
         return self.config.max_positions
 
     def mark_pending_buy(self, symbol: str) -> None:
@@ -95,7 +104,15 @@ class RiskManager:
         """Get current account value."""
         try:
             account = self.client.get_account()
-            return float(account.portfolio_value)
+            if isinstance(account, TradeAccount):
+                if account.portfolio_value is None:
+                    return self.config.portfolio_value
+                return float(account.portfolio_value)
+            # Handle mock or dict response
+            portfolio_value = getattr(account, "portfolio_value", None)
+            if portfolio_value is not None:
+                return float(portfolio_value)
+            return self.config.portfolio_value
         except Exception as e:
             logger.error("failed_to_get_account_value", error=str(e))
             return self.config.portfolio_value
@@ -104,7 +121,15 @@ class RiskManager:
         """Get available buying power."""
         try:
             account = self.client.get_account()
-            return float(account.buying_power)
+            if isinstance(account, TradeAccount):
+                if account.buying_power is None:
+                    return 0.0
+                return float(account.buying_power)
+            # Handle mock or dict response
+            buying_power = getattr(account, "buying_power", None)
+            if buying_power is not None:
+                return float(buying_power)
+            return 0.0
         except Exception as e:
             logger.error("failed_to_get_buying_power", error=str(e))
             return 0.0
@@ -113,7 +138,15 @@ class RiskManager:
         """Get available cash (not margin/buying power)."""
         try:
             account = self.client.get_account()
-            return float(account.cash)
+            if isinstance(account, TradeAccount):
+                if account.cash is None:
+                    return 0.0
+                return float(account.cash)
+            # Handle mock or dict response
+            cash = getattr(account, "cash", None)
+            if cash is not None:
+                return float(cash)
+            return 0.0
         except Exception as e:
             logger.error("failed_to_get_cash", error=str(e))
             return 0.0
@@ -122,12 +155,16 @@ class RiskManager:
         """Get current positions as {symbol: quantity}."""
         try:
             positions = self.client.get_all_positions()
-            return {pos.symbol: float(pos.qty) for pos in positions}
+            result: dict[str, float] = {}
+            for pos in positions:
+                assert isinstance(pos, Position)
+                result[pos.symbol] = float(pos.qty)
+            return result
         except Exception as e:
             logger.error("failed_to_get_positions", error=str(e))
             return {}
 
-    def check_account_health(self) -> dict:
+    def check_account_health(self) -> dict[str, Any]:
         """
         Check account health and return status with any warnings.
 
@@ -143,8 +180,16 @@ class RiskManager:
             account = self.client.get_account()
             positions = self.client.get_all_positions()
 
-            portfolio_value = float(account.portfolio_value)
-            cash = float(account.cash)
+            # Handle TradeAccount or mock
+            if isinstance(account, TradeAccount):
+                if account.portfolio_value is None or account.cash is None:
+                    raise ValueError("Account has None values")
+                portfolio_value = float(account.portfolio_value)
+                cash = float(account.cash)
+            else:
+                # Handle mock or dict response
+                portfolio_value = float(getattr(account, "portfolio_value", 0))
+                cash = float(getattr(account, "cash", 0))
             cash_pct = cash / portfolio_value if portfolio_value > 0 else 0
             position_count = len(positions)
             max_positions = self.get_max_positions()
@@ -168,7 +213,25 @@ class RiskManager:
                         position_count=position_count,
                     )
                     self._margin_warning_logged = True
+            elif cash_pct < self.MIN_CASH_PCT:
+                # Below 5% minimum - trigger recovery
+                healthy = False
+                warnings.append(
+                    f"CRITICAL: Cash below minimum ({cash_pct:.1%} vs {self.MIN_CASH_PCT:.0%} required)"
+                )
+                actions_needed.append(
+                    f"Sell position(s) to restore {self.MIN_CASH_PCT:.0%} cash reserve"
+                )
+                if not self._margin_warning_logged:
+                    logger.warning(
+                        "low_cash_critical",
+                        cash=cash,
+                        cash_pct=cash_pct,
+                        min_required=self.MIN_CASH_PCT,
+                    )
+                    self._margin_warning_logged = True
             elif cash_pct < self.MARGIN_WARNING_THRESHOLD:
+                # Between 5-10% - just warn
                 warnings.append(
                     f"Low cash reserve ({cash_pct:.1%}) - risk of margin call"
                 )
@@ -230,7 +293,9 @@ class RiskManager:
                 "actions_needed": [],
             }
 
-    def get_positions_to_reduce(self, target_reduction: int = 0) -> list:
+    def get_positions_to_reduce(
+        self, target_reduction: int = 0
+    ) -> list[dict[str, Any]]:
         """
         Identify positions that should be sold to reduce position count.
 
@@ -263,8 +328,9 @@ class RiskManager:
                 tracked_data = {}
 
             # Build list of positions with their data
-            position_list = []
+            position_list: list[dict[str, Any]] = []
             for pos in positions:
+                assert isinstance(pos, Position)
                 symbol = pos.symbol
                 tracked = tracked_data.get(symbol, {})
                 score = tracked.get("score", 50)  # Default to neutral score
@@ -281,7 +347,7 @@ class RiskManager:
                         "symbol": symbol,
                         "score": score,
                         "pnl_pct": pnl_pct,
-                        "market_value": float(pos.market_value),
+                        "market_value": float(pos.market_value or 0),
                         "reason": tracked.get("reason", "unknown"),
                     }
                 )
@@ -331,7 +397,7 @@ class RiskManager:
         symbol: str,
         entry_price: float,
         stop_loss_price: float | None = None,
-    ) -> dict[str, float]:
+    ) -> dict[str, float | int | str]:
         """
         Calculate position size based on risk rule with regime-adaptive parameters.
 

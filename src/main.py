@@ -55,7 +55,8 @@ def load_premarket_candidates() -> dict[str, Any]:
     try:
         if PREMARKET_CANDIDATES_FILE.exists():
             with open(PREMARKET_CANDIDATES_FILE) as f:
-                return json.load(f)
+                result: dict[str, Any] = json.load(f)
+                return result
     except Exception as e:
         logger.error("failed_to_load_premarket_candidates", error=str(e))
     return {"scan_time": None, "candidates": [], "count": 0}
@@ -184,6 +185,7 @@ class TradingEngine:
             risk_manager.clear_all_pending_buys()
 
             if positions:
+                assert isinstance(positions, list)
                 sync_result = position_tracker.sync_with_alpaca(positions)
                 if sync_result["added"] or sync_result["removed"]:
                     logger.info(
@@ -270,7 +272,7 @@ class TradingEngine:
             min_score=regime_min_score,
         )
 
-        candidates = []
+        candidates: list[dict[str, Any]] = []
         scanned = 0
         errors = 0
 
@@ -819,13 +821,30 @@ class TradingEngine:
         # Calculate how many positions to reduce
         positions_over = max(0, position_count - max_positions)
 
-        # If cash is negative, we need to sell enough to cover it
+        # Calculate cash shortfall - we need 5% minimum cash reserve
+        portfolio_value = health.get("portfolio_value", 100000)
+        cash_pct = health.get("cash_pct", 0)
+        min_cash_pct = 0.05  # 5% minimum
+
         cash_needed = 0
         positions_to_sell_for_cash = 0
+
         if cash < 0:
+            # Negative cash - need to cover it plus buffer
             cash_needed = abs(cash) + 5000  # Add $5K buffer
+        elif cash_pct < min_cash_pct:
+            # Below 5% minimum - need to sell to restore reserve
+            target_cash = portfolio_value * min_cash_pct
+            cash_needed = target_cash - cash
+            logger.info(
+                "cash_recovery_needed",
+                current_cash=cash,
+                target_cash=target_cash,
+                cash_needed=cash_needed,
+            )
+
+        if cash_needed > 0:
             # Calculate how many positions to sell based on average position value
-            portfolio_value = health.get("portfolio_value", 100000)
             avg_position_value = portfolio_value / max(position_count, 1)
             positions_to_sell_for_cash = int(cash_needed / avg_position_value) + 1
 

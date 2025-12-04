@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Automated strategy optimization based on historical performance."""
 
+from collections.abc import Callable, Sequence
 from typing import Any
 
 import numpy as np
@@ -14,7 +15,7 @@ from src.performance_tracker import PerformanceTracker
 class StrategyOptimizer:
     """Automatically optimize trading strategy parameters based on historical performance."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize strategy optimizer."""
         self.performance_tracker = PerformanceTracker()
         # Read weights from config instead of hardcoded values
@@ -75,7 +76,7 @@ class StrategyOptimizer:
             metrics,
         )
 
-        result = {
+        result: dict[str, Any] = {
             "status": "analysis_complete",
             "current_performance": {
                 "win_rate": metrics["win_rate"],
@@ -94,9 +95,11 @@ class StrategyOptimizer:
                 "expected_win_rate": optimal_expected_wr,
             },
             "projected_improvement": {
-                "weight_optimization": weight_improvement,
-                "threshold_optimization": threshold_improvement,
-                "combined_estimate": (weight_improvement + threshold_improvement) / 2,
+                "weight_optimization": float(weight_improvement),
+                "threshold_optimization": float(threshold_improvement),
+                "combined_estimate": float(
+                    (weight_improvement + threshold_improvement) / 2
+                ),
             },
             "recommendations": recommendations,
             "score_analysis": score_analysis,
@@ -196,7 +199,7 @@ class StrategyOptimizer:
         if len(trades) < self.min_trades_for_optimization:
             return self.current_weights, 0.0
 
-        def objective(weights):
+        def objective(weights: np.ndarray[Any, np.dtype[np.floating[Any]]]) -> float:
             """Minimize negative Sharpe ratio."""
             technical_w, sentiment_w, fundamental_w = weights
 
@@ -228,20 +231,22 @@ class StrategyOptimizer:
             return -sharpe  # Minimize negative = maximize Sharpe
 
         # Constraint: weights must sum to 1.0
-        constraints = {"type": "eq", "fun": lambda w: sum(w) - 1.0}
+        constraints: dict[str, Any] = {"type": "eq", "fun": lambda w: sum(w) - 1.0}
 
         # Bounds: each weight between 0 and 0.7
-        bounds = [(0.0, 0.7), (0.0, 0.7), (0.0, 0.7)]
+        bounds: Sequence[tuple[float, float]] = [(0.0, 0.7), (0.0, 0.7), (0.0, 0.7)]
 
-        # Starting point: current weights
-        x0 = [
+        x0: list[float] = [
             self.current_weights["technical"],
             self.current_weights["sentiment"],
             self.current_weights["fundamental"],
         ]
 
+        objective_fn: Callable[[np.ndarray[Any, np.dtype[np.floating[Any]]]], float] = (
+            objective
+        )
         result = minimize(
-            objective, x0=x0, bounds=bounds, constraints=constraints, method="SLSQP"
+            objective_fn, x0=x0, bounds=bounds, constraints=constraints, method="SLSQP"
         )
 
         optimal_weights = {
@@ -251,7 +256,7 @@ class StrategyOptimizer:
         }
 
         # Calculate improvement
-        current_sharpe = -objective(x0)
+        current_sharpe = -objective_fn(np.array(x0))
         optimal_sharpe = -result.fun
         improvement_pct = (
             ((optimal_sharpe - current_sharpe) / abs(current_sharpe)) * 100
@@ -355,7 +360,8 @@ class StrategyOptimizer:
         if std_return == 0:
             return 0.0
 
-        return (mean_return / std_return) * np.sqrt(252)
+        sharpe_ratio: float = float((mean_return / std_return) * np.sqrt(252))
+        return sharpe_ratio
 
     def _generate_recommendations(
         self,
@@ -363,11 +369,11 @@ class StrategyOptimizer:
         weight_improvement: float,
         optimal_threshold: float,
         threshold_improvement: float,
-        score_analysis: dict,
-        metrics: dict,
+        score_analysis: dict[str, Any],
+        metrics: dict[str, Any],
     ) -> list[dict[str, Any]]:
         """Generate actionable recommendations."""
-        recommendations = []
+        recommendations: list[dict[str, Any]] = []
 
         # Weight recommendations
         if weight_improvement > 5:

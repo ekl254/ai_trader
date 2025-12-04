@@ -202,12 +202,19 @@ class SecretsManager:
 
         return default
 
-    def get_alpaca_credentials(self) -> dict[str, str]:
+    def get_alpaca_credentials(self) -> dict[str, str | bool]:
         """Get Alpaca API credentials."""
+        api_key = self.get_secret("ALPACA_API_KEY", required=True)
+        secret_key = self.get_secret("ALPACA_SECRET_KEY", required=True)
+        paper_str = self.get_secret("ALPACA_PAPER", default="true")
+        # All required=True or have defaults, so these are guaranteed non-None
+        assert api_key is not None
+        assert secret_key is not None
+        assert paper_str is not None
         return {
-            "api_key": self.get_secret("ALPACA_API_KEY", required=True),
-            "secret_key": self.get_secret("ALPACA_SECRET_KEY", required=True),
-            "paper": self.get_secret("ALPACA_PAPER", default="true").lower() == "true",
+            "api_key": api_key,
+            "secret_key": secret_key,
+            "paper": paper_str.lower() == "true",
         }
 
     def get_newsapi_key(self) -> str | None:
@@ -224,9 +231,14 @@ class SecretsManager:
 
     def get_ollama_config(self) -> dict[str, str]:
         """Get Ollama LLM configuration."""
+        host = self.get_secret("OLLAMA_HOST", default="http://localhost:11434")
+        model = self.get_secret("OLLAMA_MODEL", default="llama2")
+        # Both have defaults, so guaranteed non-None
+        assert host is not None
+        assert model is not None
         return {
-            "host": self.get_secret("OLLAMA_HOST", default="http://localhost:11434"),
-            "model": self.get_secret("OLLAMA_MODEL", default="llama2"),
+            "host": host,
+            "model": model,
         }
 
     def clear_cache(self) -> None:

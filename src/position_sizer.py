@@ -10,9 +10,11 @@ Implements conviction-weighted position sizing with:
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
+from alpaca.trading.models import Position, TradeAccount
 
 from src.clients import get_data_client, get_trading_client
 from src.logger import logger
@@ -73,7 +75,7 @@ class DynamicPositionSizer:
     # Daily limits
     MAX_NEW_POSITIONS_PER_DAY = 4
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.trading_client = get_trading_client()
         self.data_client = get_data_client()
         self._daily_entries: dict[str, int] = {}  # date -> count
@@ -115,10 +117,18 @@ class DynamicPositionSizer:
             )
             bars = self.data_client.get_stock_bars(request)
 
-            if symbol not in bars or len(bars[symbol]) < 10:
+            # Handle dict case (error response or empty)
+            if isinstance(bars, dict):
                 return None
 
-            prices = [float(bar.close) for bar in bars[symbol]]
+            if (
+                not hasattr(bars, "data")
+                or symbol not in bars.data
+                or len(bars.data[symbol]) < 10
+            ):
+                return None
+
+            prices = [float(bar.close) for bar in bars.data[symbol]]
             returns = [
                 (prices[i] - prices[i - 1]) / prices[i - 1]
                 for i in range(1, len(prices))
@@ -135,7 +145,8 @@ class DynamicPositionSizer:
             # Cache result
             self._volatility_cache[symbol] = (volatility, datetime.now())
 
-            return volatility
+            vol: float = volatility
+            return vol
 
         except Exception as e:
             logger.warning("volatility_calculation_failed", symbol=symbol, error=str(e))
@@ -172,18 +183,43 @@ class DynamicPositionSizer:
                 f"Medium volatility ({vol_pct:.1f}% daily) -> {multiplier:.2f}x size",
             )
 
-    def get_portfolio_info(self) -> dict:
+    def get_portfolio_info(self) -> dict[str, Any]:
         """Get current portfolio value and cash."""
         try:
             account = self.trading_client.get_account()
             positions = self.trading_client.get_all_positions()
 
+            # Handle TradeAccount or mock
+            if isinstance(account, TradeAccount):
+                if (
+                    account.portfolio_value is None
+                    or account.cash is None
+                    or account.buying_power is None
+                ):
+                    raise ValueError("Account has None values")
+                portfolio_value = float(account.portfolio_value)
+                cash = float(account.cash)
+                buying_power = float(account.buying_power)
+            else:
+                # Handle mock or dict response
+                portfolio_value = float(getattr(account, "portfolio_value", 100000))
+                cash = float(getattr(account, "cash", 30000))
+                buying_power = float(getattr(account, "buying_power", 30000))
+
+            invested_value: float = 0.0
+            for p in positions:
+                if isinstance(p, Position):
+                    invested_value += float(p.market_value or 0)
+                else:
+                    # Handle mock
+                    invested_value += float(getattr(p, "market_value", 0) or 0)
+
             return {
-                "portfolio_value": float(account.portfolio_value),
-                "cash": float(account.cash),
-                "buying_power": float(account.buying_power),
+                "portfolio_value": portfolio_value,
+                "cash": cash,
+                "buying_power": buying_power,
                 "position_count": len(positions),
-                "invested_value": sum(float(p.market_value) for p in positions),
+                "invested_value": invested_value,
             }
         except Exception as e:
             logger.error("portfolio_info_failed", error=str(e))
@@ -195,7 +231,7 @@ class DynamicPositionSizer:
                 "invested_value": 70000,
             }
 
-    def should_deploy_cash(self, portfolio_info: dict) -> tuple[bool, str]:
+    def should_deploy_cash(self, portfolio_info: dict[str, Any]) -> tuple[bool, str]:
         """Determine if we should deploy idle cash beyond normal regime limits."""
         cash_pct = portfolio_info["cash"] / portfolio_info["portfolio_value"]
 
@@ -205,13 +241,13 @@ class DynamicPositionSizer:
             )
             return (
                 True,
-                f"Cash at {cash_pct*100:.1f}% (>${excess_cash:,.0f} deployable)",
+                f"Cash at {cash_pct * 100:.1f}% (>${excess_cash:,.0f} deployable)",
             )
 
-        return False, f"Cash at {cash_pct*100:.1f}% - within normal range"
+        return False, f"Cash at {cash_pct * 100:.1f}% - within normal range"
 
     def get_max_positions_with_cash_deployment(
-        self, base_max: int, portfolio_info: dict, qualified_count: int
+        self, base_max: int, portfolio_info: dict[str, Any], qualified_count: int
     ) -> tuple[int, str]:
         """Calculate adjusted max positions considering cash deployment."""
         should_deploy, _deploy_reason = self.should_deploy_cash(portfolio_info)
@@ -246,7 +282,7 @@ class DynamicPositionSizer:
         symbol: str,
         current_price: float,
         composite_score: float,
-        portfolio_info: dict | None = None,
+        portfolio_info: dict[str, Any] | None = None,
         target_positions: int = 10,
     ) -> PositionSizeResult:
         """Calculate optimal position size for a stock."""
@@ -288,12 +324,12 @@ class DynamicPositionSizer:
         if raw_size < min_size:
             final_size = min_size
             capped = True
-            cap_reason = f"Increased to minimum ({self.MIN_POSITION_PCT*100:.0f}%)"
+            cap_reason = f"Increased to minimum ({self.MIN_POSITION_PCT * 100:.0f}%)"
             rationale.append(f"Capped UP to min: ${final_size:,.0f}")
         elif raw_size > max_size:
             final_size = max_size
             capped = True
-            cap_reason = f"Reduced to maximum ({self.MAX_POSITION_PCT*100:.0f}%)"
+            cap_reason = f"Reduced to maximum ({self.MAX_POSITION_PCT * 100:.0f}%)"
             rationale.append(f"Capped DOWN to max: ${final_size:,.0f}")
         else:
             final_size = raw_size
@@ -356,15 +392,15 @@ class DynamicPositionSizer:
 
     def calculate_batch_sizes(
         self,
-        candidates: list[dict],
-        portfolio_info: dict | None = None,
+        candidates: list[dict[str, Any]],
+        portfolio_info: dict[str, Any] | None = None,
         max_positions: int = 10,
     ) -> list[PositionSizeResult]:
         """Calculate position sizes for multiple candidates."""
         if portfolio_info is None:
             portfolio_info = self.get_portfolio_info()
 
-        results = []
+        results: list[PositionSizeResult] = []
         remaining_cash = portfolio_info["cash"] - (
             portfolio_info["portfolio_value"] * self.MIN_CASH_RESERVE_PCT
         )
@@ -441,7 +477,7 @@ class DynamicPositionSizer:
 
         return results
 
-    def record_entry(self, symbol: str):
+    def record_entry(self, symbol: str) -> None:
         """Record a position entry for daily limit tracking."""
         today = datetime.now().strftime("%Y-%m-%d")
         self._daily_entries[today] = self._daily_entries.get(today, 0) + 1

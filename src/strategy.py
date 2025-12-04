@@ -1,6 +1,6 @@
 """Trading strategy with multi-factor scoring."""
 
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 import pandas_ta as ta
@@ -17,7 +17,9 @@ class TradingStrategy:
     def __init__(self) -> None:
         self.config = config.trading
 
-    def calculate_technical_score(self, df: pd.DataFrame) -> tuple[float, dict]:
+    def calculate_technical_score(
+        self, df: pd.DataFrame
+    ) -> tuple[float, dict[str, Any]]:
         """Calculate technical analysis score (0-100)."""
         if len(df) < 30:
             return 0.0, {"error": "insufficient_data"}
@@ -181,12 +183,12 @@ class TradingStrategy:
 
         return technical_score, details
 
-    def calculate_fundamental_score(self, symbol: str) -> tuple[float, dict]:
+    def calculate_fundamental_score(self, symbol: str) -> tuple[float, dict[str, Any]]:
         """Calculate fundamental analysis score (neutral - not using external fundamental data)."""
         # Simplified: no external fundamental data, always neutral
         return 50.0, {"total": 50.0, "note": "Using technical + sentiment only"}
 
-    def calculate_sentiment_score(self, symbol: str) -> tuple[float, dict]:
+    def calculate_sentiment_score(self, symbol: str) -> tuple[float, dict[str, Any]]:
         """Calculate news sentiment score (0-100)."""
         # Sentiment analysis (using NewsAPI)
         try:
@@ -205,7 +207,7 @@ class TradingStrategy:
             logger.error("sentiment_analysis_failed", symbol=symbol, error=str(e))
             return 50.0, {"total": 50.0, "error": str(e)}
 
-    def score_symbol(self, symbol: str) -> tuple[float, dict]:
+    def score_symbol(self, symbol: str) -> tuple[float, dict[str, Any]]:
         """Calculate composite score for a symbol."""
         logger.info("scoring_symbol", symbol=symbol)
 
@@ -244,7 +246,7 @@ class TradingStrategy:
 
         return composite_score, reasoning
 
-    def should_buy(self, symbol: str) -> tuple[bool, float, dict]:
+    def should_buy(self, symbol: str) -> tuple[bool, float, dict[str, Any]]:
         """Determine if symbol should be bought."""
         score, reasoning = self.score_symbol(symbol)
 
@@ -274,7 +276,7 @@ class TradingStrategy:
 
         return True, score, reasoning
 
-    def rescore_positions(self, symbols: list[str]) -> dict[str, dict]:
+    def rescore_positions(self, symbols: list[str]) -> dict[str, dict[str, Any]]:
         """
         Rescore existing positions to evaluate rebalancing opportunities.
 
@@ -284,7 +286,7 @@ class TradingStrategy:
         Returns:
             Dict mapping symbol to score and reasoning
         """
-        position_scores: dict[str, dict] = {}
+        position_scores: dict[str, dict[str, Any]] = {}
 
         for symbol in symbols:
             try:

@@ -32,7 +32,10 @@ class AlpacaProvider:
 
         try:
             bars = self.client.get_stock_bars(request)
-            df = bars.df
+            # bars can be BarSet or dict - ensure we have proper BarSet
+            if isinstance(bars, dict):
+                raise ValueError("Received dict instead of BarSet")
+            df: pd.DataFrame = bars.df
             logger.debug("bars_fetched", symbol=symbol, rows=len(df))
             return df
         except Exception as e:

@@ -19,7 +19,7 @@ class LLMReasonGenerator:
         self.ollama_url = ollama_url
         self.model = "gpt-oss:120b-cloud"  # Cloud-hosted 120B model via Ollama
         self.timeout = 30  # Cloud models can be slow (30-60s)
-        self.cache = {}  # In-memory cache for reasons
+        self.cache: dict[str, str] = {}  # In-memory cache for reasons
         self.use_llm = False  # Cloud model is too slow (30+s) - use fast fallback
         # To enable: Set use_llm=True and wait 30s per unique reason
 
@@ -51,7 +51,8 @@ class LLMReasonGenerator:
         )
 
         if cache_key in self.cache:
-            return self.cache[cache_key]
+            cached_reason: str = self.cache[cache_key]
+            return cached_reason
 
         # Check if qualified
         qualified = (

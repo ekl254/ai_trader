@@ -2,6 +2,7 @@
 
 import time
 from datetime import datetime
+from typing import Any
 
 from alpaca.trading.enums import OrderSide, OrderStatus, TimeInForce
 from alpaca.trading.models import Order, Position
@@ -91,6 +92,15 @@ class TradeExecutor:
             try:
                 order = self.client.get_order_by_id(order_id)
 
+                # Order can be Order or dict - ensure we have Order
+                if isinstance(order, dict):
+                    logger.warning(
+                        "order_returned_as_dict",
+                        order_id=order_id,
+                        status=order.get("status", "unknown"),
+                    )
+                    return None
+
                 if order.status == OrderStatus.FILLED:
                     logger.info(
                         "order_filled",
@@ -173,7 +183,7 @@ class TradeExecutor:
         self,
         symbol: str,
         score: float,
-        reasoning: dict,
+        reasoning: dict[str, Any],
         current_price: float,
         size_override: PositionSizeResult | None = None,
         skip_tracking: bool = False,
@@ -301,7 +311,7 @@ class TradeExecutor:
         self,
         symbol: str,
         score: float,
-        reasoning: dict,
+        reasoning: dict[str, Any],
         current_price: float,
         size_result: PositionSizeResult,
     ) -> bool:
@@ -375,11 +385,15 @@ class TradeExecutor:
                         try:
                             # Get current position details for exit price
                             position = self.client.get_open_position(symbol)
-                            exit_price = (
-                                float(position.current_price)
-                                if position.current_price
-                                else 0
-                            )
+                            # Position can be Position or dict
+                            if isinstance(position, dict):
+                                exit_price = float(position.get("current_price", 0))
+                            else:
+                                exit_price = (
+                                    float(position.current_price)
+                                    if position.current_price
+                                    else 0
+                                )
 
                             # Parse entry data
                             entry_time = datetime.fromisoformat(
@@ -496,7 +510,7 @@ class TradeExecutor:
         new_symbol: str,
         old_score: float,
         new_score: float,
-        new_reasoning: dict,
+        new_reasoning: dict[str, Any],
         new_price: float,
         partial_sell_pct: float = 1.0,
     ) -> bool:

@@ -24,7 +24,8 @@ class PerformanceTracker:
         if self.data_file.exists():
             try:
                 with open(self.data_file) as f:
-                    return json.load(f)
+                    data: dict[str, Any] = json.load(f)
+                    return data
             except Exception as e:
                 logger.error("failed_to_load_performance_data", error=str(e))
                 return self._create_empty_data()
@@ -113,7 +114,7 @@ class PerformanceTracker:
             hold_duration_min=hold_duration,
         )
 
-    def _update_daily_stats(self, trade_data: dict) -> None:
+    def _update_daily_stats(self, trade_data: dict[str, Any]) -> None:
         """Update daily performance statistics."""
         date = trade_data["trade_date"]
 
@@ -248,7 +249,7 @@ class PerformanceTracker:
                 }
 
         # Analyze individual score components
-        component_correlations = {}
+        component_correlations: dict[str, float | None] = {}
         for component in ["technical", "sentiment", "fundamental"]:
             comp_scores = [t["entry_score"].get(component, 50) for t in trades]
             # Check if there's any variance in the scores
@@ -297,8 +298,8 @@ class PerformanceTracker:
     def _generate_score_recommendations(
         self,
         overall_corr: float,
-        component_corrs: dict[str, float],
-        range_analysis: dict,
+        component_corrs: dict[str, float | None],
+        range_analysis: dict[str, Any],
     ) -> list[str]:
         """Generate actionable recommendations based on score analysis."""
         recommendations = []
@@ -359,7 +360,7 @@ class PerformanceTracker:
         if not trades:
             return {"message": "No trades recorded"}
 
-        exit_reasons = {}
+        exit_reasons: dict[str, list[dict[str, Any]]] = {}
         for trade in trades:
             reason = trade["exit_reason"]
             if reason not in exit_reasons:

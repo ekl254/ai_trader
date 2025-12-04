@@ -7,11 +7,12 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from structlog.stdlib import BoundLogger
 
 from config.config import config
 
 
-def setup_logging() -> structlog.BoundLogger:
+def setup_logging() -> BoundLogger:
     """Configure structured logging."""
 
     # Create logs directory
@@ -49,11 +50,12 @@ def setup_logging() -> structlog.BoundLogger:
     stdout_handler.setFormatter(logging.Formatter("%(message)s"))
     root_logger.addHandler(stdout_handler)
 
-    return structlog.get_logger()
+    bound_logger: BoundLogger = structlog.get_logger()
+    return bound_logger
 
 
 def log_trade_decision(
-    logger: structlog.BoundLogger,
+    logger: BoundLogger,
     symbol: str,
     action: str,
     reasoning: dict[str, Any],

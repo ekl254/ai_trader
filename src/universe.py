@@ -32,7 +32,7 @@ def get_sp500_symbols() -> list[str]:
                 if datetime.now() - cache_time < timedelta(hours=CACHE_DURATION_HOURS):
                     symbols = cache["symbols"]
                     logger.info("sp500_symbols_loaded_from_cache", count=len(symbols))
-                    return symbols
+                    return list(symbols)
         except Exception as e:
             logger.warning("cache_read_failed", error=str(e))
 
@@ -110,7 +110,7 @@ def get_sp500_symbols() -> list[str]:
                     cache = json.load(f)
                     symbols = cache["symbols"]
                     logger.warning("using_stale_cache", count=len(symbols))
-                    return symbols
+                    return list(symbols)
             except Exception:
                 pass
 
@@ -181,8 +181,10 @@ def filter_liquid_stocks(symbols: list[str], min_volume: int = 1_000_000) -> lis
 
                 for symbol in batch:
                     try:
-                        if symbol in bars.data:
-                            symbol_bars = bars.data[symbol]
+                        # Handle both BarSet and dict responses
+                        bar_data = bars.data if hasattr(bars, "data") else bars
+                        if symbol in bar_data:
+                            symbol_bars = bar_data[symbol]
                             if len(symbol_bars) > 0:
                                 avg_volume = sum(
                                     bar.volume for bar in symbol_bars

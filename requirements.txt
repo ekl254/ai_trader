@@ -6,7 +6,8 @@ numpy>=1.26.4
 python-dotenv>=1.0.1
 
 # Technical analysis
-pandas-ta>=0.4.0
+# Note: pandas-ta uses beta versions like 0.4.71b0
+pandas-ta>=0.4.67b0
 
 # Sentiment analysis
 transformers>=4.36.0
