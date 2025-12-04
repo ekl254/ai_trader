@@ -8,6 +8,7 @@ from alpaca.trading.enums import OrderSide, OrderStatus, TimeInForce
 from alpaca.trading.models import Order, Position
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
+from src.auto_learner import auto_learner
 from src.clients import get_trading_client, trading_circuit_breaker
 from src.logger import log_trade_decision, logger
 from src.performance_tracker import PerformanceTracker
@@ -422,6 +423,20 @@ class TradeExecutor:
                                 news_sentiment=position_data.get("news_sentiment"),
                                 news_count=position_data.get("news_count"),
                             )
+
+                            # Notify auto-learner of completed trade
+                            try:
+                                result = auto_learner.record_trade_completed()
+                                if result and result.get("changes_applied"):
+                                    logger.info(
+                                        "auto_learning_changes_applied",
+                                        changes=len(result["changes_applied"]),
+                                    )
+                            except Exception as learn_err:
+                                logger.warning(
+                                    "auto_learner_notification_failed",
+                                    error=str(learn_err),
+                                )
                         except Exception as e:
                             logger.error(
                                 "failed_to_record_trade_performance",

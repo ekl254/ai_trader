@@ -22,6 +22,7 @@ from config.config import config
 from src.llm_reason_generator import get_llm_reason_generator  # type: ignore
 from src.market_regime import market_regime_detector  # type: ignore
 from src.newsapi_client import newsapi_client
+from src.auto_learner import auto_learner  # type: ignore
 from src.performance_tracker import PerformanceTracker  # type: ignore
 from src.position_tracker import PositionTracker
 from src.strategy_optimizer import StrategyOptimizer
@@ -1282,6 +1283,88 @@ def api_optimizer_analyze():
 def optimizer_page():
     """Strategy optimizer page."""
     return render_template("optimizer.html")
+
+
+# ============ AUTO-LEARNING ENDPOINTS ============
+
+
+@app.route("/api/learning/stats")
+@login_required
+def api_learning_stats():
+    """Get auto-learning system statistics."""
+    try:
+        stats = auto_learner.get_learning_stats()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/learning/history")
+@login_required
+def api_learning_history():
+    """Get parameter change history (audit trail)."""
+    try:
+        limit = request.args.get("limit", 20, type=int)
+        history = auto_learner.get_parameter_history(limit=limit)
+        return jsonify(history)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/learning/equity-history")
+@login_required
+def api_learning_equity_history():
+    """Get equity history for charting."""
+    try:
+        days = request.args.get("days", 30, type=int)
+        history = auto_learner.get_equity_history(days=days)
+        return jsonify(history)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/learning/toggle", methods=["POST"])
+@login_required
+def api_learning_toggle():
+    """Enable or disable auto-learning."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+
+        enabled = data.get("enabled")
+        if enabled is None:
+            return jsonify({"error": "Missing 'enabled' field"}), 400
+
+        if enabled:
+            auto_learner.enable_learning()
+            message = "Auto-learning enabled"
+        else:
+            auto_learner.disable_learning()
+            message = "Auto-learning disabled (optimization still runs but won't apply changes)"
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": message,
+                "learning_enabled": auto_learner.state.get("learning_enabled", True),
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/learning/force-optimize", methods=["POST"])
+@login_required
+def api_learning_force_optimize():
+    """Force an optimization cycle regardless of trade count."""
+    try:
+        result = auto_learner.force_optimization()
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
 @app.route("/api/config/weights", methods=["GET"])

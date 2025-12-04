@@ -14,6 +14,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.models import Clock, Position
 
 from config.config import config
+from src.auto_learner import auto_learner
 from src.data_provider import alpaca_provider
 from src.executor import executor
 from src.logger import logger
@@ -999,6 +1000,20 @@ class TradingEngine:
                     consecutive_errors = 0  # Reset error count on new day
                     logger.info("new_trading_day", date=str(current_date))
                     watchdog.heartbeat("new_trading_day_reset")
+
+                    # Record daily equity for auto-learning system
+                    try:
+                        client = TradingClient(
+                            config.alpaca.api_key,
+                            config.alpaca.secret_key,
+                            paper=True,
+                        )
+                        account = client.get_account()
+                        equity = float(account.equity) if account.equity else 0
+                        cash = float(account.cash) if account.cash else 0
+                        auto_learner.record_daily_equity(equity, cash)
+                    except Exception as e:
+                        logger.warning("failed_to_record_daily_equity", error=str(e))
 
                 # Check if market is open
                 if self.is_market_open():
