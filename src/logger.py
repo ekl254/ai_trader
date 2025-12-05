@@ -43,8 +43,13 @@ def setup_logging() -> BoundLogger:
     root_logger.handlers.clear()
     root_logger.setLevel(getattr(logging, config.logging.log_level))
 
-    # Add stdout handler only (systemd handles file logging)
-    # When not running under systemd, logs go to stdout only
+    # Add file handler for persistent logs
+    file_handler = logging.FileHandler(config.logging.log_file)
+    file_handler.setLevel(getattr(logging, config.logging.log_level))
+    file_handler.setFormatter(logging.Formatter("%(message)s"))
+    root_logger.addHandler(file_handler)
+
+    # Add stdout handler for Docker/console output
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(getattr(logging, config.logging.log_level))
     stdout_handler.setFormatter(logging.Formatter("%(message)s"))
