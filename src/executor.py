@@ -74,7 +74,7 @@ class TradeExecutor:
             return None
 
     def wait_for_order_fill(
-        self, order_id: str, timeout_seconds: int = 30, poll_interval: float = 0.5
+        self, order_id: str, timeout_seconds: int = 60, poll_interval: float = 0.5
     ) -> Order | None:
         """
         Wait for an order to be filled.
