@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# AI Trader Docker Entrypoint
+# Runs both dashboard and trading bot inside the container
+
 # Start dashboard in background
 python web/dashboard.py &
 DASHBOARD_PID=$!
