@@ -2,7 +2,7 @@
 """Performance tracking and analytics for trading system."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +77,12 @@ class PerformanceTracker:
             news_sentiment: Sentiment score at entry (optional)
             news_count: Number of news articles at entry (optional)
         """
+        # Ensure both times are timezone-aware for subtraction
+        if entry_time.tzinfo is None:
+            entry_time = entry_time.replace(tzinfo=UTC)
+        if exit_time.tzinfo is None:
+            exit_time = exit_time.replace(tzinfo=UTC)
+
         hold_duration = (exit_time - entry_time).total_seconds() / 60  # minutes
         cost = entry_price * quantity
         revenue = exit_price * quantity
@@ -385,10 +391,8 @@ class PerformanceTracker:
         return analysis
 
     def get_recent_trades(self, limit: int = 20) -> list[dict[str, Any]]:
-        """Get most recent trades."""
-        trades = sorted(
-            self.data["trades"], key=lambda t: t["entry_time"], reverse=True
-        )
+        """Get most recently closed trades."""
+        trades = sorted(self.data["trades"], key=lambda t: t["exit_time"], reverse=True)
         return trades[:limit]
 
     def get_daily_performance(self, days: int = 30) -> list[dict[str, Any]]:

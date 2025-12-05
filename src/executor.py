@@ -1,7 +1,7 @@
 """Trade execution and order management."""
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from alpaca.trading.enums import OrderSide, OrderStatus, TimeInForce
@@ -416,7 +416,7 @@ class TradeExecutor:
                                     "sentiment": entry_score.get("sentiment", 0),
                                     "fundamental": entry_score.get("fundamental", 0),
                                 },
-                                exit_time=datetime.now(),
+                                exit_time=datetime.now(UTC),
                                 exit_price=exit_price,
                                 exit_reason=reason,
                                 quantity=qty_to_sell,
